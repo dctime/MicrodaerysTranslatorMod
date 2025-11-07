@@ -247,6 +247,15 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
         translationLeft = -1;
     }
 
+    @Override
+    public void refreshWidgets() {
+        super.refreshWidgets();
+        isViewQuestPanelTranslated = false;
+        isDescriptionTranslated = null;
+        translationLeft = -1;
+        LOGGER.debug("Warning refreshWidgets called, resetting translation state.");
+    }
+
     @Inject(method = "setCurrentPage", at = @At("RETURN"))
     public void onSetCurrentPage(int page, CallbackInfo ci) {
         LOGGER.debug("Warning SetCurrentPage called, resetting translation state.");
