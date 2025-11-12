@@ -257,8 +257,17 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
     }
 
     @Inject(method = "addWidgets", at = @At("RETURN"), remap = false)
-    public void onAddWidgets(CallbackInfo ci, @Local(name = "panelRewards") BlankPanel panelRewards) {
+    public void onAddWidgets(CallbackInfo ci, @Local(name = "panelRewards", ordinal = 0) BlankPanel panelRewards) {
         this.panelRewards = panelRewards;
+    }
+
+    @Override
+    public void refreshWidgets() {
+        super.refreshWidgets();
+        isViewQuestPanelTranslated = false;
+        isDescriptionTranslated = null;
+        translationLeft = -1;
+        LOGGER.debug("Warning refreshWidgets called, resetting translation state.");
     }
 
     private boolean translateFormattedText(FormattedTextGetterSetter formattedTextGetter) {
