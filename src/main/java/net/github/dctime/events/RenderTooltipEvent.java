@@ -5,6 +5,7 @@ import net.github.dctime.Config;
 import net.github.dctime.GoogleAIStudioTranslatorClient;
 import net.github.dctime.libs.Translator;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -20,6 +21,7 @@ public class RenderTooltipEvent {
     @SubscribeEvent
     public static void onRenderTooltip(net.neoforged.neoforge.client.event.RenderTooltipEvent.GatherComponents event) {
         if (!Config.ENABLE_TOOLTIP_TRANSLATION.get()) return;
+        ItemStack stack = event.getItemStack();
         var elements = event.getTooltipElements();
 
         for (int i = 0; i < elements.size(); i++) {
@@ -32,7 +34,7 @@ public class RenderTooltipEvent {
                     translated = Translator.translationCache.get(original);
                 else {
                     try {
-                        Translator.requestTranslateToTraditionalChinese(original);
+                        Translator.requestTranslateItemStackToTraditionalChinese(original, stack);
                     } catch (IOException ex) {
                         LOGGER.warn("IO Exception while translating: " + ex.getMessage());
                     } catch (InterruptedException ex) {

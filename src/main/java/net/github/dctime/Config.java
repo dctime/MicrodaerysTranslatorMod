@@ -39,14 +39,13 @@ public class Config {
                     "貼近 Minecraft/模組語氣。保留佔位符與格式。不腦補。僅輸出翻譯文字。")
             .define(PROMPT_PATH,
                     "只回繁體中文的翻譯，不要多字、不要解釋。\n" +
-                            "語氣貼近Minecraft與常見模組敘述（短句、指令/提示感）。\n" +
-                            "遵守：\n" +
-                            "1) 不翻譯：模組/方塊/物品 ID、路徑、Key、Tag、檔名、指令(/give 等)、進度代碼、顏色/格式碼(§ 或 &)。\n" +
-                            "2) 優先使用《Minecraft》繁中(zh_tw)官方譯名；無官方譯名則用台灣社群慣用語。\n" +
-                            "3) 名詞遵循遊戲慣用：block=方塊、slab=半磚、stairs=樓梯、planks=木材、log=原木、ore=礦石、ingot=錠、nugget=金粒、dye=染料、bucket=桶、stack=堆疊、craft=合成、smelt=熔煉、furnace=熔爐、blast furnace=高爐、smoker=煙燻爐、enchant=附魔、anvil=鐵砧、loot=戰利品、biome=生態域。\n" +
-                            "4) 字面直譯、保持簡潔；不要加背景、不要腦補。\n" +
-                            "5) 標點與大小寫盡量貼近原風格(專有名詞維持大小寫)。\n" +
-                            "待翻譯：\n"
+                    "遵守：\n" +
+                    "不翻譯：模組/方塊/物品 ID、路徑、Key、Tag、檔名、指令(/give 等)、進度代碼、顏色/格式碼(§ 或 &)\n" +
+                    "名詞遵循遊戲慣用：block=方塊、slab=半磚、stairs=樓梯、planks=木材、log=原木、ore=礦石、ingot=錠、nugget=金粒、dye=染料、bucket=桶、stack=堆疊、craft=合成、smelt=熔煉、furnace=熔爐、blast furnace=高爐、smoker=煙燻爐、enchant=附魔、anvil=鐵砧、loot=戰利品、biome=生態域\n" +
+                    "優先使用《Minecraft》繁中(zh_tw)官方譯名；無官方譯名則用台灣社群慣用語。\n" +
+                    "字面直譯、保持簡潔；不要加背景、不要腦補。\n" +
+                    "標點與大小寫盡量貼近原風格(專有名詞維持大小寫) 不要加句號。\n" +
+                    "待翻譯：\n"
             );
 
     public static final String PROMPT_SCREENSHOT_PATH = "prompt_screenshot";
@@ -75,29 +74,34 @@ public class Config {
     // === Feature toggles ===
     public static final String ENABLE_TOOLTIP_TRANSLATION_PATH = "enable_tooltip_translation";
     public static final ModConfigSpec.BooleanValue ENABLE_TOOLTIP_TRANSLATION = BUILDER
-            .comment("Whether to enable tooltip translation [滑鼠指向物品時是否啟用翻譯] (預設 true)")
+            .comment("[滑鼠指向物品時是否啟用翻譯] (預設 true) Whether to enable tooltip translation")
             .define(ENABLE_TOOLTIP_TRANSLATION_PATH, true);
 
 
     public static final String ENABLE_FTB_QUEST_TRANSLATION_PATH = "enable_ftbquests_translation";
     public static final ModConfigSpec.BooleanValue ENABLE_FTB_QUEST_TRANSLATION = BUILDER
-            .comment("Whether to enable FTB Quests translation [是否啟用 FTB Quests 翻譯] (預設 true)")
+            .comment("[是否啟用 FTB Quests 翻譯] (預設 true) Whether to enable FTB Quests translation")
             .define(ENABLE_FTB_QUEST_TRANSLATION_PATH, true);
 
     public static final String ENABLE_JADE_CONFIG_PATH = "enable_jade_translation";
     public static final ModConfigSpec.BooleanValue ENABLE_JADE_CONFIG = BUILDER
-            .comment("Whether to enable Jade translation [是否啟用 Jade 翻譯] (預設 true)")
+            .comment("[是否啟用 Jade 翻譯] (預設 true) Whether to enable Jade translation")
             .define(ENABLE_JADE_CONFIG_PATH, true);
 
     public static final String ENABLE_ADVANCEMENTS_CONFIG_PATH = "enable_advancements_translation";
     public static final ModConfigSpec.BooleanValue ENABLE_ADVANCEMENTS_CONFIG = BUILDER
-            .comment("Whether to enable Advancements translation [是否啟用成就翻譯] (預設 true)")
+            .comment("[是否啟用成就翻譯] (預設 true) Whether to enable Advancements translation")
             .define(ENABLE_ADVANCEMENTS_CONFIG_PATH, true);
 
     public static final String ENABLE_SCREENSHOT_CONFIG_PATH = "enable_screenshot_translation";
     public static final ModConfigSpec.BooleanValue ENABLE_SCREENSHOT_CONFIG = BUILDER
-            .comment("Whether to enable Screenshot translation [是否啟用螢幕截圖翻譯] (預設 true)")
+            .comment("[是否啟用螢幕截圖翻譯] (預設 true) Whether to enable Screenshot translation")
             .define(ENABLE_SCREENSHOT_CONFIG_PATH, true);
+
+    public static final String ENABLE_ICON_CONFIG_PATH = "enable_icon_translation";
+    public static final ModConfigSpec.BooleanValue ENABLE_ICON_CONFIG = BUILDER
+            .comment("[是否Jade跟Tooltip多傳物品圖案] (預設 true) Whether to enable translation with icon for Jade and Tooltip")
+            .define(ENABLE_ICON_CONFIG_PATH, true);
 
     // // Example of item list config (kept as reference):
     // public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_STRINGS = BUILDER
