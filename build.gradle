@@ -170,6 +170,7 @@ dependencies {
     //https://www.curseforge.com/minecraft/mc-mods/ftb-quests-forge
     compileOnly("curse.maven:ftb-quests-forge-289412:6721642")
 
+    // runData comments these runtimeOnly
     //https://www.curseforge.com/minecraft/mc-mods/ftb-teams-forge
     runtimeOnly("curse.maven:ftb-teams-forge-404468:6119437")
     //https://www.curseforge.com/minecraft/mc-mods/architectury-api

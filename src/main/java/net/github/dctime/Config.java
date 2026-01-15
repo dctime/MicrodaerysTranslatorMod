@@ -100,7 +100,7 @@ public class Config {
 
     public static final String ENABLE_ICON_CONFIG_PATH = "enable_icon_translation";
     public static final ModConfigSpec.BooleanValue ENABLE_ICON_CONFIG = BUILDER
-            .comment("[是否Jade跟Tooltip多傳物品圖案] (預設 true) Whether to enable translation with icon for Jade and Tooltip")
+            .comment("[是否Jade跟Tooltip第一行多傳物品圖案] (預設 true) Whether to enable translation with icon for Jade and Tooltip (only first line)")
             .define(ENABLE_ICON_CONFIG_PATH, true);
 
     // // Example of item list config (kept as reference):

@@ -38,7 +38,11 @@ public class TestTooltipCollectedCallback implements JadeTooltipCollectedCallbac
 
             if (!Translator.translationCache.containsKey(lineMsg)) {
                 try {
-                    Translator.requestTranslateItemStackToTraditionalChinese(lineMsg, stack);
+                    if (jadeIndex != 0) {
+                        Translator.requestTranslateToTraditionalChinese(lineMsg);
+                    } else {
+                        Translator.requestTranslateItemStackToTraditionalChinese(lineMsg, stack);
+                    }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 } catch (InterruptedException e) {

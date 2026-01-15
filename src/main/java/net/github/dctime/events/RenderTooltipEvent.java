@@ -34,7 +34,11 @@ public class RenderTooltipEvent {
                     translated = Translator.translationCache.get(original);
                 else {
                     try {
-                        Translator.requestTranslateItemStackToTraditionalChinese(original, stack);
+                        if (finalI != 0) {
+                            Translator.requestTranslateToTraditionalChinese(original);
+                        } else {
+                            Translator.requestTranslateItemStackToTraditionalChinese(original, stack);
+                        }
                     } catch (IOException ex) {
                         LOGGER.warn("IO Exception while translating: " + ex.getMessage());
                     } catch (InterruptedException ex) {

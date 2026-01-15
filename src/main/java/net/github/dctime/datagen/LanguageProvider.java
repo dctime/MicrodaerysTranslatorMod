@@ -24,6 +24,6 @@ public class LanguageProvider extends net.neoforged.neoforge.common.data.Languag
         add(GoogleAIStudioTranslatorClient.MODID+".configuration."+ Config.ENABLE_TOOLTIP_TRANSLATION_PATH, "(啟用物品提示匡翻譯) Enable Tooltip Translation");
         add(GoogleAIStudioTranslatorClient.MODID+".configuration."+ Config.ENABLE_ADVANCEMENTS_CONFIG_PATH, "(啟用成就翻譯) Enable Advancements Translation");
         add(GoogleAIStudioTranslatorClient.MODID+".configuration."+ Config.ENABLE_SCREENSHOT_CONFIG_PATH, "(啟用螢幕截圖翻譯) Enable Screenshot Translation");
-        add(GoogleAIStudioTranslatorClient.MODID+".configuration."+ Config.ENABLE_ICON_CONFIG_PATH, "(Jade跟Tooltip翻譯多傳物品圖案) Enable translation with icon for Jade and Tooltip");
+        add(GoogleAIStudioTranslatorClient.MODID+".configuration."+ Config.ENABLE_ICON_CONFIG_PATH, "(Jade跟Tooltip翻譯第一行多傳物品圖案) Enable translation with icon for Jade and Tooltip (first line only)");
     }
 }
