@@ -2,6 +2,7 @@ package net.github.dctime.libs;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.github.dctime.Config;
 import net.github.dctime.events.ScreenEventRender;
 import net.minecraft.ChatFormatting;
@@ -10,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.world.entity.player.Player;
 import org.jetbrains.annotations.NotNull;
+import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +24,8 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.regex.Pattern;
+
+import static net.github.dctime.libs.ScreenShotter.getItemStackImage;
 
 public class Translator {
     public static HashMap<String, String> translationCache = new HashMap<>();
@@ -48,13 +52,13 @@ public class Translator {
         player.sendSystemMessage(Component.literal("清除翻譯快取").withStyle(ChatFormatting.YELLOW));
     }
 
-    private static HttpRequest setupRequest(String textInEnglish, @Nullable String image) {
+    private static HttpRequest setupRequest(String textInEnglish, @Nullable String image, boolean isScreenShot) {
 //        String model = "gemma-3-27b-it";
         String model = Config.MODEL_NAME.get();
         String url = String.format("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", model);
 //
         String prompt = Config.PROMPT.get() + "\n" + textInEnglish;
-        if (image != null) {
+        if (isScreenShot) {
             prompt = Config.PROMPT_SCREENSHOT.get();
         }
 
@@ -115,13 +119,36 @@ public class Translator {
     }
 
     public static void requestTranslateToTraditionalChinese(String textInEnglish) throws IOException, InterruptedException {
-        requestTranslateToTraditionalChinese(textInEnglish, null);
+        requestTranslateToTraditionalChinese(textInEnglish, null, false);
     }
 
-    public static void requestTranslateToTraditionalChinese(String textInEnglish, String image) throws IOException, InterruptedException {
+    public static void requestTranslateItemStackToTraditionalChinese(String textInEnglish, ItemStack stack) throws IOException, InterruptedException {
+        if (stack != null && !translating && Config.ENABLE_ICON_CONFIG.get()) {
+            RenderSystem.recordRenderCall(() -> {
+                String image = getItemStackImage(stack);
+                try {
+                    requestTranslateToTraditionalChinese(textInEnglish, image, false);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        } else {
+            requestTranslateToTraditionalChinese(textInEnglish);
+        }
+
+    }
+
+    public static void requestTranslateToTraditionalChinese(String textInEnglish, String image, boolean isScreenShot) throws IOException, InterruptedException {
+        if (translating) {
+            // System.out.println("Translator in use.");
+            return;
+        }
+
         String textInEnglishFixed = textInEnglish.replace("\"", "\\\"");
 //        System.out.println("TextInEnglishFixed: " + textInEnglishFixed);
-        HttpRequest req = setupRequest(textInEnglishFixed, image);
+        HttpRequest req = setupRequest(textInEnglishFixed, image, isScreenShot);
         if (req == null) {
             LOGGER.warn("HTTP request is NULL.");
             return;
@@ -133,10 +160,6 @@ public class Translator {
             return;
         }
 
-        if (translating) {
-            // System.out.println("Translator in use.");
-            return;
-        }
         translating = true;
 
         CLIENT.sendAsync(req, HttpResponse.BodyHandlers.ofString())
@@ -212,7 +235,7 @@ public class Translator {
                                     .replace("\n", " ")
                                     .replaceAll("\\p{Cntrl}", "")
                                     .trim();
-                            if (image == null) {
+                            if (!isScreenShot) {
                                 translationCache.put(textInEnglish, translatedText);
                                 LOGGER.debug("Translated: " + textInEnglishFixed + " -> " + translatedText);
                             } else {

@@ -170,6 +170,7 @@ dependencies {
     //https://www.curseforge.com/minecraft/mc-mods/ftb-quests-forge
     compileOnly("curse.maven:ftb-quests-forge-289412:5494845")
 
+    // runData comments these runtimeOnly
     //https://www.curseforge.com/minecraft/mc-mods/ftb-teams-forge
     runtimeOnly("curse.maven:ftb-teams-forge-404468:5202951")
     //https://www.curseforge.com/minecraft/mc-mods/architectury-api
@@ -184,6 +185,7 @@ dependencies {
 
     runtimeOnly("curse.maven:mekanism-268560:5316226")
 
+    implementation "curse.maven:configured-457570:5105024"
 
     implementation "curse.maven:better-advancements-272515:5438621"
 }

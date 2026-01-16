@@ -15,7 +15,8 @@
     "ftbquests.CloseViewQuestButtonMixin",
     "ftbquests.PinViewQuestButtonMixin",
     "AdvancementWidgetMixin",
-    "BetterAdvancementWidgetMixin"
+    "BetterAdvancementWidgetMixin",
+    "jade.ItemStackElementMixin"
   ],
   "injectors": {
     "defaultRequire": 1

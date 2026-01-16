@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 
 public class LoadMixinPlugin implements IMixinConfigPlugin {
+    private static boolean jadeLoaded = false;
     private static boolean ftbquestsLoaded = false;
     private static boolean betteradvancementsLoaded = false;
     private static final Logger LOGGER = LoggerFactory.getLogger(LoadMixinPlugin.class);
@@ -26,14 +27,19 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if (LoadingModList.get().getModFileById("jade") != null && !jadeLoaded) {
+            jadeLoaded = true;
+            LOGGER.info("Jaded is loaded, applying mixins for Jade compatibility.");
+        }
+
         if (LoadingModList.get().getModFileById("ftbquests") != null && !ftbquestsLoaded) {
             ftbquestsLoaded = true;
             LOGGER.info("FTB Quests is loaded, applying mixins for FTB Quests compatibility.");
         }
 
-        if (LoadingModList.get().getModFileById("betteradvancements") != null && !ftbquestsLoaded) {
+        if (LoadingModList.get().getModFileById("betteradvancements") != null && !betteradvancementsLoaded) {
             betteradvancementsLoaded = true;
-            LOGGER.info("FTB Quests is loaded, applying mixins for FTB Quests compatibility.");
+            LOGGER.info("Better Advancements is loaded, applying mixins for Better Advancements compatibility.");
         }
 
         if (mixinClassName.endsWith("ViewQuestPanelMixin")) return ftbquestsLoaded;
@@ -45,6 +51,7 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.endsWith("BaseScreenMixin")) return ftbquestsLoaded;
         if (mixinClassName.endsWith("AdvancementWidgetMixin")) return true;
         if (mixinClassName.endsWith("BetterAdvancementWidgetMixin")) return betteradvancementsLoaded;
+        if (mixinClassName.endsWith("ItemStackElementMixin")) return jadeLoaded;
         return false;
     }
 

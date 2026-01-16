@@ -137,7 +137,7 @@ public class ScreenShotSelectAreaScreen extends Screen implements GuiEventListen
         }
 
         try {
-            Translator.requestTranslateToTraditionalChinese(":", tempBase64Image);
+            Translator.requestTranslateToTraditionalChinese(":", tempBase64Image, true);
             if (Minecraft.getInstance().player != null) {
                 Minecraft.getInstance().player.sendSystemMessage(Component.literal("螢幕截圖翻譯中...").withStyle(ChatFormatting.GREEN));
                 ScreenEventRender.setRenderText("螢幕截圖翻譯中...");
