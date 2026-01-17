@@ -15,7 +15,8 @@
     "ftbquests.QuestDescriptionFieldMixin",
     "ftbquests.QuestPanelMixin",
     "ftbquests.TextFieldMixin",
-    "ftbquests.ViewQuestPanelMixin"
+    "ftbquests.ViewQuestPanelMixin",
+    "jade.ItemStackElementMixin"
   ],
   "injectors": {
     "defaultRequire": 1

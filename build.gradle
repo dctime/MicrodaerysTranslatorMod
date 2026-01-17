@@ -10,6 +10,30 @@ plugins {
 version = mod_version
 group = mod_group_id
 
+repositories {
+    // Add here additional repositories if required by some of the dependencies below.
+    // JEI
+    mavenCentral()
+    maven {
+        // location of the maven that hosts JEI files since January 2023
+        name = "Jared's maven"
+        url = "https://maven.blamejared.com/"
+    }
+    maven {
+        // location of a maven mirror for JEI files, as a fallback
+        name = "ModMaven"
+        url = "https://modmaven.dev"
+    }
+    maven {
+        name = "Curse maven"
+        url = "https://cursemaven.com"
+        content {
+            includeGroup "curse.maven"
+        }
+    }
+    maven { url = "https://api.modrinth.com/maven" }
+}
+
 base {
     archivesName = mod_id
 }
@@ -189,6 +213,7 @@ dependencies {
     //https://www.curseforge.com/minecraft/mc-mods/ftb-quests-forge
     compileOnly fg.deobf("curse.maven:ftb-quests-forge-289412:6130546")
 
+    // runData comments these runtimeOnly
     //https://www.curseforge.com/minecraft/mc-mods/ftb-teams-forge
     runtimeOnly fg.deobf("curse.maven:ftb-teams-forge-404468:4611938")
     //https://www.curseforge.com/minecraft/mc-mods/architectury-api

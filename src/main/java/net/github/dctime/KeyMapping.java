@@ -21,8 +21,18 @@ public class KeyMapping {
             "key.categories."+GoogleAIStudioTranslatorClient.MODID+".key_mapping_category"
     ));
 
+    public static final Lazy<net.minecraft.client.KeyMapping> SHOW_TRANSLATION_IN_GUI = Lazy.of(() -> new net.minecraft.client.KeyMapping(
+            "key."+GoogleAIStudioTranslatorClient.MODID+".show_translation_in_gui",
+            KeyConflictContext.UNIVERSAL,
+            KeyModifier.NONE, // Default mapping requires shift to be held down
+            InputConstants.Type.KEYSYM, // Default mapping is on the keyboard
+            GLFW.GLFW_KEY_LEFT_ALT,
+            "key.categories."+GoogleAIStudioTranslatorClient.MODID+".key_mapping_category"
+    ));
+
     @SubscribeEvent // on the mod event bus only on the physical client
     public static void registerBindings(RegisterKeyMappingsEvent event) {
         event.register(DELETE_TRANSLATION_CACHE.get());
+        event.register(SHOW_TRANSLATION_IN_GUI.get());
     }
 }

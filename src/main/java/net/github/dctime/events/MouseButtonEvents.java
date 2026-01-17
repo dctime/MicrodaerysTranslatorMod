@@ -10,7 +10,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 @Mod.EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT)
-public class MouseButtonPressedEvent {
+public class MouseButtonEvents {
     @SubscribeEvent
     public static void onMouseButtonPressed(ScreenEvent.KeyPressed.Post event) {
         int keyCode = event.getKeyCode();
@@ -18,5 +18,14 @@ public class MouseButtonPressedEvent {
         if (KeyMapping.DELETE_TRANSLATION_CACHE.get().isActiveAndMatches(InputConstants.getKey(keyCode, scanCode))) {
             Translator.clearCache();
         }
+
+        if (KeyMapping.SHOW_TRANSLATION_IN_GUI.get().isActiveAndMatches(InputConstants.getKey(keyCode, scanCode))) {
+            ScreenEventRender.setShowTranslationButtonPressed(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onMouseButtonReleased(ScreenEvent.KeyReleased.Post event) {
+        ScreenEventRender.setShowTranslationButtonPressed(false);
     }
 }

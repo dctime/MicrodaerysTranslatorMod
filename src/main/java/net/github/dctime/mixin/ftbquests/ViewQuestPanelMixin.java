@@ -6,6 +6,8 @@ import dev.ftb.mods.ftblibrary.ui.*;
 import dev.ftb.mods.ftblibrary.ui.misc.CompactGridLayout;
 import dev.ftb.mods.ftbquests.gui.quests.QuestScreen;
 import dev.ftb.mods.ftbquests.gui.quests.ViewQuestPanel;
+import dev.ftb.mods.ftbquests.gui.quests.QuestScreen;
+import dev.ftb.mods.ftbquests.gui.quests.ViewQuestPanel;
 import dev.ftb.mods.ftbquests.quest.Quest;
 import net.github.dctime.Config;
 import net.github.dctime.libs.*;
@@ -296,7 +298,7 @@ public abstract class ViewQuestPanelMixin extends Panel {
 
             return true;
         } else {
-            LOGGER.debug("Translating text: " + totalText);
+//            LOGGER.debug("Translating text: " + totalText);
             try {
                 Translator.requestTranslateToTraditionalChinese(totalText);
             } catch (IOException ex) {
