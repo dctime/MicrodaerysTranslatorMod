@@ -53,7 +53,7 @@ public class OverlayRendererMixin {
 
     private static void onTooltipCollected(TooltipRenderer renderer){
         ItemStack stack = null;
-        if (renderer instanceof IGetIcon iconGetter && iconGetter instanceof IGetItem iGetItem) {
+        if (renderer instanceof IGetIcon iconGetter && iconGetter.getIcon() instanceof IGetItem iGetItem) {
             stack = iGetItem.getItem();
         }
 //        if ((accessor instanceof BlockAccessorImpl blockAccessor)) {
