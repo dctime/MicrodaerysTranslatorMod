@@ -5,6 +5,8 @@ import net.github.dctime.Config;
 import net.github.dctime.GoogleAIStudioTranslatorClient;
 import net.github.dctime.libs.Translator;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -51,10 +53,10 @@ public class RenderTooltipEvent {
                 Component replaced;
 
                 if (text instanceof Component textComponent)
-                    replaced = textComponent.copy().append(Component.literal(" " + translated).setStyle(Translator.translatedStyle));
+                    replaced = textComponent.copy().append(new TextComponent(" " + translated).setStyle(Translator.translatedStyle));
                 else
                 // Example transformation: prepend and uppercase
-                    replaced = Component.literal(text.getString()).append(Component.literal(" " + translated).setStyle(Translator.translatedStyle));
+                    replaced = new TextComponent(text.getString()).append(new TextComponent(" " + translated).setStyle(Translator.translatedStyle));
                 elements.set(finalI, Either.left(replaced));
             });
         }

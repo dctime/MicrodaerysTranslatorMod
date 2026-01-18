@@ -57,7 +57,7 @@ minecraft {
     // Use non-default mappings at your own risk. They may not always work.
     // Simply re-run your setup task after changing the mappings to update your workspace.
 //    mappings channel: mapping_channel, version: mapping_version
-    mappings channel: 'parchment', version: '2022.11.27-1.19.2'
+    mappings channel: 'parchment', version: '2022.11.06-1.18.2'
 
     // When true, this property will have all Eclipse/IntelliJ IDEA run configurations run the "prepareX" task for the given run configuration before launching the game.
     // In most cases, it is not necessary to enable.
@@ -205,38 +205,46 @@ dependencies {
     runtimeOnly(fg.deobf("mezz.jei:jei-${minecraft_version}-forge:${jei_version}"))
 
     //https://www.curseforge.com/minecraft/mc-mods/ftb-teams-forge
-    compileOnly fg.deobf("curse.maven:ftb-teams-forge-404468:4611938")
+    compileOnly fg.deobf("curse.maven:ftb-teams-forge-404468:4579981")
     //https://www.curseforge.com/minecraft/mc-mods/architectury-api
-    compileOnly fg.deobf("curse.maven:architectury-api-419699:5137942")
+    compileOnly fg.deobf("curse.maven:architectury-api-419699:4521465")
     //https://www.curseforge.com/minecraft/mc-mods/ftb-library-forge
-    compileOnly fg.deobf("curse.maven:ftb-library-forge-404465:4661834")
+    compileOnly fg.deobf("curse.maven:ftb-library-forge-404465:4396792")
     //https://www.curseforge.com/minecraft/mc-mods/ftb-quests-forge
-    compileOnly fg.deobf("curse.maven:ftb-quests-forge-289412:6130546")
+    compileOnly fg.deobf("curse.maven:ftb-quests-forge-289412:4760361")
+    // https://www.curseforge.com/minecraft/mc-mods/item-filters/files/4553322
+    compileOnly fg.deobf("curse.maven:item-filters-309674:4055445")
 
     // runData comments these runtimeOnly
     //https://www.curseforge.com/minecraft/mc-mods/ftb-teams-forge
-    runtimeOnly fg.deobf("curse.maven:ftb-teams-forge-404468:4611938")
+    runtimeOnly fg.deobf("curse.maven:ftb-teams-forge-404468:4579981")
     //https://www.curseforge.com/minecraft/mc-mods/architectury-api
-    runtimeOnly fg.deobf("curse.maven:architectury-api-419699:5137942")
+    runtimeOnly fg.deobf("curse.maven:architectury-api-419699:4521465")
     //https://www.curseforge.com/minecraft/mc-mods/ftb-library-forge
-    runtimeOnly fg.deobf("curse.maven:ftb-library-forge-404465:4661834")
+    runtimeOnly fg.deobf("curse.maven:ftb-library-forge-404465:4396792")
     //https://www.curseforge.com/minecraft/mc-mods/ftb-quests-forge
-    runtimeOnly fg.deobf("curse.maven:ftb-quests-forge-289412:6130546")
+    runtimeOnly fg.deobf("curse.maven:ftb-quests-forge-289412:4760361")
+    //https://www.curseforge.com/minecraft/mc-mods/item-filters/files/4553322
+    runtimeOnly fg.deobf("curse.maven:item-filters-309674:4055445")
 
+//    implementation fg.deobf("curse.maven:item-filters-309674:4553322")
 
 //    implementation "maven.modrinth:jade:${jade_version}"
 //    implementation fg.deobf("maven.modrinth:jade:11.13.2+forge")
-    implementation fg.deobf("curse.maven:jade-324717:4914105")
+    // https://www.curseforge.com/minecraft/mc-mods/jade
+    implementation fg.deobf("curse.maven:jade-324717:5079263")
 
-    implementation fg.deobf("curse.maven:better-advancements-272515:4276529")
+    // https://www.curseforge.com/minecraft/mc-mods/better-advancements
+    implementation fg.deobf("curse.maven:better-advancements-272515:4111314")
 
-    implementation fg.deobf("curse.maven:configured-457570:4462837")
+    // https://www.curseforge.com/minecraft/mc-mods/configured
+    implementation fg.deobf("curse.maven:configured-457570:4462832")
 
     // Apply Mixin AP
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     // item filters
-    implementation fg.deobf("curse.maven:item-filters-309674:4553326")
+//    implementation fg.deobf("curse.maven:item-filters-309674:4553326")
 }
 
 mixin {

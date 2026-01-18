@@ -8,7 +8,9 @@ import net.github.dctime.events.ScreenEventRender;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.world.entity.player.Player;
 import org.jetbrains.annotations.NotNull;
 import net.minecraft.world.item.ItemStack;
@@ -48,8 +50,8 @@ public class Translator {
         Player player = Minecraft.getInstance().player;
         if (player == null) return;
         Translator.translationCache.clear();
-        player.sendSystemMessage(Component.literal("Translation cache cleared.").withStyle(ChatFormatting.YELLOW));
-        player.sendSystemMessage(Component.literal("清除翻譯快取").withStyle(ChatFormatting.YELLOW));
+        player.displayClientMessage(new TextComponent("Translation cache cleared.").withStyle(ChatFormatting.YELLOW), false);
+        player.displayClientMessage(new TextComponent("清除翻譯快取").withStyle(ChatFormatting.YELLOW), false);
     }
 
     private static HttpRequest setupRequest(String textInEnglish, @Nullable String image, boolean isScreenShot) {
@@ -169,10 +171,10 @@ public class Translator {
                             LOGGER.warn("Translation request failed: " + throwable.getMessage());
                             Minecraft.getInstance().execute(() -> {
                                 if (Minecraft.getInstance().player != null && !hasShowConnectionError) {
-                                    Minecraft.getInstance().player.sendSystemMessage(
-                                            Component.literal("Translate failed! Check Your Internet Connection").withStyle(ChatFormatting.YELLOW));
-                                    Minecraft.getInstance().player.sendSystemMessage(
-                                            Component.literal("無法翻譯! 請檢查網路連線").withStyle(ChatFormatting.YELLOW));
+                                    Minecraft.getInstance().player.displayClientMessage(
+                                            new TextComponent("Translate failed! Check Your Internet Connection").withStyle(ChatFormatting.YELLOW), false);
+                                    Minecraft.getInstance().player.displayClientMessage(
+                                            new TextComponent("無法翻譯! 請檢查網路連線").withStyle(ChatFormatting.YELLOW), false);
                                     hasShowConnectionError = true;
                                 }
                             });
@@ -196,30 +198,30 @@ public class Translator {
                             if (resp.statusCode() == 403) {
                                 Minecraft.getInstance().execute(() -> {
                                     if (Minecraft.getInstance().player != null && !hasShowAPIKEYError) {
-                                        Minecraft.getInstance().player.sendSystemMessage(
-                                                Component.literal("Translation failed! Check Your Google AI Studio Key in config!").withStyle(ChatFormatting.YELLOW));
-                                        Minecraft.getInstance().player.sendSystemMessage(
-                                                Component.literal("無法翻譯! 請檢查你的 config 資料夾的Google Ai Studio 之 API KEY").withStyle(ChatFormatting.YELLOW));
+                                        Minecraft.getInstance().player.displayClientMessage(
+                                                new TextComponent("Translation failed! Check Your Google AI Studio Key in config!").withStyle(ChatFormatting.YELLOW), false);
+                                        Minecraft.getInstance().player.displayClientMessage(
+                                                new TextComponent("無法翻譯! 請檢查你的 config 資料夾的Google Ai Studio 之 API KEY").withStyle(ChatFormatting.YELLOW), false);
                                         hasShowAPIKEYError = true;
                                     }
                                 });
                             } else if (resp.statusCode() == 429) {
                                 Minecraft.getInstance().execute(() -> {
                                     if (Minecraft.getInstance().player != null && !hasShowRequestTooFrequentError) {
-                                        Minecraft.getInstance().player.sendSystemMessage(
-                                                Component.literal("Translation failed! You request too frequently and exceed your current quota (RPM)").withStyle(ChatFormatting.YELLOW));
-                                        Minecraft.getInstance().player.sendSystemMessage(
-                                                Component.literal("無法翻譯! 你請求的速度過快導致超過你的方案的RPM 請稍後在試").withStyle(ChatFormatting.YELLOW));
+                                        Minecraft.getInstance().player.displayClientMessage(
+                                                new TextComponent("Translation failed! You request too frequently and exceed your current quota (RPM)").withStyle(ChatFormatting.YELLOW), false);
+                                        Minecraft.getInstance().player.displayClientMessage(
+                                                new TextComponent("無法翻譯! 你請求的速度過快導致超過你的方案的RPM 請稍後在試").withStyle(ChatFormatting.YELLOW), false);
                                         hasShowRequestTooFrequentError = true;
                                     }
                                 });
                             } else if (!hasShowOtherError) {
                                 Minecraft.getInstance().execute(() -> {
                                     if (Minecraft.getInstance().player != null) {
-                                        Minecraft.getInstance().player.sendSystemMessage(
-                                                Component.literal("Translation failed! HTTP Status Code: " + resp.statusCode()).withStyle(ChatFormatting.RED));
-                                        Minecraft.getInstance().player.sendSystemMessage(
-                                                Component.literal("翻譯失敗! HTTP 回傳碼: " + resp.statusCode()).withStyle(ChatFormatting.RED));
+                                        Minecraft.getInstance().player.displayClientMessage(
+                                                new TextComponent("Translation failed! HTTP Status Code: " + resp.statusCode()).withStyle(ChatFormatting.RED), false);
+                                        Minecraft.getInstance().player.displayClientMessage(
+                                                new TextComponent("翻譯失敗! HTTP 回傳碼: " + resp.statusCode()).withStyle(ChatFormatting.RED), false);
                                         hasShowOtherError = true;
                                     }
                                 });
@@ -242,8 +244,8 @@ public class Translator {
                                 final String finalTranslatedText = translatedText;
                                 Minecraft.getInstance().execute(()->{
                                     if (Minecraft.getInstance().player != null) {
-                                        Minecraft.getInstance().player.sendSystemMessage(
-                                                Component.literal("螢幕翻譯結果: \n" + finalTranslatedText).withStyle(Translator.translatedStyle)
+                                        Minecraft.getInstance().player.displayClientMessage(
+                                                new TextComponent("螢幕翻譯結果: \n" + finalTranslatedText).withStyle(Translator.translatedStyle), false
                                         );
                                         sendDataToScreen(finalTranslatedText);
                                     }

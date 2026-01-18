@@ -1,11 +1,8 @@
 package net.github.dctime.mixin.ftbquests;
 
-import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.ftb.mods.ftblibrary.ui.*;
 import dev.ftb.mods.ftblibrary.ui.misc.CompactGridLayout;
-import dev.ftb.mods.ftbquests.gui.quests.QuestScreen;
-import dev.ftb.mods.ftbquests.gui.quests.ViewQuestPanel;
 import dev.ftb.mods.ftbquests.gui.quests.QuestScreen;
 import dev.ftb.mods.ftbquests.gui.quests.ViewQuestPanel;
 import dev.ftb.mods.ftbquests.quest.Quest;
@@ -14,7 +11,7 @@ import net.github.dctime.libs.*;
 import net.github.dctime.libs.ftbquests.FormattedTextGetterSetter;
 import net.github.dctime.libs.ftbquests.ICloseViewQuestButton;
 import net.github.dctime.libs.ftbquests.IPinViewQuestButton;
-import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TranslatableComponent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
@@ -22,7 +19,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -50,8 +46,8 @@ public abstract class ViewQuestPanelMixin extends Panel {
     private BlankPanel panelContent;
 
 
-    @Shadow(remap = false)
-    private long lastScrollTime;
+//    @Shadow(remap = false)
+//    private long lastScrollTime;
     private boolean isViewQuestPanelTranslated = false;
     private List<Boolean> isDescriptionTranslated = null;
     // -1 : standup, 0 : ready to resize, 1+: amount of translation left
@@ -185,19 +181,30 @@ public abstract class ViewQuestPanelMixin extends Panel {
                 viewWidget.setPosAndSize(width - iconSize - 2, 4, iconSize, iconSize);
             } else if (viewWidget instanceof IPinViewQuestButton) {
                 viewWidget.setPosAndSize(width - iconSize * 2 - 4, 4, iconSize, iconSize);
-            } else if (Objects.equals(viewWidget.getTitle(), Component.translatable("ftbquests.gui.no_dependants")) ||
-                    Objects.equals(viewWidget.getTitle(), Component.translatable("ftbquests.gui.view_dependants"))) {
+            } else if (Objects.equals(viewWidget.getTitle(), new TranslatableComponent("ftbquests.gui.no_dependants")) ||
+                    Objects.equals(viewWidget.getTitle(), new TranslatableComponent("ftbquests.gui.view_dependants"))) {
                 viewWidget.setPosAndSize(width - 13, this.panelContent.posY + 2, 13, 13);
             }
         }
     }
 
-    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true, remap = false)
-    public void mouseScrolled(double scroll, CallbackInfoReturnable<Boolean> cir) {
+//    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true, remap = false)
+//    public void mouseScrolled(double scroll, CallbackInfoReturnable<Boolean> cir) {
+//        if (translationLeft > 0) {
+/// /            System.out.println("Not translated yet. Tasks left: " + translationLeft + ", cannot scroll.");
+///
+/// @return
+//            cir.cancel();
+//        }
+//    }
+
+    @Override
+    public boolean mouseScrolled(double scroll) {
         if (translationLeft > 0) {
 //            System.out.println("Not translated yet. Tasks left: " + translationLeft + ", cannot scroll.");
-            cir.cancel();
+            return false;
         }
+        return super.mouseScrolled(scroll);
     }
 
     @Inject(method = "draw", at = @At("HEAD"), remap = false)
@@ -266,14 +273,14 @@ public abstract class ViewQuestPanelMixin extends Panel {
         translationLeft = -1;
     }
 
-    @Inject(method = "setCurrentPage", at = @At("RETURN"), remap = false)
-    public void onSetCurrentPage(int page, CallbackInfo ci) {
-        LOGGER.debug("Warning SetCurrentPage called, resetting translation state.");
-        // Reset translation state when changing pages
-        isViewQuestPanelTranslated = false;
-        isDescriptionTranslated = null;
-        translationLeft = -1;
-    }
+//    @Inject(method = "setCurrentPage", at = @At("RETURN"), remap = false)
+//    public void onSetCurrentPage(int page, CallbackInfo ci) {
+//        LOGGER.debug("Warning SetCurrentPage called, resetting translation state.");
+//        // Reset translation state when changing pages
+//        isViewQuestPanelTranslated = false;
+//        isDescriptionTranslated = null;
+//        translationLeft = -1;
+//    }
 
 //    @Inject(method = "addWidgets", at = @At("RETURN"), remap = false)
 //    public void onAddWidgets(CallbackInfo ci, @Local(name = "panelRewards") BlankPanel panelRewards) {

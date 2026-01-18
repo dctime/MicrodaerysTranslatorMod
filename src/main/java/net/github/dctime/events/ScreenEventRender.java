@@ -27,7 +27,7 @@ public class ScreenEventRender {
     public static String renderText = "未截圖過請先截圖";
 
     @SubscribeEvent
-    public static void screenEventRender(ScreenEvent.Render.Post event) {
+    public static void screenEventRender(ScreenEvent.DrawScreenEvent.Post event) {
         if (!showTranslationButtonPressed) return;
         PoseStack poseStack = event.getPoseStack();
         Screen screen = event.getScreen();

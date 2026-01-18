@@ -15,6 +15,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 
 import java.io.File;
@@ -44,7 +45,7 @@ public class ScreenShotSelectAreaScreen extends Screen implements GuiEventListen
     }
 
     public ScreenShotSelectAreaScreen(NativeImage image, Screen oldScreen) {
-        super(Component.literal("screenshotselectarea"));
+        super(new TextComponent("screenshotselectarea"));
         System.out.println("LOAD IMAGE");
         tempImage = new NativeImage(image.getWidth(), image.getHeight(), false);
         tempImage.copyFrom(image);
@@ -149,7 +150,7 @@ public class ScreenShotSelectAreaScreen extends Screen implements GuiEventListen
             tempBase64Image = ScreenShotter.pixelsToBase64(cropTempImage.makePixelArray(), cropTempImage.getWidth(), cropTempImage.getHeight());
         } catch (Exception e) {
             if (Minecraft.getInstance().player != null) {
-                Minecraft.getInstance().player.sendSystemMessage(Component.literal("螢幕截圖檔案無法翻成Base64" + e.getMessage()).withStyle(ChatFormatting.RED));
+                Minecraft.getInstance().player.displayClientMessage(new TextComponent("螢幕截圖檔案無法翻成Base64" + e.getMessage()).withStyle(ChatFormatting.RED), false);
             }
 //            System.out.println("Error processing image: " + e.getMessage());
 //            tempBase64Image = null;
@@ -157,7 +158,7 @@ public class ScreenShotSelectAreaScreen extends Screen implements GuiEventListen
 
         if (Translator.translating) {
             if (Minecraft.getInstance().player != null) {
-                Minecraft.getInstance().player.sendSystemMessage(Component.literal("翻譯器正在忙碌中，請稍後再截圖。").withStyle(ChatFormatting.YELLOW));
+                Minecraft.getInstance().player.displayClientMessage(new TextComponent("翻譯器正在忙碌中，請稍後再截圖。").withStyle(ChatFormatting.YELLOW), false);
                 ScreenEventRender.setRenderText("翻譯器正在忙碌中，請稍後再截圖。");
                 return;
             }
@@ -166,12 +167,12 @@ public class ScreenShotSelectAreaScreen extends Screen implements GuiEventListen
         try {
             Translator.requestTranslateToTraditionalChinese(":", tempBase64Image, true);
             if (Minecraft.getInstance().player != null) {
-                Minecraft.getInstance().player.sendSystemMessage(Component.literal("螢幕截圖翻譯中...").withStyle(ChatFormatting.GREEN));
+                Minecraft.getInstance().player.displayClientMessage(new TextComponent("螢幕截圖翻譯中...").withStyle(ChatFormatting.GREEN), false);
                 ScreenEventRender.setRenderText("螢幕截圖翻譯中...");
             }
         } catch (IOException | InterruptedException e) {
             if (Minecraft.getInstance().player != null) {
-                Minecraft.getInstance().player.sendSystemMessage(Component.literal("螢幕翻譯錯誤: " + e.getMessage()).withStyle(ChatFormatting.RED));
+                Minecraft.getInstance().player.displayClientMessage(new TextComponent("螢幕翻譯錯誤: " + e.getMessage()).withStyle(ChatFormatting.RED), false);
             }
         }
     }

@@ -14,10 +14,7 @@ import net.minecraft.advancements.DisplayInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.locale.Language;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.ComponentUtils;
-import net.minecraft.network.chat.FormattedText;
-import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.*;
 import net.minecraft.util.FormattedCharSequence;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -77,7 +74,8 @@ public abstract class BetterAdvancementWidgetMixin {
     private int tempMaxWidth;
 
     @Shadow(remap = false)
-    protected abstract List<FormattedText> findOptimalLines(Component line, int width);
+    protected abstract List<FormattedCharSequence> findOptimalLines(Component line, int width);
+//    protected abstract List<FormattedText> findOptimalLines(Component line, int width);
 
     @Inject(method = "Lbetteradvancements/gui/BetterAdvancementWidget;drawHover(Lcom/mojang/blaze3d/vertex/PoseStack;IIFII)V", at = @At(value = "FIELD", target = "width", ordinal = 0), remap = false)
     public void onDrawHover(PoseStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci) {
@@ -146,7 +144,8 @@ public abstract class BetterAdvancementWidgetMixin {
         }
 
         String translatedDesc = Translator.translationCache.get(originalDesc);
-        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(this.displayInfo.getDescription().copy().append(Component.literal("\n"+translatedDesc).withStyle(Translator.translatedStyle)), Style.EMPTY.withColor(this.displayInfo.getFrame().getChatColor())), tempMaxWidth));
+//        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(this.displayInfo.getDescription().copy().append(new TextComponent("\n"+translatedDesc).withStyle(Translator.translatedStyle)), Style.EMPTY.withColor(this.displayInfo.getFrame().getChatColor())), tempMaxWidth));
+        this.description = this.findOptimalLines(ComponentUtils.mergeStyles(this.displayInfo.getDescription().copy().append(new TextComponent("\n"+translatedDesc).withStyle(Translator.translatedStyle)), Style.EMPTY.withColor(this.displayInfo.getFrame().getChatColor())), tempMaxWidth);
 
         for(FormattedCharSequence line : this.description) {
             tempMaxWidth = Math.max(tempMaxWidth, Minecraft.getInstance().font.width(line));

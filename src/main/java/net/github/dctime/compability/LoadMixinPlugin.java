@@ -53,6 +53,10 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.endsWith("AdvancementWidgetMixin")) return true;
         if (mixinClassName.endsWith("BetterAdvancementWidgetMixin")) return betteradvancementsLoaded;
         if (mixinClassName.endsWith("ItemStackElementMixin")) return jadeLoaded;
+        if (mixinClassName.endsWith("TooltipRendererMixin")) return jadeLoaded;
+        if (mixinClassName.endsWith("TooltipLineMixin")) return jadeLoaded;
+        if (mixinClassName.endsWith("TooltipMixin")) return jadeLoaded;
+        if (mixinClassName.endsWith("OverlayRendererMixin")) return jadeLoaded;
         return false;
     }
 

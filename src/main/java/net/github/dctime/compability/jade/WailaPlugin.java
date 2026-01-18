@@ -1,11 +1,11 @@
 package net.github.dctime.compability.jade;
 
 
-import snownee.jade.api.IWailaClientRegistration;
-import snownee.jade.api.IWailaCommonRegistration;
-import snownee.jade.api.IWailaPlugin;
+import mcp.mobius.waila.api.IWailaClientRegistration;
+import mcp.mobius.waila.api.IWailaCommonRegistration;
+import mcp.mobius.waila.api.IWailaPlugin;
 
-@snownee.jade.api.WailaPlugin
+@mcp.mobius.waila.api.WailaPlugin
 public class WailaPlugin implements IWailaPlugin {
     @Override
     public void register(IWailaCommonRegistration registration) {
@@ -15,6 +15,6 @@ public class WailaPlugin implements IWailaPlugin {
     @Override
     public void registerClient(IWailaClientRegistration registration) {
 //        registration.addBeforeRenderCallback(new TestBeforeRenderCallback());
-        registration.addTooltipCollectedCallback(new TestTooltipCollectedCallback());
+//        registration.addTooltipCollectedCallback(new TestTooltipCollectedCallback());
     }
 }

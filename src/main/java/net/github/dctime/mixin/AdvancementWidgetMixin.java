@@ -131,7 +131,7 @@ public abstract class AdvancementWidgetMixin {
 //        FormattedCharSequence seq = FormattedCharSequence.forward(" "+translated, Translator.translatedStyle);
 //        title = FormattedCharSequence.composite(title, seq);
         this.title = Language.getInstance().getVisualOrder(Minecraft.getInstance().font.substrByWidth(
-                FormattedText.composite(display.getTitle(), Component.literal(" "+translated).withStyle(Translator.translatedStyle)), 1000));
+                FormattedText.composite(display.getTitle(), new TextComponent(" "+translated).withStyle(Translator.translatedStyle)), 1000));
     }
 
     private void translateDesc(int j) throws IOException, InterruptedException {
@@ -152,6 +152,6 @@ public abstract class AdvancementWidgetMixin {
 
         String translated = Translator.translationCache.get(descText.get());
         MutableComponent original = ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor()));
-        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(original.append(Component.literal("\n"+translated).withStyle(Translator.translatedStyle)), j));
+        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(original.append(new TextComponent("\n"+translated).withStyle(Translator.translatedStyle)), j));
     }
 }

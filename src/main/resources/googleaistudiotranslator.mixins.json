@@ -16,7 +16,11 @@
     "ftbquests.QuestPanelMixin",
     "ftbquests.TextFieldMixin",
     "ftbquests.ViewQuestPanelMixin",
-    "jade.ItemStackElementMixin"
+    "jade.ItemStackElementMixin",
+    "jade.TooltipRendererMixin",
+    "jade.TooltipLineMixin",
+    "jade.TooltipMixin",
+    "jade.OverlayRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
