@@ -13,8 +13,8 @@ import net.github.dctime.libs.ftbquests.FormattedTextGetterSetter;
 import net.github.dctime.libs.ftbquests.ICloseViewQuestButton;
 import net.github.dctime.libs.ftbquests.IPinViewQuestButton;
 import net.minecraft.util.text.TranslationTextComponent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -53,7 +53,7 @@ public abstract class ViewQuestPanelMixin extends Panel {
     // -1 : standup, 0 : ready to resize, 1+: amount of translation left
     private int translationLeft = -1;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ViewQuestPanel.class);
+    private static final Logger LOGGER = LogManager.getLogger();
 
 
     private ViewQuestPanelMixin(Panel panel, QuestScreen questScreen) {

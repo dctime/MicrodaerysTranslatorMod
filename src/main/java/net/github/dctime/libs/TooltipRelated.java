@@ -1,14 +1,13 @@
 package net.github.dctime.libs;
 
-import mcp.mobius.waila.api.RenderableTextComponent;
-import mcp.mobius.waila.api.impl.TaggedTextComponent;
-import net.github.dctime.compability.LoadMixinPlugin;
+import net.github.dctime.libs.jade.JadeTooltipRelated;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.StringUtils;
 import net.minecraft.util.text.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.minecraftforge.fml.loading.LoadingModList;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -18,10 +17,11 @@ import java.util.List;
 import static net.github.dctime.libs.Translator.translationCache;
 
 public class TooltipRelated {
-    private static final Logger LOGGER = LoggerFactory.getLogger(TooltipRelated.class);
+    private static final Logger LOGGER = LogManager.getLogger();
+
     public static String getStringFromComponent(TextComponent component) {
         String resultString = "";
-        if (component instanceof StringTextComponent && !(component instanceof RenderableTextComponent) && !(component instanceof TaggedTextComponent)) {
+        if (component instanceof StringTextComponent && LoadingModList.get().getModFileById("jade") != null && JadeTooltipRelated.jadeRelatedComponentCheck(component)) {
             StringTextComponent stringTextComponent = (StringTextComponent) component;
             resultString += StringUtils.stripColor(stringTextComponent.getContents());
         } else if (component instanceof TranslationTextComponent) {

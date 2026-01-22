@@ -2,9 +2,9 @@ package net.github.dctime.compability;
 
 import com.llamalad7.mixinextras.MixinExtrasBootstrap;
 import net.minecraftforge.fml.loading.LoadingModList;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.objectweb.asm.tree.ClassNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
@@ -17,7 +17,7 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
     private static boolean jadeLoaded = false;
     private static boolean ftbquestsLoaded = false;
     private static boolean betteradvancementsLoaded = false;
-    private static final Logger LOGGER = LoggerFactory.getLogger(LoadMixinPlugin.class);
+    private static final Logger LOGGER = LogManager.getLogger();
 
     @Override
     public void onLoad(String mixinPackage) {

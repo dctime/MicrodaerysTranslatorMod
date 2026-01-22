@@ -7,8 +7,8 @@ import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 
@@ -17,7 +17,7 @@ import java.io.IOException;
 // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
 @Mod.EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class GoogleAIStudioTranslatorClient {
-    private static final Logger LOGGER = LoggerFactory.getLogger(GoogleAIStudioTranslatorClient.class);
+    private static final Logger LOGGER = LogManager.getLogger();
     public static final String MODID = "googleaistudiotranslator";
     public GoogleAIStudioTranslatorClient() {
         // Allows NeoForge to create a config screen for this mod's configs.

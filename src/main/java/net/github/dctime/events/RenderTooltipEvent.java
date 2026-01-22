@@ -11,8 +11,8 @@ import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,7 +22,7 @@ import static net.github.dctime.libs.Translator.translationCache;
 @Mod.EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT)
 public class RenderTooltipEvent {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RenderTooltipEvent.class);
+    private static final Logger LOGGER = LogManager.getLogger();
 
 
     @SubscribeEvent
