@@ -50,13 +50,9 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.endsWith("ViewQuestPanelMixin")) return ftbquestsLoaded;
         if (mixinClassName.endsWith("TextFieldMixin")) return ftbquestsLoaded;
         if (mixinClassName.endsWith("QuestPanelMixin")) return ftbquestsLoaded;
-        if (mixinClassName.endsWith("QuestDescriptionFieldMixin")) return ftbquestsLoaded;
-        if (mixinClassName.endsWith("PinViewQuestButtonMixin")) return ftbquestsLoaded;
-        if (mixinClassName.endsWith("CloseViewQuestButtonMixin")) return ftbquestsLoaded;
         if (mixinClassName.endsWith("BaseScreenMixin")) return ftbquestsLoaded;
         if (mixinClassName.endsWith("AdvancementWidgetMixin")) return true;
         if (mixinClassName.endsWith("BetterAdvancementWidgetMixin")) return betteradvancementsLoaded;
-//        if (mixinClassName.endsWith("ItemStackElementMixin")) return jadeLoaded;
         if (mixinClassName.endsWith("TooltipRendererMixin")) return jadeLoaded;
         if (mixinClassName.endsWith("TooltipLineMixin")) return jadeLoaded;
         if (mixinClassName.endsWith("TooltipMixin")) return jadeLoaded;

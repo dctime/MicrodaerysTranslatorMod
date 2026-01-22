@@ -10,9 +10,6 @@
   "client": [
     "AdvancementWidgetMixin",
     "BetterAdvancementWidgetMixin",
-    "ftbquests.CloseViewQuestButtonMixin",
-    "ftbquests.PinViewQuestButtonMixin",
-    "ftbquests.QuestDescriptionFieldMixin",
     "ftbquests.QuestPanelMixin",
     "ftbquests.TextFieldMixin",
     "ftbquests.ViewQuestPanelMixin",
