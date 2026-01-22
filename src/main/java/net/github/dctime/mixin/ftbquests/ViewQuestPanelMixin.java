@@ -1,6 +1,7 @@
 package net.github.dctime.mixin.ftbquests;
 
-import com.mojang.blaze3d.vertex.PoseStack;
+import com.llamalad7.mixinextras.sugar.Local;
+import com.mojang.blaze3d.matrix.MatrixStack;
 import dev.ftb.mods.ftblibrary.ui.*;
 import dev.ftb.mods.ftblibrary.ui.misc.CompactGridLayout;
 import dev.ftb.mods.ftbquests.gui.quests.QuestScreen;
@@ -11,7 +12,7 @@ import net.github.dctime.libs.*;
 import net.github.dctime.libs.ftbquests.FormattedTextGetterSetter;
 import net.github.dctime.libs.ftbquests.ICloseViewQuestButton;
 import net.github.dctime.libs.ftbquests.IPinViewQuestButton;
-import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.util.text.TranslationTextComponent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,9 +28,8 @@ import java.util.Objects;
 
 @Mixin(ViewQuestPanel.class)
 public abstract class ViewQuestPanelMixin extends Panel {
-
-    @Shadow(remap = false)
     private TextField titleField;
+
     @Shadow(remap = false)
     private BlankPanel panelText;
     @Shadow(remap = false)
@@ -125,7 +125,8 @@ public abstract class ViewQuestPanelMixin extends Panel {
 
         for (int widgetID = 0; widgetID < this.panelContent.widgets.size(); widgetID++) {
             Widget contentWidget = this.panelContent.getWidget(widgetID);
-            if (contentWidget instanceof TextField taskOrRewardTextField) {
+            if (contentWidget instanceof TextField) {
+                TextField taskOrRewardTextField = (TextField) contentWidget;
                 int TaskTextID = 3;
                 int RewardTextID = 4;
                 if (widgetID == TaskTextID) {
@@ -139,7 +140,8 @@ public abstract class ViewQuestPanelMixin extends Panel {
                 }
             }
 
-            if (contentWidget instanceof ColorWidget boarderWidget) {
+            if (contentWidget instanceof ColorWidget ) {
+                ColorWidget boarderWidget = (ColorWidget) contentWidget;
                 if (widgetID == 5) {
                     boarderWidget.setPosAndSize(w2, 0, 1, 16 + height + 6);
                 } else if (widgetID == 6) {
@@ -168,7 +170,8 @@ public abstract class ViewQuestPanelMixin extends Panel {
         this.panelText.setHeight(this.panelText.align(new WidgetLayout.Vertical(0, 1, 2)));
         this.panelText.setPosAndSize(3, 16 + height + 12, width - 6, this.panelText.height);
         for (Widget textWidget : this.panelText.widgets) {
-            if (textWidget instanceof TextField textField) {
+            if (textWidget instanceof TextField) {
+                TextField textField = (TextField) textWidget;
                 textField.setMaxWidth(width - 6);
                 textField.setWidth(width - 6);
             }
@@ -181,8 +184,8 @@ public abstract class ViewQuestPanelMixin extends Panel {
                 viewWidget.setPosAndSize(width - iconSize - 2, 4, iconSize, iconSize);
             } else if (viewWidget instanceof IPinViewQuestButton) {
                 viewWidget.setPosAndSize(width - iconSize * 2 - 4, 4, iconSize, iconSize);
-            } else if (Objects.equals(viewWidget.getTitle(), new TranslatableComponent("ftbquests.gui.no_dependants")) ||
-                    Objects.equals(viewWidget.getTitle(), new TranslatableComponent("ftbquests.gui.view_dependants"))) {
+            } else if (Objects.equals(viewWidget.getTitle(), new TranslationTextComponent("ftbquests.gui.no_dependants")) ||
+                    Objects.equals(viewWidget.getTitle(), new TranslationTextComponent("ftbquests.gui.view_dependants"))) {
                 viewWidget.setPosAndSize(width - 13, this.panelContent.posY + 2, 13, 13);
             }
         }
@@ -208,7 +211,7 @@ public abstract class ViewQuestPanelMixin extends Panel {
     }
 
     @Inject(method = "draw", at = @At("HEAD"), remap = false)
-    public void onDraw(PoseStack matrixStack, Theme theme, int x, int y, int w, int h, CallbackInfo ci) {
+    public void onDraw(MatrixStack matrixStack, Theme theme, int x, int y, int w, int h, CallbackInfo ci) {
         if (!Config.ENABLE_FTB_QUEST_TRANSLATION.get()) return;
         if (panelText == null) return;
         translateTitle();
@@ -219,7 +222,8 @@ public abstract class ViewQuestPanelMixin extends Panel {
             isDescriptionTranslated = new ArrayList<>(panelText.widgets.size());
             translationLeft = 0;
             for (int widgetIndex = 0; widgetIndex < panelText.widgets.size(); widgetIndex++) {
-                if (panelText.widgets.get(widgetIndex) instanceof FormattedTextGetterSetter formattedTextGetterSetter) {
+                if (panelText.widgets.get(widgetIndex) instanceof FormattedTextGetterSetter) {
+                    FormattedTextGetterSetter formattedTextGetterSetter = (FormattedTextGetterSetter) panelText.widgets.get(widgetIndex);
                     isDescriptionTranslated.add(false);
                     translationLeft++;
                     LOGGER.debug("Add Translation Task, total: " + translationLeft + "Text: " + (formattedTextGetterSetter.getFormattedText().length > 0 ? formattedTextGetterSetter.getFormattedText()[0].getString() + "length: " + formattedTextGetterSetter.getFormattedText().length : "empty"));
@@ -236,7 +240,8 @@ public abstract class ViewQuestPanelMixin extends Panel {
             // not translated yet, so we need to translate it
             Widget widget = panelText.widgets.get(widgetIndex);
 
-            if (!(widget instanceof FormattedTextGetterSetter formattedTextGetter)) return;
+            if (!(widget instanceof FormattedTextGetterSetter)) return;
+            FormattedTextGetterSetter formattedTextGetter = (FormattedTextGetterSetter) widget;
             if (translateFormattedText(formattedTextGetter)) {
                 isDescriptionTranslated.set(widgetIndex, true);
                 resizeUI();
@@ -254,7 +259,6 @@ public abstract class ViewQuestPanelMixin extends Panel {
     }
 
 //    @Inject(method = "onClosed", at = @At("HEAD"), remap = false)
-    // FIXME:
     @Override
     public void onClosed() {
         LOGGER.debug("Warning OnClosed called, resetting translation state.");
@@ -323,8 +327,13 @@ public abstract class ViewQuestPanelMixin extends Panel {
             return;
         }
 
-        if (!(titleField instanceof FormattedTextGetterSetter formattedTextGetter) || formattedTextGetter.getFormattedText().length < 1) {
+        if (!(titleField instanceof FormattedTextGetterSetter)) {
             LOGGER.warn("Title field is not an instance of FormattedTextGetter, cannot translate.");
+            return;
+        }
+        FormattedTextGetterSetter formattedTextGetter = (FormattedTextGetterSetter) titleField;
+        if (formattedTextGetter.getFormattedText().length < 1) {
+            LOGGER.warn("Title field is Empty.");
             return;
         }
 
@@ -333,5 +342,10 @@ public abstract class ViewQuestPanelMixin extends Panel {
             isViewQuestPanelTranslated = true;
             resizeUI();
         }
+    }
+
+    @Inject(method = "addWidgets()V", at = @At(value = "INVOKE", target = "Ljava/lang/Math;max(II)I", ordinal = 0), remap = false)
+    private void afterAddWidgets(CallbackInfo ci, @Local TextField titleField) {
+        this.titleField = titleField;
     }
 }

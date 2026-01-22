@@ -1,13 +1,11 @@
 package net.github.dctime.events;
 
-import com.mojang.blaze3d.platform.NativeImage;
 import net.github.dctime.Config;
 import net.github.dctime.GoogleAIStudioTranslatorClient;
 import net.github.dctime.libs.Translator;
 import net.github.dctime.screen.ScreenShotSelectAreaScreen;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.renderer.texture.NativeImage;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ScreenshotEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;

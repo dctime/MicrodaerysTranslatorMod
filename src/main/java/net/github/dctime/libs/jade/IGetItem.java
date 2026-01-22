@@ -1,6 +1,7 @@
 package net.github.dctime.libs.jade;
 
-import net.minecraft.world.item.ItemStack;
+
+import net.minecraft.item.ItemStack;
 
 public interface IGetItem {
     public ItemStack getItem();

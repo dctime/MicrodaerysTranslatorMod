@@ -1,19 +1,19 @@
 package net.github.dctime.mixin.jade;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import mcp.mobius.waila.api.ITooltip;
-import mcp.mobius.waila.api.ui.IElement;
-import mcp.mobius.waila.impl.ui.ItemStackElement;
-import mcp.mobius.waila.impl.ui.TextElement;
+import com.mojang.blaze3d.matrix.MatrixStack;
 import mcp.mobius.waila.overlay.OverlayRenderer;
-import mcp.mobius.waila.overlay.TooltipRenderer;
+import mcp.mobius.waila.overlay.RayTracing;
+import mcp.mobius.waila.overlay.Tooltip;
+import mezz.jei.gui.TooltipRenderer;
 import net.github.dctime.Config;
+import net.github.dctime.libs.TooltipRelated;
 import net.github.dctime.libs.Translator;
 import net.github.dctime.libs.jade.IGetIcon;
 import net.github.dctime.libs.jade.IGetItem;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.world.item.ItemStack;
+import net.github.dctime.libs.jade.ITooltipMixin;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.util.text.TextComponent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -26,64 +26,60 @@ import java.util.List;
 @Mixin(value = OverlayRenderer.class, remap = false)
 public class OverlayRendererMixin {
 
-    private static List<Integer> beforeTranslationSizes = new ArrayList<>(100);
+    private static List<Integer> beforeTranslationSibingsSizes = new ArrayList<>(100);
 
-    @Inject(method = "renderOverlay(Lmcp/mobius/waila/overlay/TooltipRenderer;Lcom/mojang/blaze3d/vertex/PoseStack;)V", at = @At("HEAD"), remap = false)
-    private static void beforeRenderOverlay(TooltipRenderer tooltip, PoseStack matrixStack, CallbackInfo ci) {
-        beforeTranslationSizes.clear();
-        for (int i = 0; i < tooltip.getTooltip().lines.size(); i++) {
-            int size = tooltip.getTooltip().lines.get(i).getAlignedElements(IElement.Align.LEFT).size();
-            beforeTranslationSizes.add(i, size);
+    @Inject(method = "renderOverlay(Lmcp/mobius/waila/overlay/Tooltip;Lcom/mojang/blaze3d/matrix/MatrixStack;)V", at = @At("HEAD"), remap = false)
+    private static void beforeRenderOverlay(Tooltip tooltip, MatrixStack matrixStack, CallbackInfo ci) {
+        // Get lines and dimension first and store it and delete it. call computeLines and addPadding
+
+        beforeTranslationSibingsSizes.clear();
+        for (int i = 0; i < tooltip.getLines().size(); i++) {
+            int size = tooltip.getLines().get(i).getComponent().getSiblings().size();
+            beforeTranslationSibingsSizes.add(i, size);
         }
         onTooltipCollected(tooltip);
-        tooltip.computeSize();
+
+        if (!(tooltip instanceof ITooltipMixin)) return;
+        ITooltipMixin iTooltipMixin = (ITooltipMixin) tooltip;
+        iTooltipMixin.computeLinesSelf();
+        tooltip.addPadding();
+//        System.out.println("Width" + tooltip.getPosition().width + " Height" + tooltip.getPosition().height);
+//        iTooltipMixin.removeLineAndSize();
+//        tooltip.computeLines();
     }
 
-    @Inject(method = "renderOverlay(Lmcp/mobius/waila/overlay/TooltipRenderer;Lcom/mojang/blaze3d/vertex/PoseStack;)V", at = @At("RETURN"), remap = false)
-    private static void afterRenderOverlay(TooltipRenderer tooltip, PoseStack matrixStack, CallbackInfo ci) {
-        for (int i = 0; i < tooltip.getTooltip().lines.size(); i++) {
-            int size = tooltip.getTooltip().lines.get(i).getAlignedElements(IElement.Align.LEFT).size();
-            if (beforeTranslationSizes.get(i) < size) {
-                for (int removeIndex = size-1; removeIndex >= beforeTranslationSizes.get(i); removeIndex--) {
-                    tooltip.getTooltip().lines.get(i).getAlignedElements(IElement.Align.LEFT).remove(removeIndex);
+    @Inject(method = "renderOverlay(Lmcp/mobius/waila/overlay/Tooltip;Lcom/mojang/blaze3d/matrix/MatrixStack;)V", at = @At("RETURN"), remap = false)
+    private static void afterRenderOverlay(Tooltip tooltip, MatrixStack matrixStack, CallbackInfo ci) {
+        for (int i = 0; i < tooltip.getLines().size(); i++) {
+            int size = tooltip.getLines().get(i).getComponent().getSiblings().size();
+            if (beforeTranslationSibingsSizes.get(i) < size) {
+                for (int removeIndex = size-1; removeIndex >= beforeTranslationSibingsSizes.get(i); removeIndex--) {
+                    tooltip.getLines().get(i).getComponent().getSiblings().remove(removeIndex);
                 }
             }
         }
     }
 
-    private static void onTooltipCollected(TooltipRenderer renderer){
+    private static void onTooltipCollected(Tooltip tooltip){
         ItemStack stack = null;
-        if (renderer instanceof IGetIcon iconGetter && iconGetter.getIcon() instanceof IGetItem iGetItem) {
+
+        if (tooltip instanceof IGetItem) {
+            IGetItem iGetItem = (IGetItem) tooltip;
             stack = iGetItem.getItem();
         }
-//        if ((accessor instanceof BlockAccessorImpl blockAccessor)) {
-//            stack = blockAccessor.getBlock().asItem().getDefaultInstance();
-//        }
-//
-//        if ((accessor instanceof EntityAccessorImpl entityAccessor) && (entityAccessor.getEntity() instanceof ItemEntity itemEntity)) {
-//            stack = itemEntity.getItem();
-//        }
 
-        if (!Config.ENABLE_JADE_CONFIG.get()) return;
-        for (int jadeIndex = 0; jadeIndex < renderer.getTooltip().size(); jadeIndex++) {
-            String lineMsg = "";
-            List<IElement> elements = renderer.getTooltip().get(jadeIndex, IElement.Align.LEFT);
-            for (IElement element : elements) {
-                if (element instanceof TextElement textElement && textElement.getMessage() != null && textElement.getMessage() instanceof TextComponent textComponent) {
-                    lineMsg += textComponent.plainCopy().getString();
-                }
+        for (int i = 0; i < tooltip.getLines().size(); i++) {
+            if (!(tooltip.getLines().get(i).getComponent() instanceof TextComponent)) continue;
+            TextComponent textComponent = (TextComponent) tooltip.getLines().get(i).getComponent();
+            String original = TooltipRelated.getStringFromComponent(textComponent);
+//            System.out.println(original);
 
-                if (element instanceof TextElement textElement && textElement.getMessage() != null && textElement.getMessage() instanceof TranslatableComponent translatableComponent) {
-                    lineMsg += translatableComponent.getString();
-                }
-            }
-
-            if (!Translator.translationCache.containsKey(lineMsg)) {
+            if (!Translator.translationCache.containsKey(original)) {
                 try {
-                    if (jadeIndex != 0) {
-                        Translator.requestTranslateToTraditionalChinese(lineMsg);
+                    if (i != 0) {
+                        Translator.requestTranslateToTraditionalChinese(original);
                     } else {
-                        Translator.requestTranslateItemStackToTraditionalChinese(lineMsg, stack);
+                        Translator.requestTranslateItemStackToTraditionalChinese(original, stack);
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -92,9 +88,12 @@ public class OverlayRendererMixin {
                 }
                 continue;
             }
+            try {
+                textComponent.append(new StringTextComponent(" " + Translator.translationCache.get(original)).withStyle(Translator.translatedStyle));
+            } catch (UnsupportedOperationException e) {
+                // RenderableTextComponent
+            }
 
-            renderer.getTooltip().append(jadeIndex, new TextElement(new TextComponent(" " + Translator.translationCache.get(lineMsg)).withStyle(Translator.translatedStyle)));
         }
-
     }
 }

@@ -3,7 +3,7 @@
   "required": true,
   "package": "net.github.dctime.mixin",
   "refmap": "mixins.googleaistudiotranslator.refmap.json",
-  "compatibilityLevel": "JAVA_17",
+  "compatibilityLevel": "JAVA_8",
   "mixins": [
 
   ],
@@ -16,7 +16,6 @@
     "ftbquests.QuestPanelMixin",
     "ftbquests.TextFieldMixin",
     "ftbquests.ViewQuestPanelMixin",
-    "jade.ItemStackElementMixin",
     "jade.TooltipRendererMixin",
     "jade.TooltipLineMixin",
     "jade.TooltipMixin",

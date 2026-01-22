@@ -1,16 +1,16 @@
 package net.github.dctime.mixin;
 
 import com.google.common.collect.ImmutableList;
-import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.matrix.MatrixStack;
 import net.github.dctime.Config;
 import net.github.dctime.libs.Translator;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.DisplayInfo;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.advancements.AdvancementWidget;
-import net.minecraft.locale.Language;
-import net.minecraft.network.chat.*;
-import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.client.gui.advancements.AdvancementEntryGui;
+import net.minecraft.client.resources.Language;
+import net.minecraft.util.IReorderingProcessor;
+import net.minecraft.util.text.*;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
@@ -23,17 +23,17 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-@Mixin(AdvancementWidget.class)
+@Mixin(AdvancementEntryGui.class)
 public abstract class AdvancementWidgetMixin {
     @Shadow
     @Final
     @Mutable
-    private FormattedCharSequence title;
+    private IReorderingProcessor title;
 
     @Shadow
     @Final
     @Mutable
-    private List<FormattedCharSequence> description;
+    private List<IReorderingProcessor> description;
 
     @Shadow
     @Final
@@ -51,11 +51,11 @@ public abstract class AdvancementWidgetMixin {
     private Advancement advancement;
 
     @Shadow
-    protected abstract List<FormattedText> findOptimalLines(Component component, int maxWidth);
+    protected abstract List<ITextProperties> findOptimalLines(ITextComponent pComponent, int pMaxWidth);
 
 
     @Inject(method = "drawHover", at = @At(value = "HEAD"))
-    public void onDrawHover(PoseStack poseStack, int x, int y, float fade, int width, int height, CallbackInfo ci) {
+    public void onDrawHover(MatrixStack poseStack, int x, int y, float fade, int width, int height, CallbackInfo ci) {
         tempWidth = this.width;
 
         if (!Config.ENABLE_ADVANCEMENTS_CONFIG.get()) return;
@@ -73,9 +73,9 @@ public abstract class AdvancementWidgetMixin {
         int j = String.valueOf(i).length();
         int k = i > 1 ? Minecraft.getInstance().font.width("  ") + Minecraft.getInstance().font.width("0") * j * 2 + Minecraft.getInstance().font.width("/") : 0;
         int l = 29 + Minecraft.getInstance().font.width(this.title) + k;
-        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor())), l));
+        this.description = LanguageMap.getInstance().getVisualOrder(this.findOptimalLines(TextComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor())), l));
 
-        for(FormattedCharSequence formattedcharsequence : this.description) {
+        for(IReorderingProcessor formattedcharsequence : this.description) {
             l = Math.max(l, Minecraft.getInstance().font.width(formattedcharsequence));
         }
 
@@ -91,7 +91,7 @@ public abstract class AdvancementWidgetMixin {
 
         // replace width
 
-        for(FormattedCharSequence formattedcharsequence : this.description) {
+        for(IReorderingProcessor formattedcharsequence : this.description) {
             l = Math.max(l, Minecraft.getInstance().font.width(formattedcharsequence));
         }
 
@@ -99,13 +99,13 @@ public abstract class AdvancementWidgetMixin {
     }
 
     @Inject(method="drawHover", at = @At(value = "RETURN"))
-    public void endDrawHover(PoseStack poseStack, int x, int y, float fade, int width, int height, CallbackInfo ci) {
-        this.title = Language.getInstance().getVisualOrder(Minecraft.getInstance().font.substrByWidth(display.getTitle(), 163));
+    public void endDrawHover(MatrixStack poseStack, int x, int y, float fade, int width, int height, CallbackInfo ci) {
+        this.title = LanguageMap.getInstance().getVisualOrder(Minecraft.getInstance().font.substrByWidth(display.getTitle(), 163));
         int i = advancement.getRequirements().length;
         int j = String.valueOf(i).length();
         int k = i > 1 ? Minecraft.getInstance().font.width("  ") + Minecraft.getInstance().font.width("0") * j * 2 + Minecraft.getInstance().font.width("/") : 0;
         int l = 29 + Minecraft.getInstance().font.width(this.title) + k;
-        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor())), l));
+        this.description = LanguageMap.getInstance().getVisualOrder(this.findOptimalLines(TextComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor())), l));
         this.width = tempWidth;
     }
 
@@ -130,14 +130,14 @@ public abstract class AdvancementWidgetMixin {
         String translated = Translator.translationCache.get(titleOriginalText.get());
 //        FormattedCharSequence seq = FormattedCharSequence.forward(" "+translated, Translator.translatedStyle);
 //        title = FormattedCharSequence.composite(title, seq);
-        this.title = Language.getInstance().getVisualOrder(Minecraft.getInstance().font.substrByWidth(
-                FormattedText.composite(display.getTitle(), new TextComponent(" "+translated).withStyle(Translator.translatedStyle)), 1000));
+        this.title = LanguageMap.getInstance().getVisualOrder(Minecraft.getInstance().font.substrByWidth(
+                ITextProperties.composite(display.getTitle(), new StringTextComponent(" "+translated).withStyle(Translator.translatedStyle)), 1000));
     }
 
     private void translateDesc(int j) throws IOException, InterruptedException {
         AtomicReference<String> descText = new AtomicReference<>("");
         for (int descIndex = 0; descIndex < description.size(); descIndex++) {
-            FormattedCharSequence descSeq = description.get(descIndex);
+            IReorderingProcessor descSeq = description.get(descIndex);
 
             descSeq.accept((var1, var2, var3) -> {
                 descText.set(descText.get() + (char) var3);
@@ -151,7 +151,7 @@ public abstract class AdvancementWidgetMixin {
         }
 
         String translated = Translator.translationCache.get(descText.get());
-        MutableComponent original = ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor()));
-        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(original.append(new TextComponent("\n"+translated).withStyle(Translator.translatedStyle)), j));
+        IFormattableTextComponent original = TextComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor()));
+        this.description = LanguageMap.getInstance().getVisualOrder(this.findOptimalLines(original.append(new StringTextComponent("\n"+translated).withStyle(Translator.translatedStyle)), j));
     }
 }

@@ -1,8 +1,8 @@
 package net.github.dctime.libs.ftbquests;
 
-import net.minecraft.network.chat.FormattedText;
+import net.minecraft.util.text.ITextProperties;
 
 public interface FormattedTextGetterSetter {
-    public FormattedText[] getFormattedText();
+    public ITextProperties[] getFormattedText();
     public void setTranslatedFormattedText(String text);
 }

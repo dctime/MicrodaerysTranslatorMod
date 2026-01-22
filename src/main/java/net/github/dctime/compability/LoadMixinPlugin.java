@@ -1,5 +1,6 @@
 package net.github.dctime.compability;
 
+import com.llamalad7.mixinextras.MixinExtrasBootstrap;
 import net.minecraftforge.fml.loading.LoadingModList;
 import org.objectweb.asm.tree.ClassNode;
 import org.slf4j.Logger;
@@ -7,6 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
+import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -18,6 +21,7 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public void onLoad(String mixinPackage) {
+        MixinExtrasBootstrap.init();
         LOGGER.debug("GoogleAIStudioTranslatorClient Mixin Plugin loaded.");
     }
 
@@ -52,7 +56,7 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.endsWith("BaseScreenMixin")) return ftbquestsLoaded;
         if (mixinClassName.endsWith("AdvancementWidgetMixin")) return true;
         if (mixinClassName.endsWith("BetterAdvancementWidgetMixin")) return betteradvancementsLoaded;
-        if (mixinClassName.endsWith("ItemStackElementMixin")) return jadeLoaded;
+//        if (mixinClassName.endsWith("ItemStackElementMixin")) return jadeLoaded;
         if (mixinClassName.endsWith("TooltipRendererMixin")) return jadeLoaded;
         if (mixinClassName.endsWith("TooltipLineMixin")) return jadeLoaded;
         if (mixinClassName.endsWith("TooltipMixin")) return jadeLoaded;
@@ -67,7 +71,7 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public List<String> getMixins() {
-        return List.of();
+        return new ArrayList<>();
     }
 
     @Override

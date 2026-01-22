@@ -1,23 +1,23 @@
 package net.github.dctime.libs;
 
-import com.mojang.blaze3d.pipeline.TextureTarget;
-import com.mojang.blaze3d.platform.Lighting;
-import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Matrix4f;
-import net.minecraft.CrashReport;
-import net.minecraft.CrashReportCategory;
-import net.minecraft.ReportedException;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.Screenshot;
 import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.block.model.ItemTransforms;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.client.renderer.model.IBakedModel;
+import net.minecraft.client.renderer.model.ItemCameraTransforms;
+import net.minecraft.client.renderer.texture.NativeImage;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.shader.Framebuffer;
+import net.minecraft.crash.CrashReport;
+import net.minecraft.crash.CrashReportCategory;
+import net.minecraft.crash.ReportedException;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ScreenShotHelper;
+import net.minecraft.util.math.vector.Matrix4f;
+import net.minecraftforge.client.model.SeparatePerspectiveModel;
 import org.lwjgl.opengl.GL11;
 
 import javax.imageio.ImageIO;
@@ -47,8 +47,8 @@ public class ScreenShotter {
 
     private static void renderItem(ItemStack stack, int x, int y) {
         if (!stack.isEmpty()) {
-            PoseStack pose = new PoseStack();
-            BakedModel bakedmodel = Minecraft.getInstance().getItemRenderer().getModel(stack, null, null, 0);
+            MatrixStack pose = new MatrixStack();
+            IBakedModel bakedmodel = Minecraft.getInstance().getItemRenderer().getModel(stack, null, null);
             pose.pushPose();
             pose.translate((float)(x + 8), (float)(y + 8), (float)(150 + (bakedmodel.isGui3d() ? 0 : 0)));
 
@@ -56,17 +56,16 @@ public class ScreenShotter {
                 pose.scale(16.0F, -16.0F, 16.0F);
                 boolean flag = !bakedmodel.usesBlockLight();
                 if (flag) {
-                    Lighting.setupForFlatItems();
+                    RenderHelper.setupForFlatItems();
                 }
-
-                Minecraft.getInstance().getItemRenderer().render(stack, ItemTransforms.TransformType.GUI, false, pose, Minecraft.getInstance().renderBuffers().bufferSource(), 15728880, OverlayTexture.NO_OVERLAY, bakedmodel);
+                Minecraft.getInstance().getItemRenderer().render(stack, ItemCameraTransforms.TransformType.GUI, false, pose, Minecraft.getInstance().renderBuffers().bufferSource(), 15728880, OverlayTexture.NO_OVERLAY, bakedmodel);
 
                 RenderSystem.disableDepthTest();
                 Minecraft.getInstance().renderBuffers().bufferSource().endBatch();
                 RenderSystem.enableDepthTest();
 
                 if (flag) {
-                    Lighting.setupFor3DItems();
+                    RenderHelper.setupFor3DItems();
                 }
             } catch (Throwable throwable) {
                 CrashReport crashreport = CrashReport.forThrowable(throwable, "Rendering item");
@@ -82,21 +81,41 @@ public class ScreenShotter {
     }
 
     public static String getItemStackImage(ItemStack stack) {
-        TextureTarget target = new TextureTarget(64, 64, false, ON_OSX);
+        Framebuffer target = new Framebuffer(64, 64, false, ON_OSX);
+        target.setClearColor(0, 0, 0,0);
 
         target.bindWrite(true);
 
-        RenderSystem.setProjectionMatrix(
-                Matrix4f.orthographic(0, 16, 16, 0, -1000, 1000)
-        );
+//        RenderSystem.setProjectionMatrix(
+//                Matrix4f.orthographic(0, 16, 16, 0, -1000, 1000)
+//        );
+
+        RenderSystem.viewport(0, 0, 64, 64);
+        RenderSystem.matrixMode(GL11.GL_PROJECTION);
+        RenderSystem.pushMatrix(); // 將當前的投影矩陣壓入棧
+        RenderSystem.loadIdentity();
+        RenderSystem.ortho(0, 16, 16, 0, -1000, 1000);
+
+        RenderSystem.matrixMode(GL11.GL_MODELVIEW);
+        RenderSystem.pushMatrix();
+        RenderSystem.loadIdentity();
 
         renderItem(stack, 0, 0);
 
-        NativeImage image = Screenshot.takeScreenshot(target);
+        NativeImage image = ScreenShotHelper.takeScreenshot(target.width, target.height, target);
+
+        RenderSystem.matrixMode(GL11.GL_PROJECTION);
+        RenderSystem.popMatrix(); // 彈出剛才的 Ortho 投影，還原先前的投影
+        RenderSystem.matrixMode(GL11.GL_MODELVIEW);
+        RenderSystem.popMatrix();
+
+        target.unbindWrite();
         Minecraft.getInstance().getMainRenderTarget().bindWrite(true);
         convertBGRAtoRGBA(image);
         try {
             String stringImage = ScreenShotter.pixelsToBase64(image.makePixelArray(), image.getWidth(), image.getHeight());
+            System.out.println("Image Text:");
+            System.out.println(stringImage);
             return stringImage;
         } catch (Exception e) {
             throw new RuntimeException(e);

@@ -1,21 +1,23 @@
 package net.github.dctime.mixin;
 
-import betteradvancements.gui.BetterAdvancementTab;
-import betteradvancements.gui.BetterAdvancementWidget;
+import betteradvancements.gui.BetterAdvancementEntryGui;
+import betteradvancements.gui.BetterAdvancementTabGui;
 import betteradvancements.gui.BetterAdvancementsScreen;
 import betteradvancements.util.CriterionGrid;
 import com.llamalad7.mixinextras.sugar.Local;
-import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.matrix.MatrixStack;
 import net.github.dctime.Config;
 import net.github.dctime.libs.Translator;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementProgress;
 import net.minecraft.advancements.DisplayInfo;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.locale.Language;
-import net.minecraft.network.chat.*;
-import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.util.IReorderingProcessor;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.util.text.Style;
+import net.minecraft.util.text.TextComponentUtils;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
@@ -27,8 +29,9 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
-@Mixin(BetterAdvancementWidget.class)
+@Mixin(BetterAdvancementEntryGui.class)
 public abstract class BetterAdvancementWidgetMixin {
     @Shadow(remap = false)
     @Final
@@ -41,7 +44,7 @@ public abstract class BetterAdvancementWidgetMixin {
 
     @Shadow(remap = false)
     @Final
-    private BetterAdvancementTab betterAdvancementTabGui;
+    private BetterAdvancementTabGui betterAdvancementTabGui;
 
     @Shadow(remap = false)
     private CriterionGrid criterionGrid;
@@ -53,7 +56,7 @@ public abstract class BetterAdvancementWidgetMixin {
     private AdvancementProgress advancementProgress;
 
     @Shadow(remap = false)
-    private List<FormattedCharSequence> description;
+    private List<IReorderingProcessor> description;
 
     @Shadow(remap = false)
     @Final
@@ -68,21 +71,21 @@ public abstract class BetterAdvancementWidgetMixin {
     @Shadow(remap = false)
     protected int x;
 
-    private List<FormattedCharSequence> tempDescription;
+    private List<IReorderingProcessor> tempDescription;
     private String tempTitle;
     private String translatedTitle;
     private int tempMaxWidth;
 
     @Shadow(remap = false)
-    protected abstract List<FormattedCharSequence> findOptimalLines(Component line, int width);
+    protected abstract List<IReorderingProcessor> findOptimalLines(ITextComponent line, int width);
 //    protected abstract List<FormattedText> findOptimalLines(Component line, int width);
 
-    @Inject(method = "Lbetteradvancements/gui/BetterAdvancementWidget;drawHover(Lcom/mojang/blaze3d/vertex/PoseStack;IIFII)V", at = @At(value = "FIELD", target = "width", ordinal = 0), remap = false)
-    public void onDrawHover(PoseStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci) {
+    @Inject(method = "drawHover", at = @At(value = "FIELD", target = "width", ordinal = 0), remap = false)
+    public void onDrawHover(MatrixStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci) {
         // end of line 276
 //        System.out.println("Will this work");
         tempTitle = this.title;
-        tempDescription = description.stream().toList();
+        tempDescription = description.stream().collect(Collectors.toList());
 
         if (!Config.ENABLE_ADVANCEMENTS_CONFIG.get()) return;
 
@@ -145,15 +148,14 @@ public abstract class BetterAdvancementWidgetMixin {
 
         String translatedDesc = Translator.translationCache.get(originalDesc);
 //        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(this.displayInfo.getDescription().copy().append(new TextComponent("\n"+translatedDesc).withStyle(Translator.translatedStyle)), Style.EMPTY.withColor(this.displayInfo.getFrame().getChatColor())), tempMaxWidth));
-        this.description = this.findOptimalLines(ComponentUtils.mergeStyles(this.displayInfo.getDescription().copy().append(new TextComponent("\n"+translatedDesc).withStyle(Translator.translatedStyle)), Style.EMPTY.withColor(this.displayInfo.getFrame().getChatColor())), tempMaxWidth);
+        this.description = this.findOptimalLines(TextComponentUtils.mergeStyles(this.displayInfo.getDescription().copy().append(new StringTextComponent("\n"+translatedDesc).withStyle(Translator.translatedStyle)), Style.EMPTY.withColor(this.displayInfo.getFrame().getChatColor())), tempMaxWidth);
 
-        for(FormattedCharSequence line : this.description) {
+        for(IReorderingProcessor line : this.description) {
             tempMaxWidth = Math.max(tempMaxWidth, Minecraft.getInstance().font.width(line));
         }
     }
-
-    @Inject(method = "Lbetteradvancements/gui/BetterAdvancementWidget;drawHover(Lcom/mojang/blaze3d/vertex/PoseStack;IIFII)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Font;drawShadow(Lcom/mojang/blaze3d/vertex/PoseStack;Ljava/lang/String;FFI)I", ordinal = 0))
-    public void drawHoverLeftNoS(PoseStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci, @Local(name = "drawX") int drawX) {
+    @Inject(method = "drawHover", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/FontRenderer;drawShadow(Lcom/mojang/blaze3d/matrix/MatrixStack;Ljava/lang/String;FFI)I", ordinal = 0), remap = false)
+    public void drawHoverLeftNoS(MatrixStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci, @Local(name = "drawX") int drawX) {
         // guiGraphics.drawString(this.minecraft.font, this.translatedTitle, drawX + 5 + this.minecraft.font.width(this.title), scrollY + this.y + 9, Translator.translatedStyle.getColor().getValue());
         this.minecraft.font.drawShadow(poseStack, this.translatedTitle, (float)(drawX + 5 + this.minecraft.font.width(this.title)), (float)(scrollY + this.y + 9), Translator.translatedStyle.getColor().getValue());
 //        System.out.println("drawString 0 called");
@@ -165,8 +167,8 @@ public abstract class BetterAdvancementWidgetMixin {
 //        System.out.println("drawString 1 called");
 //    }
 
-    @Inject(method = "Lbetteradvancements/gui/BetterAdvancementWidget;drawHover(Lcom/mojang/blaze3d/vertex/PoseStack;IIFII)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Font;drawShadow(Lcom/mojang/blaze3d/vertex/PoseStack;Ljava/lang/String;FFI)I", ordinal = 2))
-    public void drawHoverRightNoS(PoseStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci) {
+    @Inject(method = "drawHover", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/FontRenderer;drawShadow(Lcom/mojang/blaze3d/matrix/MatrixStack;Ljava/lang/String;FFI)I", ordinal = 2), remap = false)
+    public void drawHoverRightNoS(MatrixStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci) {
         // guiGraphics.drawString(this.minecraft.font, this.translatedTitle, scrollX + this.x + 32 + this.minecraft.font.width(this.title), scrollY + this.y + 9, Translator.translatedStyle.getColor().getValue());
         this.minecraft.font.drawShadow(poseStack, this.translatedTitle, (float)(scrollX + this.x + 32 + this.minecraft.font.width(this.title)), (float)(scrollY + this.y + 9), Translator.translatedStyle.getColor().getValue());
 //        System.out.println("drawString 2 called");
@@ -178,10 +180,10 @@ public abstract class BetterAdvancementWidgetMixin {
 //        System.out.println("drawString 3 called");
 //    }
 
-    @Inject(method = "Lbetteradvancements/gui/BetterAdvancementWidget;drawHover(Lcom/mojang/blaze3d/vertex/PoseStack;IIFII)V", at = @At(value = "RETURN"), remap = false)
-    public void endDrawHover(PoseStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci) {
+    @Inject(method = "drawHover", at = @At(value = "RETURN"), remap = false)
+    public void endDrawHover(MatrixStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci) {
         this.translatedTitle = "";
         this.title = tempTitle;
-        this.description = tempDescription.stream().toList();
+        this.description = tempDescription.stream().collect(Collectors.toList());
     }
 }
