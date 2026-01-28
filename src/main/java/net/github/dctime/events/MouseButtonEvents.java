@@ -23,10 +23,26 @@ public class MouseButtonEvents {
         if (KeyMapping.SHOW_TRANSLATION_IN_GUI.get().isActiveAndMatches(InputConstants.getKey(keyCode, scanCode))) {
             ScreenEventRender.setShowTranslationButtonPressed(true);
         }
+
+        if (KeyMapping.DELETE_SHOWING_TRANSLATION.get().isActiveAndMatches(InputConstants.getKey(keyCode, scanCode))) {
+            Translator.setDeletingTranslationKeyHold(true, Translator.KeyTriggeredSource.MOUSE_BUTTON_EVENT);
+//            System.out.println("Mouse Button Event TRUE");
+        }
     }
 
     @SubscribeEvent
     public static void onMouseButtonReleased(ScreenEvent.KeyReleased.Post event) {
-        ScreenEventRender.setShowTranslationButtonPressed(false);
+        int keyCode = event.getKeyCode();
+        int scanCode = event.getScanCode();
+
+        if (KeyMapping.SHOW_TRANSLATION_IN_GUI.get().isActiveAndMatches(InputConstants.getKey(keyCode, scanCode))) {
+            ScreenEventRender.setShowTranslationButtonPressed(false);
+        }
+
+        if (KeyMapping.DELETE_SHOWING_TRANSLATION.get().isActiveAndMatches(InputConstants.getKey(keyCode, scanCode))) {
+            Translator.setDeletingTranslationKeyHold(false, Translator.KeyTriggeredSource.MOUSE_BUTTON_EVENT);
+//            System.out.println("Mouse Button Event FALSE");
+        }
+
     }
 }

@@ -36,7 +36,7 @@ public class TestTooltipCollectedCallback implements JadeTooltipCollectedCallbac
                 }
             }
 
-            if (!Translator.translationCache.containsKey(lineMsg)) {
+            if (!Translator.textInCache(lineMsg)) {
                 try {
                     if (jadeIndex != 0) {
                         Translator.requestTranslateToTraditionalChinese(lineMsg);
@@ -51,7 +51,7 @@ public class TestTooltipCollectedCallback implements JadeTooltipCollectedCallbac
                 continue;
             }
 
-            iBoxElement.getTooltip().append(jadeIndex, new TextElement(Component.literal(" " + Translator.translationCache.get(lineMsg)).withStyle(Translator.translatedStyle)));
+            iBoxElement.getTooltip().append(jadeIndex, new TextElement(Component.literal(" " + Translator.getTranslationFromCache(lineMsg)).withStyle(Translator.translatedStyle)));
         }
 
     }

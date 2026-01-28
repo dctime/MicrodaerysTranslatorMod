@@ -30,8 +30,8 @@ public class RenderTooltipEvent {
             e.ifLeft(text -> {
                 String original = text.getString();
                 String translated;
-                if (Translator.translationCache.containsKey(original))
-                    translated = Translator.translationCache.get(original);
+                if (Translator.textInCache(original))
+                    translated = Translator.getTranslationFromCache(original);
                 else {
                     try {
                         if (finalI != 0) {
