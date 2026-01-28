@@ -29,8 +29,8 @@ public class Config {
     public static final String MODEL_NAME_PATH = "model_name";
     public static final ModConfigSpec.ConfigValue<String> MODEL_NAME = BUILDER
             .comment("The model name to use for translation [使用的 Google AI Studio 模型]\n" +
-                    "(免費可用 Gemma，如：gemma-3-27b-it)")
-            .define(MODEL_NAME_PATH, "gemma-3-27b-it");
+                    "(免費可用 Gemma，如：gemma-3-4b-it 不考慮翻譯速度的話用 gemma-3-27b-it)")
+            .define(MODEL_NAME_PATH, "gemma-3-4b-it");
 
     // === Prompt tailored for Minecraft/mod tone (ASCII-safe, no fancy quotes) ===
     public static final String PROMPT_PATH = "prompt";
