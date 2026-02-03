@@ -90,36 +90,36 @@ public class Translator {
         player.sendSystemMessage(Component.literal("清除翻譯快取").withStyle(ChatFormatting.YELLOW));
     }
 
-    private static HttpRequest setupRequest(String textInEnglish, @Nullable String image, boolean isScreenShot) {
-//        String model = "gemma-3-27b-it";
-        String model = Config.MODEL_NAME.get();
-        String url = String.format("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", model);
-//
-        String prompt = Config.PROMPT.get() + "\n" + textInEnglish;
-        if (isScreenShot) {
-            prompt = Config.PROMPT_SCREENSHOT.get();
+        private static HttpRequest setupRequest(String textInEnglish, @Nullable String image, boolean isScreenShot) {
+    //        String model = "gemma-3-27b-it";
+            String model = Config.MODEL_NAME.get();
+            String url = String.format("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", model);
+    //
+            String prompt = Config.PROMPT.get() + "\n" + textInEnglish;
+            if (isScreenShot) {
+                prompt = Config.PROMPT_SCREENSHOT.get();
+            }
+
+            String jsonBody = getJsonBody(image, prompt);
+
+            String apiKey = Config.API_KEY.get();
+    //        if (apiKey.isBlank()) return null; // TODO:
+
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(30))
+                    .header("Content-Type", "application/json; charset=utf-8")
+                    .header("x-goog-api-key", apiKey) // 可以用 ?key=... 也行
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+    //
+            if (textInEnglish.isBlank()) {
+                translationCache.put(textInEnglish, "");
+                return null;
+            }
+
+            return req;
         }
-
-        String jsonBody = getJsonBody(image, prompt);
-
-        String apiKey = Config.API_KEY.get();
-//        if (apiKey.isBlank()) return null; // TODO:
-
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(30))
-                .header("Content-Type", "application/json; charset=utf-8")
-                .header("x-goog-api-key", apiKey) // 可以用 ?key=... 也行
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                .build();
-//
-        if (textInEnglish.isBlank()) {
-            translationCache.put(textInEnglish, "");
-            return null;
-        }
-
-        return req;
-    }
 
     private static String getJsonBody(String image, String prompt) {
         String jsonBody;
