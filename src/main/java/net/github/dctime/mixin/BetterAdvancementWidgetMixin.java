@@ -113,12 +113,12 @@ public abstract class BetterAdvancementWidgetMixin {
     }
 
     private void translateTitle() throws IOException, InterruptedException {
-        if (!Translator.translationCache.containsKey(this.title)) {
+        if (!Translator.textInCache(this.title)) {
             Translator.requestTranslateToTraditionalChinese(this.title);
             return;
         }
 
-        this.translatedTitle = " " + Translator.translationCache.get(this.title);
+        this.translatedTitle = " " + Translator.getTranslationFromCache(this.title);
         this.title = this.title + this.translatedTitle;
 
         // resize UI
@@ -140,12 +140,12 @@ public abstract class BetterAdvancementWidgetMixin {
     }
     private void translateDesc() throws IOException, InterruptedException {
         String originalDesc = this.displayInfo.getDescription().getString();
-        if (!Translator.translationCache.containsKey(originalDesc)) {
+        if (!Translator.textInCache(originalDesc)) {
             Translator.requestTranslateToTraditionalChinese(originalDesc);
             return;
         }
 
-        String translatedDesc = Translator.translationCache.get(originalDesc);
+        String translatedDesc = Translator.getTranslationFromCache(originalDesc);
         this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(this.displayInfo.getDescription().copy().append(Component.literal("\n"+translatedDesc).withStyle(Translator.translatedStyle)), Style.EMPTY.withColor(this.displayInfo.getFrame().getChatColor())), tempMaxWidth));
 
         for(FormattedCharSequence line : this.description) {

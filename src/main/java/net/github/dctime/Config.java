@@ -21,14 +21,23 @@ public class Config {
     public static final String API_KEY_PATH = "api_key";
     public static final ForgeConfigSpec.ConfigValue<String> API_KEY = BUILDER
             .comment("The API KEY from Google AI Studio [Google AI Studio 的 API KEY]\n" +
+                    "1. DIRECT CONNECTION: Data is sent ONLY to Google AI Studio (https://generativelanguage.googleapis.com).\n" +
+                    "2. NO DATA COLLECTION: This mod DOES NOT collect, log, or forward your API Key or prompts to any other servers.\n" +
+                    "3. LOCAL STORAGE: Your key is stored exclusively in this local config file.\n" +
+                    "4. CONSENT: Entering a key confirms you understand this data flow and agree to Google's Terms.\n\n" +
+                    "[ZH-TW]\n" +
+                    "1. 直連通訊：資料僅會直接傳送至 Google AI Studio 官方伺服器，不經過任何轉接。\n" +
+                    "2. 拒絕蒐集：本模組「絕不」蒐集、紀錄或轉傳您的 API Key 及輸入內容至開發者或其他第三方伺服器。\n" +
+                    "3. 本地儲存：您的金鑰僅儲存於此電腦的設定檔內，請妥善保管。\n" +
+                    "4. 同意聲明：填入金鑰即代表您知悉上述資料流向，並同意 Google 的服務條款。\n" +
                     "(Apply one for free at https://ai.google.dev/)")
             .define(API_KEY_PATH, "");
 
     public static final String MODEL_NAME_PATH = "model_name";
     public static final ForgeConfigSpec.ConfigValue<String> MODEL_NAME = BUILDER
             .comment("The model name to use for translation [使用的 Google AI Studio 模型]\n" +
-                    "(免費可用 Gemma，如：gemma-3-27b-it)")
-            .define(MODEL_NAME_PATH, "gemma-3-27b-it");
+                    "(免費可用 Gemma，如：gemma-3-4b-it 不考慮翻譯速度的話用 gemma-3-27b-it)")
+            .define(MODEL_NAME_PATH, "gemma-3-4b-it");
 
     // === Prompt tailored for Minecraft/mod tone (ASCII-safe, no fancy quotes) ===
     public static final String PROMPT_PATH = "prompt";

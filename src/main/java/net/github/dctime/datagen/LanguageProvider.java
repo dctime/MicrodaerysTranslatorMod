@@ -14,6 +14,7 @@ public class LanguageProvider extends net.minecraftforge.common.data.LanguagePro
     protected void addTranslations() {
         add("key."+GoogleAIStudioTranslatorClient.MODID+".delete_translation_cache", "(刪除快取) Delete Translation Cache");
         add("key."+GoogleAIStudioTranslatorClient.MODID+".show_translation_in_gui", "(在GUI顯示螢幕截圖翻譯內容 (按住)) Show Translation in GUI (Hold)");
+        add("key."+GoogleAIStudioTranslatorClient.MODID+".delete_showing_translation", "(重新翻譯內容 (按住)) Delete Displayed Translation (Hold)");
         add("key.categories."+GoogleAIStudioTranslatorClient.MODID+".key_mapping_category", "Google AI Studio Translator");
         add(GoogleAIStudioTranslatorClient.MODID+".configuration."+ Config.API_KEY_PATH, "(API 金鑰) API Key");
         add(GoogleAIStudioTranslatorClient.MODID+".configuration."+ Config.MODEL_NAME_PATH, "(模型名稱) Model Name");

@@ -122,12 +122,12 @@ public abstract class AdvancementWidgetMixin {
 
 //        System.out.println("Title: " + titleOriginalText.get());
 
-        if (!Translator.translationCache.containsKey(titleOriginalText.get())) {
+        if (!Translator.textInCache(titleOriginalText.get())) {
             Translator.requestTranslateToTraditionalChinese(titleOriginalText.get());
             return;
         }
 
-        String translated = Translator.translationCache.get(titleOriginalText.get());
+        String translated = Translator.getTranslationFromCache(titleOriginalText.get());
 //        FormattedCharSequence seq = FormattedCharSequence.forward(" "+translated, Translator.translatedStyle);
 //        title = FormattedCharSequence.composite(title, seq);
         this.title = Language.getInstance().getVisualOrder(Minecraft.getInstance().font.substrByWidth(
@@ -145,12 +145,12 @@ public abstract class AdvancementWidgetMixin {
             });
         }
 
-        if (!Translator.translationCache.containsKey(descText.get())) {
+        if (!Translator.textInCache(descText.get())) {
             Translator.requestTranslateToTraditionalChinese(descText.get());
             return;
         }
 
-        String translated = Translator.translationCache.get(descText.get());
+        String translated = Translator.getTranslationFromCache(descText.get());
         MutableComponent original = ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor()));
         this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(original.append(Component.literal("\n"+translated).withStyle(Translator.translatedStyle)), j));
     }

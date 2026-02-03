@@ -40,7 +40,46 @@ public class Translator {
     private static Logger LOGGER = LoggerFactory.getLogger(Translator.class);
     // --- ftb quest ---
 
+    public enum KeyTriggeredSource {
+        MOUSE_BUTTON_EVENT,
+        CLIENT_TICK
+    }
+
+    private static boolean deletingTranslationKeyHold = false;
+    private static KeyTriggeredSource deletingTranslationSource = null;
+
+    public static boolean getDeletingTranslationKeyHold() {
+        return deletingTranslationKeyHold;
+    }
+
+    public static void setDeletingTranslationKeyHold(boolean value, KeyTriggeredSource src) {
+        if (!value && src != deletingTranslationSource) return; // two sources spamming false
+        if (!deletingTranslationKeyHold && value) {
+            Player player = Minecraft.getInstance().player;
+            if (player == null) return;
+            player.sendSystemMessage(Component.literal("Cleared Displayed Translations").withStyle(ChatFormatting.YELLOW));
+            player.sendSystemMessage(Component.literal("重新翻譯目前顯示的翻譯").withStyle(ChatFormatting.YELLOW));
+        }
+        deletingTranslationSource = src;
+        deletingTranslationKeyHold = value;
+    }
+
     public static final Style translatedStyle = Style.EMPTY.withColor(ChatFormatting.GRAY);
+
+    public static boolean textInCache(String text) {
+        if (deletingTranslationKeyHold) {
+            translationCache.remove(text);
+//            System.out.println("REMOVE TRANSLATION: " + text);
+            return false;
+        }
+
+//        System.out.println("FINDING TRNASLATION IN CACHE: " + text + " deleting: " + deletingTranslationKeyHold);
+        return translationCache.containsKey(text);
+    }
+
+    public static String getTranslationFromCache(String key) {
+        return translationCache.get(key);
+    }
 
     public static void clearCache() {
         // Execute logic to perform on click here

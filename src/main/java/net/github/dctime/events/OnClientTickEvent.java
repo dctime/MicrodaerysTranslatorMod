@@ -22,5 +22,13 @@ public class OnClientTickEvent {
         while (KeyMapping.DELETE_TRANSLATION_CACHE.get().consumeClick()) {
             Translator.clearCache();
         }
+
+        if (KeyMapping.DELETE_SHOWING_TRANSLATION.get().isDown()) {
+            Translator.setDeletingTranslationKeyHold(true, Translator.KeyTriggeredSource.CLIENT_TICK);
+//            System.out.println("Client Tick TRUE");
+        } else {
+            Translator.setDeletingTranslationKeyHold(false, Translator.KeyTriggeredSource.CLIENT_TICK);
+//            System.out.println("Client Tick FALSE");
+        }
     }
 }

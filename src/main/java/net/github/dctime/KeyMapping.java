@@ -30,9 +30,19 @@ public class KeyMapping {
             "key.categories."+GoogleAIStudioTranslatorClient.MODID+".key_mapping_category"
     ));
 
+    public static final Lazy<net.minecraft.client.KeyMapping> DELETE_SHOWING_TRANSLATION = Lazy.of(() -> new net.minecraft.client.KeyMapping(
+            "key."+GoogleAIStudioTranslatorClient.MODID+".delete_showing_translation",
+            KeyConflictContext.UNIVERSAL,
+            KeyModifier.NONE, // Default mapping requires shift to be held down
+            InputConstants.Type.KEYSYM, // Default mapping is on the keyboard
+            GLFW.GLFW_KEY_F6,
+            "key.categories."+GoogleAIStudioTranslatorClient.MODID+".key_mapping_category"
+    ));
+
     @SubscribeEvent // on the mod event bus only on the physical client
     public static void registerBindings(RegisterKeyMappingsEvent event) {
         event.register(DELETE_TRANSLATION_CACHE.get());
         event.register(SHOW_TRANSLATION_IN_GUI.get());
+        event.register(DELETE_SHOWING_TRANSLATION.get());
     }
 }

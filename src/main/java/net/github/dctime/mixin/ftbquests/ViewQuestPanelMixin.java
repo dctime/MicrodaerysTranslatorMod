@@ -12,6 +12,7 @@ import net.github.dctime.libs.ftbquests.ICloseViewQuestButton;
 import net.github.dctime.libs.ftbquests.IPinViewQuestButton;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
@@ -49,6 +50,10 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
 
     @Shadow(remap = false)
     private long lastScrollTime;
+
+    @Shadow
+    public abstract void addWidgets();
+
     private boolean isViewQuestPanelTranslated = false;
     private List<Boolean> isDescriptionTranslated = null;
     // -1 : standup, 0 : ready to resize, 1+: amount of translation left
@@ -56,6 +61,14 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ViewQuestPanel.class);
 
+    private void resetQuest() {
+        titleField = null;
+        panelText = null;
+        panelTasks = null;
+        panelRewards = null;
+        panelContent = null;
+        refreshWidgets();
+    }
 
     private ViewQuestPanelMixin(Panel panel, QuestScreen questScreen) {
         super(panel);
@@ -198,6 +211,10 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
     @Inject(method = "draw", at = @At("HEAD"), remap = false)
     public void onDraw(GuiGraphics graphics, Theme theme, int x, int y, int w, int h, CallbackInfo ci) {
         if (!Config.ENABLE_FTB_QUEST_TRANSLATION.get()) return;
+        if (Translator.getDeletingTranslationKeyHold()) {
+            resetQuest();
+        }
+
         translateTitle();
 
         // setup isDescriptionTranslated
@@ -213,7 +230,7 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
                     isDescriptionTranslated.add(true);
                 }
             }
-            return;
+//            return;
         }
 
         // send requests for all texts.
@@ -282,9 +299,10 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
             totalText = totalText + " " + translateText;
         }
 
-        if (Translator.translationCache.containsKey(totalText)) {
-            formattedTextGetter.setTranslatedFormattedText(Translator.translationCache.get(totalText));
-            LOGGER.debug("Using cached translation for: " + totalText + " -> " + Translator.translationCache.get(totalText));
+        if (Translator.textInCache(totalText)) {
+//            System.out.println("TOTALTEXT: " + totalText + " " + Translator.getTranslationFromCache(totalText));
+            formattedTextGetter.setTranslatedFormattedText(Translator.getTranslationFromCache(totalText));
+            LOGGER.debug("Using cached translation for: " + totalText + " -> " + Translator.getTranslationFromCache(totalText));
 
             return true;
         } else {
