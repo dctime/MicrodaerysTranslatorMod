@@ -112,6 +112,11 @@ public class Config {
             .comment("[是否Jade跟Tooltip第一行多傳物品圖案] (預設 true) Whether to enable translation with icon for Jade and Tooltip (only first line)")
             .define(ENABLE_ICON_CONFIG_PATH, true);
 
+    public static final String ENABLE_TRANSLATING_ANIMATION_CONFIG_PATH = "enable_translating_animation";
+    public static final ModConfigSpec.BooleanValue ENABLE_TRANSLATING_ANIMATION_CONFIG = BUILDER
+            .comment("[翻譯中是否在遊戲畫面顯示動畫] (預設 true) Whether to show animation on GUI when translating")
+            .define(ENABLE_TRANSLATING_ANIMATION_CONFIG_PATH, true);
+
     // // Example of item list config (kept as reference):
     // public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_STRINGS = BUILDER
     //         .comment("A list of items to log on common setup.")
