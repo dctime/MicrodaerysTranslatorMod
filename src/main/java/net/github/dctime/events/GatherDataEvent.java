@@ -1,7 +1,7 @@
 package net.github.dctime.events;
 
 
-import net.github.dctime.GoogleAIStudioTranslatorClient;
+import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.datagen.LanguageProvider;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.data.DataGenerator;
@@ -13,7 +13,7 @@ import net.neoforged.neoforge.common.data.ExistingFileHelper;
 
 import java.util.concurrent.CompletableFuture;
 
-@EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public class GatherDataEvent {
     @SubscribeEvent
     public static void onGatherData(net.neoforged.neoforge.data.event.GatherDataEvent event) {

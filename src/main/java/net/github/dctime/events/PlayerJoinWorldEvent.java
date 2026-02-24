@@ -1,6 +1,6 @@
 package net.github.dctime.events;
 
-import net.github.dctime.GoogleAIStudioTranslatorClient;
+import net.github.dctime.MicrodaerysTranslatorClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -9,7 +9,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
-@EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT)
 public class PlayerJoinWorldEvent {
     private static boolean loginHandled = false;
 

@@ -19,6 +19,17 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 public class Config {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
+    public enum EndPoint {
+        GOOGLE_AI_STUDIO,
+        OLLAMA,
+        MISTRAL
+    }
+
+    public static final String ENDPOINT_CONFIG_PATH = "endpoint";
+    public static final ModConfigSpec.EnumValue<EndPoint> ENDPOINT_CONFIG = BUILDER
+            .comment("[選哪個Endpoint] (預設 Google AI studio) Which Endpoint")
+            .defineEnum(ENDPOINT_CONFIG_PATH, EndPoint.GOOGLE_AI_STUDIO);
+
     // === Basic keys for Google AI Studio ===
     public static final String API_KEY_PATH = "api_key";
     public static final ModConfigSpec.ConfigValue<String> API_KEY = BUILDER
@@ -28,17 +39,16 @@ public class Config {
                     "3. LOCAL STORAGE: Your key is stored exclusively in this local config file.\n" +
                     "4. CONSENT: Entering a key confirms you understand this data flow and agree to Google's Terms.\n\n" +
                     "[ZH-TW]\n" +
-                    "1. 直連通訊：資料僅會直接傳送至 Google AI Studio 官方伺服器，不經過任何轉接。\n" +
+                    "1. 直連通訊：資料僅會直接傳送至提供者伺服器，不經過任何轉接。\n" +
                     "2. 拒絕蒐集：本模組「絕不」蒐集、紀錄或轉傳您的 API Key 及輸入內容至開發者或其他第三方伺服器。\n" +
                     "3. 本地儲存：您的金鑰僅儲存於此電腦的設定檔內，請妥善保管。\n" +
-                    "4. 同意聲明：填入金鑰即代表您知悉上述資料流向，並同意 Google 的服務條款。\n" +
-                    "(Apply one for free at https://ai.google.dev/)")
+                    "4. 同意聲明：填入金鑰即代表您知悉上述資料流向，並同意提供者的服務條款。\n")
             .define(API_KEY_PATH, "");
 
     public static final String MODEL_NAME_PATH = "model_name";
     public static final ModConfigSpec.ConfigValue<String> MODEL_NAME = BUILDER
-            .comment("The model name to use for translation [使用的 Google AI Studio 模型]\n" +
-                    "(免費可用 Gemma，如：gemma-3-4b-it 不考慮翻譯速度的話用 gemma-3-27b-it)")
+            .comment("The model name to use for translation [使用的模型]\n" +
+                    "(Google 有 gemma-3-4b-it, Mistral 有 mistral-small-latest, ollama 要看你載什麼模型)")
             .define(MODEL_NAME_PATH, "gemma-3-4b-it");
 
     // === Prompt tailored for Minecraft/mod tone (ASCII-safe, no fancy quotes) ===
@@ -80,6 +90,20 @@ public class Config {
 //                            "待翻譯：{TEXT}"
 //            );
 
+
+
+
+    public static final String TIMEOUT_DURATION_CONFIG_PATH = "timeout_duration";
+    public static final ModConfigSpec.ConfigValue<Integer> TIMEOUT_DURATION_CONFIG = BUILDER
+            .comment("[timeout時間] (預設 30) Timeout Duration in seconds")
+            .define(TIMEOUT_DURATION_CONFIG_PATH, 30);
+
+    public static final String FEATURE_TOGGLE_PATH = "feature_toggle";
+
+    static {
+        BUILDER.push(FEATURE_TOGGLE_PATH);
+    }
+
     // === Feature toggles ===
     public static final String ENABLE_TOOLTIP_TRANSLATION_PATH = "enable_tooltip_translation";
     public static final ModConfigSpec.BooleanValue ENABLE_TOOLTIP_TRANSLATION = BUILDER
@@ -116,6 +140,12 @@ public class Config {
     public static final ModConfigSpec.BooleanValue ENABLE_TRANSLATING_ANIMATION_CONFIG = BUILDER
             .comment("[翻譯中是否在遊戲畫面顯示動畫] (預設 true) Whether to show animation on GUI when translating")
             .define(ENABLE_TRANSLATING_ANIMATION_CONFIG_PATH, true);
+
+
+    static {
+        BUILDER.pop();
+    }
+
 
     // // Example of item list config (kept as reference):
     // public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_STRINGS = BUILDER

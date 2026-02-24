@@ -2,7 +2,7 @@ package net.github.dctime.events;
 
 import com.mojang.datafixers.util.Either;
 import net.github.dctime.Config;
-import net.github.dctime.GoogleAIStudioTranslatorClient;
+import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.libs.Translator;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-@EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT)
 public class RenderTooltipEvent {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderTooltipEvent.class);

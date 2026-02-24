@@ -1,7 +1,7 @@
 package net.github.dctime.events;
 
 import net.github.dctime.Config;
-import net.github.dctime.GoogleAIStudioTranslatorClient;
+import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.libs.Translator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -10,11 +10,11 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 
-@EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT, bus= EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT, bus= EventBusSubscriber.Bus.GAME)
 public class RenderGuiEvent {
     // 定義你的材質位置
     private static final ResourceLocation MY_IMAGE = ResourceLocation.fromNamespaceAndPath(
-            GoogleAIStudioTranslatorClient.MODID,
+            MicrodaerysTranslatorClient.MODID,
             "textures/gui/logo.png"
     );
 
