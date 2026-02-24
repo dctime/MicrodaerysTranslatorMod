@@ -1,6 +1,6 @@
 package net.github.dctime.events;
 
-import net.github.dctime.GoogleAIStudioTranslatorClient;
+import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.KeyMapping;
 import net.github.dctime.libs.Translator;
 import net.minecraft.ChatFormatting;
@@ -15,7 +15,7 @@ import net.minecraftforge.fml.common.Mod;
 //import net.neoforged.fml.common.EventBusSubscriber;
 //import net.neoforged.neoforge.client.event.ClientTickEvent;
 
-@Mod.EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT)
 public class OnClientTickEvent {
     @SubscribeEvent // on the game event bus only on the physical client
     public static void onClientTick(TickEvent.ClientTickEvent event) {

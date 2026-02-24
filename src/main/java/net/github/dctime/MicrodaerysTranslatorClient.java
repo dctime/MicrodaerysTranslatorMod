@@ -10,13 +10,13 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 // This class will not load on dedicated servers. Accessing client side code from here is safe.
-@Mod(value = GoogleAIStudioTranslatorClient.MODID)
+@Mod(value = MicrodaerysTranslatorClient.MODID)
 // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
 //@Mod.EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
-public class GoogleAIStudioTranslatorClient {
-    private static final Logger LOGGER = LoggerFactory.getLogger(GoogleAIStudioTranslatorClient.class);
-    public static final String MODID = "googleaistudiotranslator";
-    public GoogleAIStudioTranslatorClient() {
+public class MicrodaerysTranslatorClient {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MicrodaerysTranslatorClient.class);
+    public static final String MODID = "microdaerystranslator";
+    public MicrodaerysTranslatorClient() {
         // Allows NeoForge to create a config screen for this mod's configs.
         // The config screen is accessed by going to the Mods screen > clicking on your mod > clicking on config.
         // Do not forget to add translations for your config options to the en_us.json file.

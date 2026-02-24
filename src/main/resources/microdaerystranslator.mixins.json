@@ -2,7 +2,7 @@
   "plugin": "net.github.dctime.compability.LoadMixinPlugin",
   "required": true,
   "package": "net.github.dctime.mixin",
-  "refmap": "mixins.googleaistudiotranslator.refmap.json",
+  "refmap": "mixins.microdaerystranslator.refmap.json",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
 
