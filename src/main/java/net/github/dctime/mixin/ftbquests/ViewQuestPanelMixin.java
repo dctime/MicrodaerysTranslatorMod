@@ -196,6 +196,7 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
         }
     }
 
+    // for v2101.1.29+ FTBQuests
     @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
     public void mouseScrolled(double mouseX, double mouseY, double xDelta, double yDelta, CallbackInfoReturnable<Boolean> cir) {
         if (translationLeft > 0) {
