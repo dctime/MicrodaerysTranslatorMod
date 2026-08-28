@@ -28,13 +28,13 @@ public class Config {
     public static final String ENDPOINT_CONFIG_PATH = "endpoint";
     public static final ModConfigSpec.EnumValue<EndPoint> ENDPOINT_CONFIG = BUILDER
             .comment("[選哪個Endpoint] (預設 Google AI studio) Which Endpoint")
-            .defineEnum(ENDPOINT_CONFIG_PATH, EndPoint.GOOGLE_AI_STUDIO);
+            .defineEnum(ENDPOINT_CONFIG_PATH, EndPoint.MISTRAL);
 
     // === Basic keys for Google AI Studio ===
     public static final String API_KEY_PATH = "api_key";
     public static final ModConfigSpec.ConfigValue<String> API_KEY = BUILDER
-            .comment("The API KEY from Google AI Studio [Google AI Studio 的 API KEY]\n" +
-                    "1. DIRECT CONNECTION: Data is sent ONLY to Google AI Studio (https://generativelanguage.googleapis.com).\n" +
+            .comment("The API KEY from Google AI Studio/Mistral AI [Google AI Studio/Mistral 的 API KEY]\n" +
+                    "1. DIRECT CONNECTION: Data is sent ONLY to Google AI Studio / Mistral AI.\n" +
                     "2. NO DATA COLLECTION: This mod DOES NOT collect, log, or forward your API Key or prompts to any other servers.\n" +
                     "3. LOCAL STORAGE: Your key is stored exclusively in this local config file.\n" +
                     "4. CONSENT: Entering a key confirms you understand this data flow and agree to Google's Terms.\n\n" +
@@ -49,7 +49,7 @@ public class Config {
     public static final ModConfigSpec.ConfigValue<String> MODEL_NAME = BUILDER
             .comment("The model name to use for translation [使用的模型]\n" +
                     "(Google 有 gemma-3-4b-it, Mistral 有 mistral-small-latest, ollama 要看你載什麼模型)")
-            .define(MODEL_NAME_PATH, "gemma-3-4b-it");
+            .define(MODEL_NAME_PATH, "mistral-small-latest");
 
     // === Prompt tailored for Minecraft/mod tone (ASCII-safe, no fancy quotes) ===
     public static final String PROMPT_PATH = "prompt";

@@ -197,7 +197,7 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
     }
 
     @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
-    public void mouseScrolled(double scroll, CallbackInfoReturnable<Boolean> cir) {
+    public void mouseScrolled(double mouseX, double mouseY, double xDelta, double yDelta, CallbackInfoReturnable<Boolean> cir) {
         if (translationLeft > 0) {
 //            System.out.println("Not translated yet. Tasks left: " + translationLeft + ", cannot scroll.");
             cir.cancel();
