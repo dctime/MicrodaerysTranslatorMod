@@ -2,6 +2,10 @@
 // language" feature). Calls the REAL production class directly (no copy) -- TargetLanguage has
 // no Minecraft/NeoForge dependency, same as JsonUtil/RetryPolicy, so no game runtime is needed.
 //
+// Language codes here are Minecraft's own format (zh_tw/zh_cn/ja_jp/en_us), not an invented
+// scheme -- see the #6 round: this had to change so the same code could be compared directly
+// against LanguageManager.getSelected() and lang/*.json file names.
+//
 // Not covered here: Translator's CacheKey record (language + text composite cache key) isn't
 // independently tested. That's deliberate, not an oversight: a Java record's equals/hashCode is
 // a language guarantee, not custom logic of ours -- there's nothing to verify beyond what the
@@ -24,46 +28,46 @@ public class VerifyTargetLanguage {
 
     public static void main(String[] args) {
         // --- displayName ---
-        assertTrue("zh-tw displays as 繁體中文", TargetLanguage.displayName("zh-tw").equals("繁體中文"));
-        assertTrue("zh-cn displays as 简体中文", TargetLanguage.displayName("zh-cn").equals("简体中文"));
-        assertTrue("ja displays as 日文", TargetLanguage.displayName("ja").equals("日文"));
-        assertTrue("en displays as English", TargetLanguage.displayName("en").equals("English"));
-        assertTrue("language code lookup is case-insensitive (ZH-TW)",
-                TargetLanguage.displayName("ZH-TW").equals("繁體中文"));
-        assertTrue("language code lookup tolerates surrounding whitespace ( zh-tw )",
-                TargetLanguage.displayName(" zh-tw ").equals("繁體中文"));
+        assertTrue("zh_tw displays as 繁體中文", TargetLanguage.displayName("zh_tw").equals("繁體中文"));
+        assertTrue("zh_cn displays as 简体中文", TargetLanguage.displayName("zh_cn").equals("简体中文"));
+        assertTrue("ja_jp displays as 日文", TargetLanguage.displayName("ja_jp").equals("日文"));
+        assertTrue("en_us displays as English", TargetLanguage.displayName("en_us").equals("English"));
+        assertTrue("language code lookup is case-insensitive (ZH_TW)",
+                TargetLanguage.displayName("ZH_TW").equals("繁體中文"));
+        assertTrue("language code lookup tolerates surrounding whitespace ( zh_tw )",
+                TargetLanguage.displayName(" zh_tw ").equals("繁體中文"));
         assertTrue("unknown language code falls back to showing the raw code, not a crash",
                 TargetLanguage.displayName("klingon").equals("klingon"));
 
-        // --- isAlreadyInTargetLanguage: zh-tw / zh-cn (CJK unified ideographs) ---
-        assertTrue("zh-tw: Chinese text is detected as already translated",
-                TargetLanguage.isAlreadyInTargetLanguage("zh-tw", "你好世界"));
-        assertTrue("zh-tw: English text is NOT already-translated",
-                !TargetLanguage.isAlreadyInTargetLanguage("zh-tw", "Hello world"));
-        assertTrue("zh-cn: Chinese text is detected as already translated",
-                TargetLanguage.isAlreadyInTargetLanguage("zh-cn", "你好世界"));
+        // --- isAlreadyInTargetLanguage: zh_tw / zh_cn (CJK unified ideographs) ---
+        assertTrue("zh_tw: Chinese text is detected as already translated",
+                TargetLanguage.isAlreadyInTargetLanguage("zh_tw", "你好世界"));
+        assertTrue("zh_tw: English text is NOT already-translated",
+                !TargetLanguage.isAlreadyInTargetLanguage("zh_tw", "Hello world"));
+        assertTrue("zh_cn: Chinese text is detected as already translated",
+                TargetLanguage.isAlreadyInTargetLanguage("zh_cn", "你好世界"));
 
-        // --- ja: hiragana/katakana detected; kanji-only text is a documented known gap ---
-        assertTrue("ja: hiragana text is detected as already translated",
-                TargetLanguage.isAlreadyInTargetLanguage("ja", "こんにちは"));
-        assertTrue("ja: katakana text is detected as already translated",
-                TargetLanguage.isAlreadyInTargetLanguage("ja", "コンピュータ"));
-        assertTrue("ja: English text is NOT already-translated",
-                !TargetLanguage.isAlreadyInTargetLanguage("ja", "Hello world"));
-        assertTrue("ja: pure-kanji text is NOT caught by this heuristic (documented limitation, not a bug)",
-                !TargetLanguage.isAlreadyInTargetLanguage("ja", "世界"));
+        // --- ja_jp: hiragana/katakana detected; kanji-only text is a documented known gap ---
+        assertTrue("ja_jp: hiragana text is detected as already translated",
+                TargetLanguage.isAlreadyInTargetLanguage("ja_jp", "こんにちは"));
+        assertTrue("ja_jp: katakana text is detected as already translated",
+                TargetLanguage.isAlreadyInTargetLanguage("ja_jp", "コンピュータ"));
+        assertTrue("ja_jp: English text is NOT already-translated",
+                !TargetLanguage.isAlreadyInTargetLanguage("ja_jp", "Hello world"));
+        assertTrue("ja_jp: pure-kanji text is NOT caught by this heuristic (documented limitation, not a bug)",
+                !TargetLanguage.isAlreadyInTargetLanguage("ja_jp", "世界"));
 
-        // --- en: ASCII-only text counts as already English ---
-        assertTrue("en: ASCII text is detected as already translated",
-                TargetLanguage.isAlreadyInTargetLanguage("en", "Hello world 123!"));
-        assertTrue("en: Chinese text is NOT already-translated",
-                !TargetLanguage.isAlreadyInTargetLanguage("en", "你好世界"));
+        // --- en_us: ASCII-only text counts as already English ---
+        assertTrue("en_us: ASCII text is detected as already translated",
+                TargetLanguage.isAlreadyInTargetLanguage("en_us", "Hello world 123!"));
+        assertTrue("en_us: Chinese text is NOT already-translated",
+                !TargetLanguage.isAlreadyInTargetLanguage("en_us", "你好世界"));
 
         // --- unknown language / null safety: never skip, never throw ---
         assertTrue("unknown language code never skips translation (fails safe, doesn't throw)",
                 !TargetLanguage.isAlreadyInTargetLanguage("klingon", "anything at all"));
         assertTrue("null text never skips translation and doesn't throw NPE",
-                !TargetLanguage.isAlreadyInTargetLanguage("zh-tw", null));
+                !TargetLanguage.isAlreadyInTargetLanguage("zh_tw", null));
 
         // --- Translator.resolvePrompt() substitution strategy: player-edited PROMPT/
         // PROMPT_SCREENSHOT config strings must never be run through String.format()/.formatted()
@@ -73,11 +77,11 @@ public class VerifyTargetLanguage {
         // throw for any input. This pins the substitution approach down so nobody "simplifies"
         // resolvePrompt() back to .formatted() later.
         String playerEditedTemplateWithLoneMathPercent = "不要翻超過 90% 的內容，只回%s";
-        String substituted = playerEditedTemplateWithLoneMathPercent.replace("%s", TargetLanguage.displayName("zh-tw"));
+        String substituted = playerEditedTemplateWithLoneMathPercent.replace("%s", TargetLanguage.displayName("zh_tw"));
         assertTrue("a lone '%' in a player-edited prompt does not throw",
                 substituted.equals("不要翻超過 90% 的內容，只回繁體中文"));
         try {
-            String ignored = playerEditedTemplateWithLoneMathPercent.formatted(TargetLanguage.displayName("zh-tw"));
+            String ignored = playerEditedTemplateWithLoneMathPercent.formatted(TargetLanguage.displayName("zh_tw"));
             throw new AssertionError("FAILED: expected .formatted() to throw for a lone '%' -- if it stopped throwing, "
                     + "this assertion's premise (why replace() is required) is stale and needs re-checking, not deleting");
         } catch (java.util.UnknownFormatConversionException expected) {

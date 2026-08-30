@@ -51,12 +51,19 @@ public class Config {
                     "(Google 有 gemma-3-4b-it, Mistral 有 mistral-small-latest, ollama 要看你載什麼模型)")
             .define(MODEL_NAME_PATH, "mistral-small-latest");
 
+    public static final String FOLLOW_GAME_LANGUAGE_PATH = "follow_game_language";
+    public static final ModConfigSpec.BooleanValue FOLLOW_GAME_LANGUAGE = BUILDER
+            .comment("[翻譯目標語言是否跟隨遊戲本身選擇的語言] (預設 true)\n" +
+                    "開啟時忽略 target_language，改用遊戲選項裡目前選擇的語言；關閉時才用下面 target_language 手動指定。")
+            .define(FOLLOW_GAME_LANGUAGE_PATH, true);
+
     public static final String TARGET_LANGUAGE_PATH = "target_language";
     public static final ModConfigSpec.ConfigValue<String> TARGET_LANGUAGE = BUILDER
-            .comment("[翻譯輸出的目標語言] (預設 zh-tw) Target language for translation output\n" +
-                    "已知代碼: zh-tw(繁體中文), zh-cn(简体中文), ja(日文), en(English)。\n" +
-                    "其他代碼一樣可以填，只是「原文已經是目標語言就跳過翻譯」這個偵測不會生效，Prompt 的語言名稱也會直接顯示代碼本身。")
-            .define(TARGET_LANGUAGE_PATH, "zh-tw");
+            .comment("[翻譯輸出的目標語言] (預設 zh_tw) Target language for translation output\n" +
+                    "只有 follow_game_language 關閉時才會用到這個值。\n" +
+                    "代碼格式跟遊戲語言選項一致(底線+地區碼): zh_tw(繁體中文), zh_cn(简体中文), ja_jp(日文), en_us(English)。\n" +
+                    "其他代碼一樣可以填，只是「原文已經是目標語言就跳過翻譯」這個偵測跟官方翻譯表都不會生效，Prompt 的語言名稱也會直接顯示代碼本身。")
+            .define(TARGET_LANGUAGE_PATH, "zh_tw");
 
     // === Prompt tailored for Minecraft/mod tone (ASCII-safe, no fancy quotes) ===
     public static final String PROMPT_PATH = "prompt";

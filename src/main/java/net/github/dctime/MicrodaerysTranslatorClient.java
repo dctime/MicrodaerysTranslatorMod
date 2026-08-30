@@ -6,8 +6,10 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.github.dctime.libs.OfficialTranslationLookup;
 import net.github.dctime.libs.Translator;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import org.slf4j.Logger;
@@ -33,6 +35,16 @@ public class MicrodaerysTranslatorClient {
     @SubscribeEvent
     static void onClientSetup(FMLClientSetupEvent event) throws IOException, InterruptedException {
         Translator.loadCacheFromDisk();
+    }
+
+    @SubscribeEvent
+    static void onRegisterReloadListeners(RegisterClientReloadListenersEvent event) {
+        // Resource packs (a translation patch pack is a common one) can be added/removed/reordered
+        // mid-session; without this, OfficialTranslationLookup would keep answering from whatever
+        // snapshot it first loaded, silently ignoring anything the player adds afterward.
+        event.registerReloadListener(
+                (net.minecraft.server.packs.resources.ResourceManagerReloadListener)
+                        resourceManager -> OfficialTranslationLookup.invalidateCache());
     }
 
 

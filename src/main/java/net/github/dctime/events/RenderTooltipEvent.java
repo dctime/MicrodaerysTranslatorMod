@@ -32,6 +32,8 @@ public class RenderTooltipEvent {
                 String translated;
                 if (Translator.textInCache(original))
                     translated = Translator.getTranslationFromCache(original);
+                else if (finalI == 0 && Translator.tryOfficialTranslationForItemName(stack, original))
+                    translated = Translator.getTranslationFromCache(original);
                 else {
                     try {
                         if (finalI != 0) {

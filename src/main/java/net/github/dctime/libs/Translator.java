@@ -40,8 +40,18 @@ public class Translator {
     // there's no string-concatenation-with-a-delimiter to accidentally collide with real content.
     private record CacheKey(String lang, String text) {}
 
+    // single source of truth for "what language are we actually translating into right now" --
+    // every call site (cache key, prompt, skip-detection, official-translation lookup) must go
+    // through this, not read Config.TARGET_LANGUAGE.get() directly, or they can silently drift
+    // out of sync with each other (same failure shape as the fixedText/originalText coupling).
+    private static String resolveTargetLanguage() {
+        return Config.FOLLOW_GAME_LANGUAGE.get()
+                ? Minecraft.getInstance().getLanguageManager().getSelected()
+                : Config.TARGET_LANGUAGE.get();
+    }
+
     private static CacheKey keyFor(String text) {
-        return new CacheKey(Config.TARGET_LANGUAGE.get(), text);
+        return new CacheKey(resolveTargetLanguage(), text);
     }
 
     private static ConcurrentHashMap<CacheKey, String> translationCache = new ConcurrentHashMap<>();
@@ -253,11 +263,31 @@ public class Translator {
         // a custom prompt (e.g. "不要翻超過 90% 的內容") would make .formatted() throw
         // IllegalFormatException, which nothing upstream catches -- a config edit that once was
         // harmless plain text would crash every tooltip render. .replace() can never throw.
-        return template.replace("%s", TargetLanguage.displayName(Config.TARGET_LANGUAGE.get()));
+        return template.replace("%s", TargetLanguage.displayName(resolveTargetLanguage()));
     }
 
     public static void requestTranslateToTraditionalChinese(String textInEnglish) throws IOException, InterruptedException {
         requestTranslateToTraditionalChinese(textInEnglish, null, false);
+    }
+
+    /**
+     * Item/block display-name short-circuit: if the item's own registry translation key already
+     * has an official translation for the current target language, use it directly instead of
+     * calling the AI. Scoped ONLY to the item's default name (tooltip line 0) -- ordinary lore
+     * text has no stable translation key at all, so this can't extend to lore lines; those keep
+     * going through the AI path unchanged. Returns true (and populates the cache) on a hit.
+     */
+    public static boolean tryOfficialTranslationForItemName(ItemStack stack, String renderedText) {
+        if (stack == null || stack.isEmpty()) return false;
+
+        String key = stack.getItem().getDescriptionId();
+        String officialTranslation = OfficialTranslationLookup.lookup(key, resolveTargetLanguage(), renderedText);
+        if (officialTranslation == null) return false;
+
+        translationCache.put(keyFor(renderedText), officialTranslation);
+        cacheDirty = true;
+        LOGGER.debug("Used official translation for " + key + ": " + renderedText + " -> " + officialTranslation);
+        return true;
     }
 
     public static void requestTranslateItemStackToTraditionalChinese(String textInEnglish, ItemStack stack) throws IOException, InterruptedException {
@@ -285,7 +315,7 @@ public class Translator {
 
         String fixedText = textInEnglish;
 
-        if (TargetLanguage.isAlreadyInTargetLanguage(Config.TARGET_LANGUAGE.get(), fixedText)) {
+        if (TargetLanguage.isAlreadyInTargetLanguage(resolveTargetLanguage(), fixedText)) {
             translationCache.put(keyFor(fixedText), "");
             cacheDirty = true;
             LOGGER.debug("Text already in the target language, skipping translation: " + fixedText);
