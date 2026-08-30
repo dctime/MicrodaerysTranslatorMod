@@ -187,6 +187,10 @@ public class Translator {
 
         String jsonBody = JsonUtil.getGeminiJsonBody(image, prompt);
 
+        // temporary diagnostic logging, see the [DIAG] log in requestTranslateToTraditionalChinese
+        LOGGER.info("[DIAG] Gemini request: model=" + model + " url=" + url + " hasImage=" + (image != null)
+                + " prompt=[" + prompt + "]");
+
         String apiKey = Config.API_KEY.get();
 //        if (apiKey.isBlank()) return null; // TODO:
 
@@ -333,6 +337,16 @@ public class Translator {
             }
         }
 
+        // temporary diagnostic logging (issue: translation comes back unchanged/English even
+        // though the game language is zh_tw) -- LOGGER.debug doesn't show up at NeoForge's
+        // default log level, hence .info() here so it actually lands in logs/latest.log.
+        LOGGER.info("[DIAG] endpoint=" + Config.ENDPOINT_CONFIG.get()
+                + " resolvedTargetLanguage=" + resolveTargetLanguage()
+                + " followGameLanguage=" + Config.FOLLOW_GAME_LANGUAGE.get()
+                + " configTargetLanguage=" + Config.TARGET_LANGUAGE.get()
+                + " gameSelectedLanguage=" + Minecraft.getInstance().getLanguageManager().getSelected()
+                + " textToTranslate=" + fixedText);
+
         HttpRequest request;
         if (Config.ENDPOINT_CONFIG.get() == Config.EndPoint.OLLAMA)
             request = setupRequestOllama(fixedText, image, isScreenShot);
@@ -378,6 +392,9 @@ public class Translator {
         String responseText = resp.body();
         String translatedText;
 
+        // temporary diagnostic logging, see the [DIAG] logs in requestTranslateToTraditionalChinese/setupRequest
+        LOGGER.info("[DIAG] response status=" + resp.statusCode() + " body=[" + responseText + "]");
+
         try {
             if (isOllamaResponse(responseText)) {
                 translatedText = parseOllamaResponse(responseText);
@@ -394,6 +411,8 @@ public class Translator {
 
         resetHttpErrorFlags();
         if (!isScreenShot) RETRY_ATTEMPTS.remove(text);
+
+        LOGGER.info("[DIAG] parsed translatedText=[" + translatedText + "]");
 
         if (translatedText == null || translatedText.isBlank()) return;
 
