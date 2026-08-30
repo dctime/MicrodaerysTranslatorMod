@@ -25,12 +25,20 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.function.BooleanSupplier;
-import java.util.regex.Pattern;
 
 import static net.github.dctime.libs.ScreenShotter.getItemStackImage;
 
 public class Translator {
-    public static ConcurrentHashMap<String, String> translationCache = new ConcurrentHashMap<>();
+    // language is part of the key so switching Config.TARGET_LANGUAGE doesn't serve a cached
+    // translation from a previous target language. A record has built-in equals/hashCode, so
+    // there's no string-concatenation-with-a-delimiter to accidentally collide with real content.
+    private record CacheKey(String lang, String text) {}
+
+    private static CacheKey keyFor(String text) {
+        return new CacheKey(Config.TARGET_LANGUAGE.get(), text);
+    }
+
+    private static ConcurrentHashMap<CacheKey, String> translationCache = new ConcurrentHashMap<>();
 
     // per-text in-flight tracking replaces the old single global "translating" lock, which
     // dropped every request but the first when hovering across several items in one frame.
@@ -86,17 +94,17 @@ public class Translator {
 
     public static boolean textInCache(String text) {
         if (deletingTranslationKeyHold) {
-            translationCache.remove(text);
+            translationCache.remove(keyFor(text));
 //            System.out.println("REMOVE TRANSLATION: " + text);
             return false;
         }
 
 //        System.out.println("FINDING TRNASLATION IN CACHE: " + text + " deleting: " + deletingTranslationKeyHold);
-        return translationCache.containsKey(text);
+        return translationCache.containsKey(keyFor(text));
     }
 
-    public static String getTranslationFromCache(String key) {
-        return translationCache.get(key);
+    public static String getTranslationFromCache(String text) {
+        return translationCache.get(keyFor(text));
     }
 
     public static void clearCache() {
@@ -114,9 +122,9 @@ public class Translator {
         String model = Config.MODEL_NAME.get();
         String url = String.format("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", model);
 //
-        String prompt = Config.PROMPT.get() + "\n" + textInEnglish;
+        String prompt = resolvePrompt(isScreenShot) + "\n" + textInEnglish;
         if (isScreenShot) {
-            prompt = Config.PROMPT_SCREENSHOT.get();
+            prompt = resolvePrompt(true);
         }
 
         String jsonBody = JsonUtil.getGeminiJsonBody(image, prompt);
@@ -133,7 +141,7 @@ public class Translator {
                 .build();
 //
         if (textInEnglish.isBlank()) {
-            translationCache.put(textInEnglish, "");
+            translationCache.put(keyFor(textInEnglish), "");
             return null;
         }
 
@@ -148,11 +156,7 @@ public class Translator {
             return null;
         }
 
-        String prompt = Config.PROMPT.get() + "\n" + textInEnglish;
-
-        if (isScreenShot) {
-            prompt = Config.PROMPT_SCREENSHOT.get() + "\n" + textInEnglish;
-        }
+        String prompt = resolvePrompt(isScreenShot) + "\n" + textInEnglish;
 
         String model = Config.MODEL_NAME.get(); // 例如 "phi3"
 
@@ -176,11 +180,7 @@ public class Translator {
             return null;
         }
 
-        String prompt = Config.PROMPT.get() + "\n" + textInEnglish;
-
-        if (isScreenShot) {
-            prompt = Config.PROMPT_SCREENSHOT.get() + "\n" + textInEnglish;
-        }
+        String prompt = resolvePrompt(isScreenShot) + "\n" + textInEnglish;
 
         String model = Config.MODEL_NAME.get();
 
@@ -197,12 +197,14 @@ public class Translator {
                 .build();
     }
 
-    private static boolean containsChinese(String str) {
-        if (str == null) {
-            return false;
-        }
-        // 检查是否包含至少一个中文字符
-        return Pattern.compile("[\u4e00-\u9fa5]").matcher(str).find();
+    private static String resolvePrompt(boolean isScreenShot) {
+        String template = isScreenShot ? Config.PROMPT_SCREENSHOT.get() : Config.PROMPT.get();
+        // PROMPT/PROMPT_SCREENSHOT are freely player-editable config strings, so this must be a
+        // literal substitution, not String.format()/.formatted() semantics: a lone '%' typed into
+        // a custom prompt (e.g. "不要翻超過 90% 的內容") would make .formatted() throw
+        // IllegalFormatException, which nothing upstream catches -- a config edit that once was
+        // harmless plain text would crash every tooltip render. .replace() can never throw.
+        return template.replace("%s", TargetLanguage.displayName(Config.TARGET_LANGUAGE.get()));
     }
 
     public static void requestTranslateToTraditionalChinese(String textInEnglish) throws IOException, InterruptedException {
@@ -234,9 +236,9 @@ public class Translator {
 
         String fixedText = textInEnglish;
 
-        if (containsChinese(fixedText)) {
-            translationCache.put(fixedText, "");
-            LOGGER.debug("Text contains Chinese, skipping translation: " + fixedText);
+        if (TargetLanguage.isAlreadyInTargetLanguage(Config.TARGET_LANGUAGE.get(), fixedText)) {
+            translationCache.put(keyFor(fixedText), "");
+            LOGGER.debug("Text already in the target language, skipping translation: " + fixedText);
             return;
         }
 
@@ -318,7 +320,7 @@ public class Translator {
         translatedText = cleanText(translatedText);
 
         if (!isScreenShot) {
-            translationCache.put(text, translatedText);
+            translationCache.put(keyFor(text), translatedText);
             LOGGER.debug("Translated: " + text + " -> " + translatedText);
         } else {
             showScreenShotResult(translatedText);

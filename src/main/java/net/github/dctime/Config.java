@@ -51,13 +51,21 @@ public class Config {
                     "(Google 有 gemma-3-4b-it, Mistral 有 mistral-small-latest, ollama 要看你載什麼模型)")
             .define(MODEL_NAME_PATH, "mistral-small-latest");
 
+    public static final String TARGET_LANGUAGE_PATH = "target_language";
+    public static final ModConfigSpec.ConfigValue<String> TARGET_LANGUAGE = BUILDER
+            .comment("[翻譯輸出的目標語言] (預設 zh-tw) Target language for translation output\n" +
+                    "已知代碼: zh-tw(繁體中文), zh-cn(简体中文), ja(日文), en(English)。\n" +
+                    "其他代碼一樣可以填，只是「原文已經是目標語言就跳過翻譯」這個偵測不會生效，Prompt 的語言名稱也會直接顯示代碼本身。")
+            .define(TARGET_LANGUAGE_PATH, "zh-tw");
+
     // === Prompt tailored for Minecraft/mod tone (ASCII-safe, no fancy quotes) ===
     public static final String PROMPT_PATH = "prompt";
     public static final ModConfigSpec.ConfigValue<String> PROMPT = BUILDER
             .comment("The prompt to use for translation [翻譯時使用的提示語]\n" +
-                    "貼近 Minecraft/模組語氣。保留佔位符與格式。不腦補。僅輸出翻譯文字。")
+                    "貼近 Minecraft/模組語氣。保留佔位符與格式。不腦補。僅輸出翻譯文字。\n" +
+                    "%s 會被換成 target_language 對應的語言名稱。")
             .define(PROMPT_PATH,
-                    "只回繁體中文的翻譯，不要多字、不要解釋。\n" +
+                    "只回%s的翻譯，不要多字、不要解釋。\n" +
                     "遵守：\n" +
                     "不翻譯：模組/方塊/物品 ID、路徑、Key、Tag、檔名、指令(/give 等)、進度代碼、顏色/格式碼(§ 或 &)\n" +
                     "名詞遵循遊戲慣用：block=方塊、slab=半磚、stairs=樓梯、planks=木材、log=原木、ore=礦石、ingot=錠、nugget=金粒、dye=染料、bucket=桶、stack=堆疊、craft=合成、smelt=熔煉、furnace=熔爐、blast furnace=高爐、smoker=煙燻爐、enchant=附魔、anvil=鐵砧、loot=戰利品、biome=生態域\n" +
@@ -69,11 +77,12 @@ public class Config {
 
     public static final String PROMPT_SCREENSHOT_PATH = "prompt_screenshot";
     public static final ModConfigSpec.ConfigValue<String> PROMPT_SCREENSHOT = BUILDER
-            .comment("The prompt to use for translation screenshots [翻譯螢幕截圖時使用的提示語]\n")
+            .comment("The prompt to use for translation screenshots [翻譯螢幕截圖時使用的提示語]\n" +
+                    "%s 會被換成 target_language 對應的語言名稱。")
             .define(PROMPT_SCREENSHOT_PATH,
                     """
-                    請在圖片上找到所有的英文(不包含沒有英文的數字)並且翻譯成繁體中文
-                    
+                    請在圖片上找到所有的英文(不包含沒有英文的數字)並且翻譯成%s
+
                     翻譯的格式為
                     畫面簡介:xxx\\n
                     xxx/xxx\\n(原文英文1/中文1)(括號裡不需要顯示)
