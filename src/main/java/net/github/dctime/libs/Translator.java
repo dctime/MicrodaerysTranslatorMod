@@ -20,7 +20,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 
@@ -28,10 +31,26 @@ import static net.github.dctime.libs.ScreenShotter.getItemStackImage;
 
 public class Translator {
     public static ConcurrentHashMap<String, String> translationCache = new ConcurrentHashMap<>();
-    public static volatile boolean translating = false;
+
+    // per-text in-flight tracking replaces the old single global "translating" lock, which
+    // dropped every request but the first when hovering across several items in one frame.
+    private static final Set<String> IN_FLIGHT = ConcurrentHashMap.newKeySet();
+    // 429 (RPM) backoff bookkeeping, keyed by the same text as IN_FLIGHT/translationCache.
+    private static final Map<String, Long> RETRY_AFTER = new ConcurrentHashMap<>();
+    private static final Map<String, Integer> RETRY_ATTEMPTS = new ConcurrentHashMap<>();
+    // caps how many translation requests can be in flight at once across ALL texts, so sweeping
+    // the mouse over a long row of items doesn't fire off unbounded concurrent requests.
+    private static final Semaphore CONCURRENCY_LIMIT = new Semaphore(4);
+    // screenshot translation is a single, unrelated flow (fixed ":" text) with its own busy flag.
+    public static volatile boolean screenshotTranslating = false;
+
     private static final HttpClient CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
+
+    public static boolean isTranslating() {
+        return screenshotTranslating || !IN_FLIGHT.isEmpty();
+    }
     private static boolean hasShowConnectionError = false;
     private static boolean hasShowAPIKEYError = false;
     private static boolean hasShowRequestTooFrequentError = false;
@@ -191,7 +210,7 @@ public class Translator {
     }
 
     public static void requestTranslateItemStackToTraditionalChinese(String textInEnglish, ItemStack stack) throws IOException, InterruptedException {
-        if (stack != null && !translating && Config.ENABLE_ICON_CONFIG.get()) {
+        if (stack != null && !IN_FLIGHT.contains(textInEnglish) && Config.ENABLE_ICON_CONFIG.get()) {
             RenderSystem.recordRenderCall(() -> {
                 String image = getItemStackImage(stack);
                 try {
@@ -213,14 +232,23 @@ public class Translator {
                                                             boolean isScreenShot)
             throws IOException, InterruptedException {
 
-        if (translating) return;
-
         String fixedText = textInEnglish;
 
         if (containsChinese(fixedText)) {
             translationCache.put(fixedText, "");
             LOGGER.debug("Text contains Chinese, skipping translation: " + fixedText);
             return;
+        }
+
+        if (isScreenShot) {
+            if (screenshotTranslating) return;
+        } else {
+            if (IN_FLIGHT.contains(fixedText)) return;
+            Long retryAfter = RETRY_AFTER.get(fixedText);
+            if (retryAfter != null) {
+                if (System.currentTimeMillis() < retryAfter) return; // still backing off after a 429
+                RETRY_AFTER.remove(fixedText);
+            }
         }
 
         HttpRequest request;
@@ -236,7 +264,13 @@ public class Translator {
             return;
         }
 
-        translating = true;
+        if (!CONCURRENCY_LIMIT.tryAcquire()) return; // too many requests already in flight; a later render tick retries
+
+        // acquire/release must stay paired 1:1 with this exact ordering; a mismatch here isn't
+        // caught by any automated test (see the disclosed limitation at the top of
+        // tools/verify-concurrency/VerifyConcurrency.java) -- review this finally block by eye
+        // before changing it.
+        if (isScreenShot) screenshotTranslating = true; else IN_FLIGHT.add(fixedText);
 
         CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .whenComplete((resp, throwable) -> {
@@ -246,17 +280,17 @@ public class Translator {
                             return;
                         }
 
-                        handleHttpResponse(resp, fixedText, textInEnglish, isScreenShot);
+                        handleHttpResponse(resp, fixedText, isScreenShot);
 
                     } finally {
-                        translating = false;
+                        CONCURRENCY_LIMIT.release();
+                        if (isScreenShot) screenshotTranslating = false; else IN_FLIGHT.remove(fixedText);
                     }
                 });
     }
 
     private static void handleHttpResponse(HttpResponse<String> resp,
-                                           String fixedText,
-                                           String originalText,
+                                           String text,
                                            boolean isScreenShot) {
 
         String responseText = resp.body();
@@ -272,19 +306,20 @@ public class Translator {
             }
         } catch (Exception e) {
             LOGGER.warn("Error parsing response: " + responseText);
-            handleHttpError(resp.statusCode());
+            handleHttpError(resp.statusCode(), text, isScreenShot);
             return;
         }
 
         resetHttpErrorFlags();
+        if (!isScreenShot) RETRY_ATTEMPTS.remove(text);
 
         if (translatedText == null || translatedText.isBlank()) return;
 
         translatedText = cleanText(translatedText);
 
         if (!isScreenShot) {
-            translationCache.put(originalText, translatedText);
-            LOGGER.debug("Translated: " + fixedText + " -> " + translatedText);
+            translationCache.put(text, translatedText);
+            LOGGER.debug("Translated: " + text + " -> " + translatedText);
         } else {
             showScreenShotResult(translatedText);
         }
@@ -360,7 +395,7 @@ public class Translator {
         return null;
     }
 
-    private static void handleHttpError(int statusCode) {
+    private static void handleHttpError(int statusCode, String text, boolean isScreenShot) {
 
         switch (statusCode) {
 
@@ -372,13 +407,16 @@ public class Translator {
                     () -> hasShowAPIKEYError = true
             );
 
-            case 429 -> showMessage(
-                    "Translation failed! You request too frequently (RPM exceeded)",
-                    "無法翻譯! 請求過快導致超過 RPM 限制",
-                    ChatFormatting.YELLOW,
-                    () -> hasShowRequestTooFrequentError,
-                    () -> hasShowRequestTooFrequentError = true
-            );
+            case 429 -> {
+                if (!isScreenShot) scheduleRetryBackoff(text);
+                showMessage(
+                        "Translation failed! You request too frequently (RPM exceeded)",
+                        "無法翻譯! 請求過快導致超過 RPM 限制",
+                        ChatFormatting.YELLOW,
+                        () -> hasShowRequestTooFrequentError,
+                        () -> hasShowRequestTooFrequentError = true
+                );
+            }
 
             default -> showMessage(
                     "Translation failed! HTTP Status Code: " + statusCode,
@@ -388,6 +426,13 @@ public class Translator {
                     () -> hasShowOtherError = true
             );
         }
+    }
+
+    // simple exponential backoff (4s, 8s, 16s, capped at 30s) before this exact text is allowed
+    // to be retried again, so a burst of 429s doesn't just get retried every render frame.
+    private static void scheduleRetryBackoff(String text) {
+        int attempt = RETRY_ATTEMPTS.merge(text, 1, Integer::sum);
+        RETRY_AFTER.put(text, System.currentTimeMillis() + RetryPolicy.backoffDelayMs(attempt));
     }
 
     private static void handleConnectionError(Throwable throwable) {

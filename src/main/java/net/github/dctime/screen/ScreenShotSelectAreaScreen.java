@@ -86,6 +86,8 @@ public class ScreenShotSelectAreaScreen extends Screen implements GuiEventListen
     @Override
     public void onClose() {
         super.onClose();
+        Minecraft.getInstance().getTextureManager().release(tempImageResourceLocation);
+        tempImage.close();
         Minecraft.getInstance().setScreen(oldScreen);
     }
 
@@ -133,7 +135,7 @@ public class ScreenShotSelectAreaScreen extends Screen implements GuiEventListen
             return;
         }
 
-        if (Translator.translating) {
+        if (Translator.screenshotTranslating) {
             if (Minecraft.getInstance().player != null) {
                 Minecraft.getInstance().player.sendSystemMessage(Component.literal("翻譯器正在忙碌中，請稍後再截圖。").withStyle(ChatFormatting.YELLOW));
                 ScreenEventRender.setRenderText("翻譯器正在忙碌中，請稍後再截圖。");
