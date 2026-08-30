@@ -162,22 +162,23 @@ dependencies {
     runtimeOnly("mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}")
 
     //https://www.curseforge.com/minecraft/mc-mods/ftb-teams-forge
-    compileOnly("curse.maven:ftb-teams-forge-404468:6119437")
+    compileOnly "curse.maven:ftb-teams-forge-404468:8724782"
     //https://www.curseforge.com/minecraft/mc-mods/architectury-api
-    compileOnly("curse.maven:architectury-api-419699:5786327")
+    compileOnly "curse.maven:architectury-api-419699:8492726"
     //https://www.curseforge.com/minecraft/mc-mods/ftb-library-forge
-    compileOnly("curse.maven:ftb-library-forge-404465:6874538")
+    compileOnly "curse.maven:ftb-library-forge-404465:8569579"
     //https://www.curseforge.com/minecraft/mc-mods/ftb-quests-forge
-    compileOnly("curse.maven:ftb-quests-forge-289412:6721642")
+    compileOnly "curse.maven:ftb-quests-forge-289412:8730556"
 
+    // runData comments these runtimeOnly (when runData)
     //https://www.curseforge.com/minecraft/mc-mods/ftb-teams-forge
-    runtimeOnly("curse.maven:ftb-teams-forge-404468:6119437")
+    runtimeOnly "curse.maven:ftb-teams-forge-404468:8724782"
     //https://www.curseforge.com/minecraft/mc-mods/architectury-api
-    runtimeOnly("curse.maven:architectury-api-419699:5786327")
+    runtimeOnly "curse.maven:architectury-api-419699:8492726"
     //https://www.curseforge.com/minecraft/mc-mods/ftb-library-forge
-    runtimeOnly("curse.maven:ftb-library-forge-404465:6874538")
+    runtimeOnly "curse.maven:ftb-library-forge-404465:8569579"
     //https://www.curseforge.com/minecraft/mc-mods/ftb-quests-forge
-    runtimeOnly("curse.maven:ftb-quests-forge-289412:6721642")
+    runtimeOnly "curse.maven:ftb-quests-forge-289412:8730556"
 
     implementation "maven.modrinth:jade:${jade_version}"
 

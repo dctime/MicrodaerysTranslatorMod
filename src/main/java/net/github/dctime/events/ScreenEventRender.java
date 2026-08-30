@@ -1,6 +1,6 @@
 package net.github.dctime.events;
 
-import net.github.dctime.GoogleAIStudioTranslatorClient;
+import net.github.dctime.MicrodaerysTranslatorClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.FormattedText;
@@ -12,7 +12,7 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 
 import java.util.List;
 
-@EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT)
 public class ScreenEventRender {
     private static boolean showTranslationButtonPressed = false;
     public static void setShowTranslationButtonPressed(boolean value) {

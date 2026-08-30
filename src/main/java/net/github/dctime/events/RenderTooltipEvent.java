@@ -2,9 +2,10 @@ package net.github.dctime.events;
 
 import com.mojang.datafixers.util.Either;
 import net.github.dctime.Config;
-import net.github.dctime.GoogleAIStudioTranslatorClient;
+import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.libs.Translator;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -13,13 +14,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-@EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT)
 public class RenderTooltipEvent {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderTooltipEvent.class);
     @SubscribeEvent
     public static void onRenderTooltip(net.neoforged.neoforge.client.event.RenderTooltipEvent.GatherComponents event) {
         if (!Config.ENABLE_TOOLTIP_TRANSLATION.get()) return;
+        ItemStack stack = event.getItemStack();
         var elements = event.getTooltipElements();
 
         for (int i = 0; i < elements.size(); i++) {
@@ -28,11 +30,15 @@ public class RenderTooltipEvent {
             e.ifLeft(text -> {
                 String original = text.getString();
                 String translated;
-                if (Translator.translationCache.containsKey(original))
-                    translated = Translator.translationCache.get(original);
+                if (Translator.textInCache(original))
+                    translated = Translator.getTranslationFromCache(original);
                 else {
                     try {
-                        Translator.requestTranslateToTraditionalChinese(original);
+                        if (finalI != 0) {
+                            Translator.requestTranslateToTraditionalChinese(original);
+                        } else {
+                            Translator.requestTranslateItemStackToTraditionalChinese(original, stack);
+                        }
                     } catch (IOException ex) {
                         LOGGER.warn("IO Exception while translating: " + ex.getMessage());
                     } catch (InterruptedException ex) {
