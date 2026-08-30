@@ -1,6 +1,7 @@
 package net.github.dctime.events;
 
 import net.github.dctime.MicrodaerysTranslatorClient;
+import net.github.dctime.libs.Translator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -30,5 +31,6 @@ public class PlayerJoinWorldEvent {
     @SubscribeEvent
     public static void onClientLogout(net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
         loginHandled = false;
+        Translator.flushCacheToDiskIfDirty(); // safety net on top of the periodic tick flush
     }
 }

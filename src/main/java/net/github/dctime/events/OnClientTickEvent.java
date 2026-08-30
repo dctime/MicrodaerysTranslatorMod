@@ -10,6 +10,10 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 @EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT)
 public class OnClientTickEvent {
+    // 20 ticks/sec, so this is ~30 seconds between disk-cache flush checks.
+    private static final int FLUSH_CHECK_INTERVAL_TICKS = 600;
+    private static int ticksSinceLastFlushCheck = 0;
+
     @SubscribeEvent // on the game event bus only on the physical client
     public static void onClientTick(ClientTickEvent.Post event) {
         while (KeyMapping.DELETE_TRANSLATION_CACHE.get().consumeClick()) {
@@ -22,6 +26,11 @@ public class OnClientTickEvent {
         } else {
             Translator.setDeletingTranslationKeyHold(false, Translator.KeyTriggeredSource.CLIENT_TICK);
 //            System.out.println("Client Tick FALSE");
+        }
+
+        if (++ticksSinceLastFlushCheck >= FLUSH_CHECK_INTERVAL_TICKS) {
+            ticksSinceLastFlushCheck = 0;
+            Translator.flushCacheToDiskIfDirty();
         }
     }
 }

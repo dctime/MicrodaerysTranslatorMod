@@ -3,6 +3,7 @@ package net.github.dctime.libs;
 import com.google.gson.*;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.github.dctime.Config;
+import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.events.ScreenEventRender;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -13,15 +14,20 @@ import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.neoforged.fml.loading.FMLPaths;
+
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.function.BooleanSupplier;
@@ -39,6 +45,47 @@ public class Translator {
     }
 
     private static ConcurrentHashMap<CacheKey, String> translationCache = new ConcurrentHashMap<>();
+
+    // set (O(1)) whenever translationCache changes; a periodic tick (see OnClientTickEvent)
+    // flushes to disk only when this is true, instead of re-serializing the whole cache on every
+    // single successful translation (which would cost O(cache size) per translation).
+    private static volatile boolean cacheDirty = false;
+
+    private static Path cacheFilePath() {
+        return FMLPaths.CONFIGDIR.get().resolve(MicrodaerysTranslatorClient.MODID).resolve("translation_cache.json");
+    }
+
+    /** Call once at mod startup, before any translation happens. */
+    public static void loadCacheFromDisk() {
+        Map<String, Map<String, String>> nested = TranslationDiskCache.load(cacheFilePath());
+        for (Map.Entry<String, Map<String, String>> langEntry : nested.entrySet()) {
+            for (Map.Entry<String, String> textEntry : langEntry.getValue().entrySet()) {
+                translationCache.put(new CacheKey(langEntry.getKey(), textEntry.getKey()), textEntry.getValue());
+            }
+        }
+    }
+
+    /** Cheap to call often (e.g. every tick): no-ops unless the cache actually changed since the last flush. */
+    public static void flushCacheToDiskIfDirty() {
+        if (!cacheDirty) return;
+        cacheDirty = false;
+
+        Path file = cacheFilePath();
+        CompletableFuture.runAsync(() -> {
+            // ConcurrentHashMap iteration is thread-safe on its own, so the O(cache size)
+            // flatten can happen on the async thread too -- the caller (tick/logout) only pays
+            // O(1): clear the flag, hand off the task.
+            Map<String, Map<String, String>> nested = new HashMap<>();
+            for (Map.Entry<CacheKey, String> entry : translationCache.entrySet()) {
+                nested.computeIfAbsent(entry.getKey().lang(), lang -> new HashMap<>()).put(entry.getKey().text(), entry.getValue());
+            }
+            try {
+                TranslationDiskCache.save(file, nested);
+            } catch (IOException e) {
+                LOGGER.warn("Failed to write translation cache to disk: " + e.getMessage());
+            }
+        });
+    }
 
     // per-text in-flight tracking replaces the old single global "translating" lock, which
     // dropped every request but the first when hovering across several items in one frame.
@@ -113,6 +160,7 @@ public class Translator {
         Player player = Minecraft.getInstance().player;
         if (player == null) return;
         Translator.translationCache.clear();
+        cacheDirty = true; // otherwise a quit before the next periodic flush leaves the stale cache on disk
         player.sendSystemMessage(Component.literal("Translation cache cleared.").withStyle(ChatFormatting.YELLOW));
         player.sendSystemMessage(Component.literal("清除翻譯快取").withStyle(ChatFormatting.YELLOW));
     }
@@ -142,6 +190,7 @@ public class Translator {
 //
         if (textInEnglish.isBlank()) {
             translationCache.put(keyFor(textInEnglish), "");
+            cacheDirty = true;
             return null;
         }
 
@@ -238,6 +287,7 @@ public class Translator {
 
         if (TargetLanguage.isAlreadyInTargetLanguage(Config.TARGET_LANGUAGE.get(), fixedText)) {
             translationCache.put(keyFor(fixedText), "");
+            cacheDirty = true;
             LOGGER.debug("Text already in the target language, skipping translation: " + fixedText);
             return;
         }
@@ -321,6 +371,7 @@ public class Translator {
 
         if (!isScreenShot) {
             translationCache.put(keyFor(text), translatedText);
+            cacheDirty = true;
             LOGGER.debug("Translated: " + text + " -> " + translatedText);
         } else {
             showScreenShotResult(translatedText);
