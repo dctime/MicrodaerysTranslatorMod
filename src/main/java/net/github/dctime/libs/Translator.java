@@ -7,13 +7,16 @@ import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.events.ScreenEventRender;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLPaths;
 
 import javax.annotation.Nullable;
@@ -287,6 +290,22 @@ public class Translator {
 
     public static void requestTranslateToTraditionalChinese(String textInEnglish) throws IOException, InterruptedException {
         requestTranslateToTraditionalChinese(textInEnglish, null, false);
+    }
+
+    /**
+     * True when this tooltip line is just "which mod is this item from" (e.g. JEI's mod-name
+     * line: "Minecraft", "FTB Quests"). That text is a mod's own brand name -- a proper noun the
+     * AI already declines to translate per the prompt's own "don't translate mod IDs" rule -- so
+     * requesting a translation for it only wastes an API call and, once the AI dutifully echoes
+     * it back unchanged, appends a confusing "Minecraft Minecraft" duplicate onto the tooltip.
+     * The caller should leave a matching line completely untouched: no lookup, no AI, no append.
+     */
+    public static boolean isModNameLine(ItemStack stack, String renderedText) {
+        if (stack == null || stack.isEmpty() || renderedText == null || renderedText.isBlank()) return false;
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return ModList.get().getModContainerById(itemId.getNamespace())
+                .map(container -> container.getModInfo().getDisplayName().equals(renderedText))
+                .orElse(false);
     }
 
     /**

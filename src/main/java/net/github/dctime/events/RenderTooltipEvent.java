@@ -29,6 +29,7 @@ public class RenderTooltipEvent {
             int finalI = i;
             e.ifLeft(text -> {
                 String original = text.getString();
+                if (Translator.isModNameLine(stack, original)) return; // "Minecraft"/"FTB Quests": leave untouched, don't waste an AI call on a brand name
                 String translated;
                 if (Translator.textInCache(original))
                     translated = Translator.getTranslationFromCache(original);
