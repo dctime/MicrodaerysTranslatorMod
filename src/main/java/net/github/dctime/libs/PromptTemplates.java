@@ -1,6 +1,7 @@
 package net.github.dctime.libs;
 
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Built-in default translation prompts, one per supported target language, each written
@@ -156,6 +157,86 @@ public class PromptTemplates {
             xxx/xxx\\n(original English 1/%s translation 1)(parentheses not shown)
             xxx/xxx\\n(original English 2/%s translation 2)(parentheses not shown)
             """;
+
+    // Every default value Config.PROMPT has ever shipped with, before this mod had per-language
+    // templates at all. NeoForge never overwrites an existing config key's saved value when the
+    // code's default changes, so a config.toml generated under any of these older versions is
+    // permanently stuck on one of these exact strings -- confirmed against a real player's config
+    // in the wild, not hypothetical. Recognizing them here means that player doesn't have to find
+    // and manually clear the field themselves for a config file they may not even feel safe
+    // hand-editing. This is a narrow, exact-match allowlist of specific past defaults, not a
+    // general version-migration system.
+    private static final Set<String> LEGACY_PROMPT_DEFAULTS = Set.of(
+            // shipped before target_language existed at all (no %s anywhere)
+            "只回繁體中文的翻譯，不要多字、不要解釋。\n" +
+            "遵守：\n" +
+            "不翻譯：模組/方塊/物品 ID、路徑、Key、Tag、檔名、指令(/give 等)、進度代碼、顏色/格式碼(§ 或 &)\n" +
+            "名詞遵循遊戲慣用：block=方塊、slab=半磚、stairs=樓梯、planks=木材、log=原木、ore=礦石、ingot=錠、nugget=金粒、dye=染料、bucket=桶、stack=堆疊、craft=合成、smelt=熔煉、furnace=熔爐、blast furnace=高爐、smoker=煙燻爐、enchant=附魔、anvil=鐵砧、loot=戰利品、biome=生態域\n" +
+            "優先使用《Minecraft》繁中(zh_tw)官方譯名；無官方譯名則用台灣社群慣用語。\n" +
+            "字面直譯、保持簡潔；不要加背景、不要腦補。\n" +
+            "標點與大小寫盡量貼近原風格(專有名詞維持大小寫) 不要加句號。\n" +
+            "待翻譯：\n",
+            // shipped while target_language existed but the rules themselves were still hardcoded
+            // Traditional Chinese, only the first line's language name was parameterized
+            "只回%s的翻譯，不要多字、不要解釋。\n" +
+            "遵守：\n" +
+            "不翻譯：模組/方塊/物品 ID、路徑、Key、Tag、檔名、指令(/give 等)、進度代碼、顏色/格式碼(§ 或 &)\n" +
+            "名詞遵循遊戲慣用：block=方塊、slab=半磚、stairs=樓梯、planks=木材、log=原木、ore=礦石、ingot=錠、nugget=金粒、dye=染料、bucket=桶、stack=堆疊、craft=合成、smelt=熔煉、furnace=熔爐、blast furnace=高爐、smoker=煙燻爐、enchant=附魔、anvil=鐵砧、loot=戰利品、biome=生態域\n" +
+            "優先使用《Minecraft》繁中(zh_tw)官方譯名；無官方譯名則用台灣社群慣用語。\n" +
+            "字面直譯、保持簡潔；不要加背景、不要腦補。\n" +
+            "標點與大小寫盡量貼近原風格(專有名詞維持大小寫) 不要加句號。\n" +
+            "待翻譯：\n",
+            // the short-lived "language-agnostic single template" version (superseded the same
+            // round it shipped, once per-language native templates replaced it)
+            "只回%s的翻譯，不要多字、不要解釋。\n" +
+            "遵守：\n" +
+            "不翻譯：模組/方塊/物品 ID、路徑、Key、Tag、檔名、指令(/give 等)、進度代碼、顏色/格式碼(§ 或 &)\n" +
+            "名詞使用%s Minecraft 社群慣用譯名；有官方%s翻譯的詞優先採用官方翻譯。\n" +
+            "字面直譯、保持簡潔；不要加背景、不要腦補。\n" +
+            "標點與大小寫盡量貼近原風格(專有名詞維持大小寫) 不要加句號。\n" +
+            "待翻譯：\n"
+    );
+
+    private static final Set<String> LEGACY_PROMPT_SCREENSHOT_DEFAULTS = Set.of(
+            // shipped before target_language existed at all (no %s anywhere)
+            """
+            請在圖片上找到所有的英文(不包含沒有英文的數字)並且翻譯成繁體中文
+
+            翻譯的格式為
+            畫面簡介:xxx\\n
+            xxx/xxx\\n(原文英文1/中文1)(括號裡不需要顯示)
+            xxx/xxx\\n(原文英文2/中文2)(括號裡不需要顯示)
+            """,
+            // shipped while target_language existed but the example format was still hardcoded
+            // Traditional Chinese ("中文1"/"中文2")
+            """
+            請在圖片上找到所有的英文(不包含沒有英文的數字)並且翻譯成%s
+
+            翻譯的格式為
+            畫面簡介:xxx\\n
+            xxx/xxx\\n(原文英文1/中文1)(括號裡不需要顯示)
+            xxx/xxx\\n(原文英文2/中文2)(括號裡不需要顯示)
+            """,
+            // the short-lived "language-agnostic single template" version
+            """
+            請在圖片上找到所有的英文(不包含沒有英文的數字)並且翻譯成%s
+
+            翻譯的格式為
+            畫面簡介:xxx\\n
+            xxx/xxx\\n(原文英文1/%s譯文1)(括號裡不需要顯示)
+            xxx/xxx\\n(原文英文2/%s譯文2)(括號裡不需要顯示)
+            """
+    );
+
+    /** True if this config value is blank OR byte-identical to a default this mod shipped in the past. */
+    public static boolean isBlankOrLegacyDefault(String prompt) {
+        return prompt.isBlank() || LEGACY_PROMPT_DEFAULTS.contains(prompt);
+    }
+
+    /** Same as {@link #isBlankOrLegacyDefault} but for the screenshot prompt's own separate history. */
+    public static boolean isBlankOrLegacyScreenshotDefault(String prompt) {
+        return prompt.isBlank() || LEGACY_PROMPT_SCREENSHOT_DEFAULTS.contains(prompt);
+    }
 
     public static String promptFor(String languageCode) {
         Templates t = KNOWN.get(normalize(languageCode));

@@ -264,10 +264,16 @@ public class Translator {
         String override = isScreenShot ? Config.PROMPT_SCREENSHOT.get() : Config.PROMPT.get();
         String targetLanguage = resolveTargetLanguage();
 
-        // blank (the default) -> pick the built-in prompt written natively for the target
-        // language (see PromptTemplates); a non-blank config value overrides that for every
-        // language instead, same as before this became per-language.
-        if (override.isBlank()) {
+        // blank OR byte-identical to a default this mod shipped in some past version (NeoForge
+        // never overwrites an existing config key's saved value when the code's default changes,
+        // so a config generated under an older version is permanently stuck on one of those exact
+        // strings otherwise -- confirmed with a real player's config, not hypothetical) -> pick
+        // the built-in prompt written natively for the target language (see PromptTemplates); any
+        // other non-blank value is a genuine player override, used for every language.
+        boolean useBuiltInTemplate = isScreenShot
+                ? PromptTemplates.isBlankOrLegacyScreenshotDefault(override)
+                : PromptTemplates.isBlankOrLegacyDefault(override);
+        if (useBuiltInTemplate) {
             return isScreenShot ? PromptTemplates.screenshotPromptFor(targetLanguage) : PromptTemplates.promptFor(targetLanguage);
         }
 

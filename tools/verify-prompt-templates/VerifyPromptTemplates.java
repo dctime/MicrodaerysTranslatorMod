@@ -64,6 +64,83 @@ public class VerifyPromptTemplates {
         assertTrue("fr_fr never reports \"already translated\" for plain English text",
                 !TargetLanguage.isAlreadyInTargetLanguage("fr_fr", "Iron Ingot"));
 
+        // --- legacy-default recognition: confirmed against a real player's config in the wild ---
+        // this is the EXACT prompt value a real player's config.toml still had, generated before
+        // this mod had per-language templates at all (no %s anywhere in it).
+        String realPlayerLegacyPrompt =
+                "只回繁體中文的翻譯，不要多字、不要解釋。\n" +
+                "遵守：\n" +
+                "不翻譯：模組/方塊/物品 ID、路徑、Key、Tag、檔名、指令(/give 等)、進度代碼、顏色/格式碼(§ 或 &)\n" +
+                "名詞遵循遊戲慣用：block=方塊、slab=半磚、stairs=樓梯、planks=木材、log=原木、ore=礦石、ingot=錠、nugget=金粒、dye=染料、bucket=桶、stack=堆疊、craft=合成、smelt=熔煉、furnace=熔爐、blast furnace=高爐、smoker=煙燻爐、enchant=附魔、anvil=鐵砧、loot=戰利品、biome=生態域\n" +
+                "優先使用《Minecraft》繁中(zh_tw)官方譯名；無官方譯名則用台灣社群慣用語。\n" +
+                "字面直譯、保持簡潔；不要加背景、不要腦補。\n" +
+                "標點與大小寫盡量貼近原風格(專有名詞維持大小寫) 不要加句號。\n" +
+                "待翻譯：\n";
+        assertTrue("the exact legacy prompt pulled from a real player's config.toml is recognized as legacy",
+                PromptTemplates.isBlankOrLegacyDefault(realPlayerLegacyPrompt));
+
+        // the two other historical defaults this mod shipped (#5's half-parameterized version,
+        // #7's short-lived language-agnostic version) must also be recognized
+        String v5Default = "只回%s的翻譯，不要多字、不要解釋。\n" +
+                "遵守：\n" +
+                "不翻譯：模組/方塊/物品 ID、路徑、Key、Tag、檔名、指令(/give 等)、進度代碼、顏色/格式碼(§ 或 &)\n" +
+                "名詞遵循遊戲慣用：block=方塊、slab=半磚、stairs=樓梯、planks=木材、log=原木、ore=礦石、ingot=錠、nugget=金粒、dye=染料、bucket=桶、stack=堆疊、craft=合成、smelt=熔煉、furnace=熔爐、blast furnace=高爐、smoker=煙燻爐、enchant=附魔、anvil=鐵砧、loot=戰利品、biome=生態域\n" +
+                "優先使用《Minecraft》繁中(zh_tw)官方譯名；無官方譯名則用台灣社群慣用語。\n" +
+                "字面直譯、保持簡潔；不要加背景、不要腦補。\n" +
+                "標點與大小寫盡量貼近原風格(專有名詞維持大小寫) 不要加句號。\n" +
+                "待翻譯：\n";
+        assertTrue("the #5 half-parameterized historical default is recognized as legacy",
+                PromptTemplates.isBlankOrLegacyDefault(v5Default));
+
+        String v7Default = "只回%s的翻譯，不要多字、不要解釋。\n" +
+                "遵守：\n" +
+                "不翻譯：模組/方塊/物品 ID、路徑、Key、Tag、檔名、指令(/give 等)、進度代碼、顏色/格式碼(§ 或 &)\n" +
+                "名詞使用%s Minecraft 社群慣用譯名；有官方%s翻譯的詞優先採用官方翻譯。\n" +
+                "字面直譯、保持簡潔；不要加背景、不要腦補。\n" +
+                "標點與大小寫盡量貼近原風格(專有名詞維持大小寫) 不要加句號。\n" +
+                "待翻譯：\n";
+        assertTrue("the #7 language-agnostic historical default is recognized as legacy",
+                PromptTemplates.isBlankOrLegacyDefault(v7Default));
+
+        assertTrue("blank is still recognized (legacy-detection is additive, doesn't replace it)",
+                PromptTemplates.isBlankOrLegacyDefault(""));
+        assertTrue("a genuine player-authored custom prompt is NOT mistaken for a legacy default",
+                !PromptTemplates.isBlankOrLegacyDefault("請用海盜的語氣翻譯成英文"));
+
+        // same three generations for the screenshot prompt's own separate history
+        String screenshotV1 = """
+                請在圖片上找到所有的英文(不包含沒有英文的數字)並且翻譯成繁體中文
+
+                翻譯的格式為
+                畫面簡介:xxx\\n
+                xxx/xxx\\n(原文英文1/中文1)(括號裡不需要顯示)
+                xxx/xxx\\n(原文英文2/中文2)(括號裡不需要顯示)
+                """;
+        String screenshotV5 = """
+                請在圖片上找到所有的英文(不包含沒有英文的數字)並且翻譯成%s
+
+                翻譯的格式為
+                畫面簡介:xxx\\n
+                xxx/xxx\\n(原文英文1/中文1)(括號裡不需要顯示)
+                xxx/xxx\\n(原文英文2/中文2)(括號裡不需要顯示)
+                """;
+        String screenshotV7 = """
+                請在圖片上找到所有的英文(不包含沒有英文的數字)並且翻譯成%s
+
+                翻譯的格式為
+                畫面簡介:xxx\\n
+                xxx/xxx\\n(原文英文1/%s譯文1)(括號裡不需要顯示)
+                xxx/xxx\\n(原文英文2/%s譯文2)(括號裡不需要顯示)
+                """;
+        assertTrue("screenshot prompt v1 (pre-target_language) is recognized as legacy",
+                PromptTemplates.isBlankOrLegacyScreenshotDefault(screenshotV1));
+        assertTrue("screenshot prompt v5 (#5 half-parameterized) is recognized as legacy",
+                PromptTemplates.isBlankOrLegacyScreenshotDefault(screenshotV5));
+        assertTrue("screenshot prompt v7 (#7 language-agnostic) is recognized as legacy",
+                PromptTemplates.isBlankOrLegacyScreenshotDefault(screenshotV7));
+        assertTrue("blank screenshot prompt is still recognized",
+                PromptTemplates.isBlankOrLegacyScreenshotDefault(""));
+
         System.out.println("ALL CHECKS PASSED");
     }
 }
