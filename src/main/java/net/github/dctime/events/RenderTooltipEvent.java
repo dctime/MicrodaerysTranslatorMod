@@ -37,6 +37,8 @@ public class RenderTooltipEvent {
                     translated = Translator.getTranslationFromCache(original);
                 else if (finalI != 0 && Translator.tryOfficialTranslationForEnchantmentLine(stack, original))
                     translated = Translator.getTranslationFromCache(original);
+                else if (finalI != 0 && Translator.tryOfficialTranslationForAttributeModifierHeaderLine(original))
+                    translated = Translator.getTranslationFromCache(original);
                 else {
                     try {
                         if (finalI != 0) {

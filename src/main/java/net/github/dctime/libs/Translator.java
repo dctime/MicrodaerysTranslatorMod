@@ -357,6 +357,39 @@ public class Translator {
         return true;
     }
 
+    // ItemStack.addAttributeTooltips() prints one of these as a header before a group of
+    // attribute-modifier lines, e.g. "item.modifiers.mainhand" -> "When in Main Hand" -- a small,
+    // fixed, closed set (see EquipmentSlotGroup), so unlike the modifier VALUE lines below it
+    // (which embed a formatted number via Component.translatable(key, args...) and would need a
+    // real template-substitution engine to reconstruct correctly, not attempted yet), this header
+    // is a single flat key exactly like an item name, and the existing lookup() already handles it.
+    private static final String[] EQUIPMENT_SLOT_GROUP_NAMES = {
+            "any", "mainhand", "offhand", "hand", "feet", "legs", "chest", "head", "armor", "body"
+    };
+
+    /**
+     * Same short-circuit idea as {@link #tryOfficialTranslationForItemName}, but for the "When in
+     * Main Hand" style header line above a group of attribute modifiers. Does NOT cover the
+     * modifier value lines themselves ("Attack Speed: +1.5") -- those interpolate a formatted
+     * number into a translatable template (Component.translatable(key, number, attributeName)),
+     * which needs actual template substitution to reconstruct, not just a flat key lookup.
+     */
+    public static boolean tryOfficialTranslationForAttributeModifierHeaderLine(String renderedText) {
+        String currentGameLanguage = Minecraft.getInstance().getLanguageManager().getSelected();
+        String targetLanguage = resolveTargetLanguage();
+        for (String slotGroupName : EQUIPMENT_SLOT_GROUP_NAMES) {
+            String key = "item.modifiers." + slotGroupName;
+            String officialTranslation = OfficialTranslationLookup.lookup(key, currentGameLanguage, targetLanguage, renderedText);
+            if (officialTranslation != null) {
+                translationCache.put(keyFor(renderedText), officialTranslation);
+                cacheDirty = true;
+                LOGGER.debug("Used official translation for " + key + ": " + renderedText + " -> " + officialTranslation);
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static void requestTranslateItemStackToTraditionalChinese(String textInEnglish, ItemStack stack) throws IOException, InterruptedException {
         if (stack != null && !IN_FLIGHT.contains(textInEnglish) && Config.ENABLE_ICON_CONFIG.get()) {
             RenderSystem.recordRenderCall(() -> {
