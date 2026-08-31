@@ -464,6 +464,38 @@ public class Translator {
         return true;
     }
 
+    /**
+     * Shared "what should this tooltip line show" decision, used by BOTH tooltip systems this
+     * mod hooks: the vanilla inventory tooltip (RenderTooltipEvent) and the Jade in-world
+     * tooltip (TestTooltipCollectedCallback). Before #20 each call site duplicated this chain by
+     * hand, and the Jade path had silently fallen behind -- it never got isModNameLine or any of
+     * the official-lookup short-circuits (#12/#14/#15/#18), so hovering an item with Jade (as
+     * opposed to hovering it in an inventory slot) always sent every line to the AI, including
+     * plain "Minecraft"/"FTB Quests" mod-name lines the AI just echoes back unchanged. Routing
+     * both call sites through one method means a lookup added here can never miss one of them
+     * again.
+     *
+     * isFirstLine should be true only for the line carrying the item/block's own display name
+     * (index 0 in both tooltip systems). Returns the text to append if a translation is already
+     * available (cache hit or an official-lookup hit), or null if nothing is available yet -- an
+     * AI request may have been kicked off in that case (unless {@link #isModNameLine} matched,
+     * in which case the caller should skip the line entirely; check that separately first).
+     */
+    public static String resolveOrRequestTranslation(ItemStack stack, String renderedText, boolean isFirstLine) throws IOException, InterruptedException {
+        if (textInCache(renderedText)) return getTranslationFromCache(renderedText);
+        if (isFirstLine && tryOfficialTranslationForItemName(stack, renderedText)) return getTranslationFromCache(renderedText);
+        if (!isFirstLine && tryOfficialTranslationForEnchantmentLine(stack, renderedText)) return getTranslationFromCache(renderedText);
+        if (!isFirstLine && tryOfficialTranslationForKnownFlatLine(renderedText)) return getTranslationFromCache(renderedText);
+        if (!isFirstLine && tryOfficialTranslationForAttributeModifierLine(stack, renderedText)) return getTranslationFromCache(renderedText);
+
+        if (isFirstLine) {
+            requestTranslateItemStackToTraditionalChinese(renderedText, stack);
+        } else {
+            requestTranslateToTraditionalChinese(renderedText);
+        }
+        return null;
+    }
+
     public static void requestTranslateItemStackToTraditionalChinese(String textInEnglish, ItemStack stack) throws IOException, InterruptedException {
         if (stack != null && !IN_FLIGHT.contains(textInEnglish) && Config.ENABLE_ICON_CONFIG.get()) {
             RenderSystem.recordRenderCall(() -> {
