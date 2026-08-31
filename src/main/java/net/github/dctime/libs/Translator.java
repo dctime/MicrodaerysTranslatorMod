@@ -366,7 +366,11 @@ public class Translator {
         if (TargetLanguage.isAlreadyInTargetLanguage(resolveTargetLanguage(), fixedText)) {
             translationCache.put(keyFor(fixedText), "");
             cacheDirty = true;
-            LOGGER.debug("Text already in the target language, skipping translation: " + fixedText);
+            // temporary diagnostic logging (same reason as the other [DIAG] lines: this early
+            // return happens BEFORE those, so without this the log would look "clean" for a case
+            // that actually took this branch, hiding rather than revealing the real cause)
+            LOGGER.info("[DIAG] resolvedTargetLanguage=" + resolveTargetLanguage()
+                    + " already in target language, skipping translation: " + fixedText);
             return;
         }
 
