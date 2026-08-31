@@ -299,7 +299,13 @@ public class Translator {
     public static boolean tryOfficialTranslationForItemName(ItemStack stack, String renderedText) {
         if (stack == null || stack.isEmpty()) return false;
 
-        String key = stack.getItem().getDescriptionId();
+        // the stack-aware overload, NOT the bare no-arg getDescriptionId(): vanilla's own
+        // ItemStack.getHoverName() -> getDescriptionId(this) uses the stack-aware key, and some
+        // items override ONLY that overload to compute a stack-dependent key (e.g. TippedArrowItem
+        // returns a different key per potion effect -- "Arrow of Healing" vs "Arrow of Harming" is
+        // NOT the same translation key). The no-arg version silently returns the wrong, generic
+        // key for those items, so the lookup key here must match what's actually rendered.
+        String key = stack.getItem().getDescriptionId(stack);
         // the safety check inside lookup() must compare against whatever language the game is
         // ACTUALLY showing right now, not always English -- a Chinese-UI client renders "羊毛",
         // not "Wool", so that's what has to match zh_tw's official value, not en_us's.
