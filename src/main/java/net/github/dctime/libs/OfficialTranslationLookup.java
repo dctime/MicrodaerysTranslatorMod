@@ -2,11 +2,17 @@ package net.github.dctime.libs;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.language.ClientLanguage;
+import net.minecraft.core.Holder;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantment;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
 
 /**
  * Looks up official (mod/vanilla-shipped) translations for a translation key in an arbitrary
@@ -72,5 +78,72 @@ public class OfficialTranslationLookup {
         if (!currentLanguageHasKey) return null;
         if (!currentLanguageValue.equals(currentlyRenderedText)) return null;
         return targetValueOrNull; // null here just means "target language has no official translation for this key"
+    }
+
+    /**
+     * Same idea as {@link #lookup}, but for an enchantment tooltip line ("Sharpness V"), which is
+     * NOT a single translation key -- vanilla builds it from TWO keys concatenated with a space
+     * (see Enchantment.getFullname): the enchantment's own name, plus "enchantment.level.&lt;N&gt;"
+     * for the level, UNLESS the enchantment's max level is 1 and this instance is level 1 (e.g.
+     * Mending), in which case there's no level suffix at all. Checks every enchantment on the
+     * stack and returns the first one whose reconstructed current-language text matches what's
+     * actually rendered. Deliberately does NOT handle potion/status-effect tooltip lines: those
+     * embed a live remaining-duration string that changes every tick, so there is no stable text
+     * to match against at all -- not a scope choice, a hard limitation of "match the whole
+     * rendered line" against something that is never the same string twice.
+     */
+    @Nullable
+    public static String lookupEnchantmentLine(ItemStack stack, String currentGameLanguageCode, String targetLanguageCode, String currentlyRenderedText) {
+        ClientLanguage current = forLanguage(currentGameLanguageCode);
+        ClientLanguage target = forLanguage(targetLanguageCode);
+
+        for (Object2IntMap.Entry<Holder<Enchantment>> entry : stack.getEnchantments().entrySet()) {
+            Enchantment enchantment = entry.getKey().value();
+            int level = entry.getIntValue();
+            String nameKey = translationKeyOf(enchantment.description());
+            if (nameKey == null) continue; // description isn't a plain translatable component, can't match by key
+
+            boolean needsLevel = level != 1 || enchantment.getMaxLevel() != 1;
+            String levelKey = needsLevel ? "enchantment.level." + level : null;
+
+            String result = decideEnchantmentLine(
+                    current.has(nameKey) ? current.getOrDefault(nameKey, "") : null,
+                    levelKey == null ? null : (current.has(levelKey) ? current.getOrDefault(levelKey, "") : null),
+                    needsLevel,
+                    currentlyRenderedText,
+                    target.getOrDefault(nameKey, null),
+                    levelKey == null ? null : target.getOrDefault(levelKey, null)
+            );
+            if (result != null) return result;
+        }
+        return null;
+    }
+
+    @Nullable
+    private static String translationKeyOf(Component component) {
+        return component.getContents() instanceof TranslatableContents translatable ? translatable.getKey() : null;
+    }
+
+    /**
+     * Pure reconstruction-and-compare for one enchantment, pulled out so it can be unit-tested
+     * without a running game -- see tools/verify-official-translation.
+     */
+    @Nullable
+    public static String decideEnchantmentLine(@Nullable String currentName, @Nullable String currentLevelOrNull, boolean needsLevel,
+                                                String currentlyRenderedText,
+                                                @Nullable String targetName, @Nullable String targetLevelOrNull) {
+        if (currentName == null) return null;
+        String expectedCurrent = currentName;
+        if (needsLevel) {
+            if (currentLevelOrNull == null) return null;
+            expectedCurrent = currentName + " " + currentLevelOrNull;
+        }
+        if (!expectedCurrent.equals(currentlyRenderedText)) return null;
+
+        if (targetName == null) return null;
+        if (needsLevel) {
+            return targetLevelOrNull == null ? null : targetName + " " + targetLevelOrNull;
+        }
+        return targetName;
     }
 }

@@ -1,6 +1,8 @@
 // Regression check for net.github.dctime.libs.OfficialTranslationLookup (#6: skip AI when an
 // official translation already exists; #10: compare against the game's ACTUAL current display
-// language instead of always assuming English).
+// language instead of always assuming English; #11: same idea extended to enchantment tooltip
+// lines, which are a two-key composition, not potion/effect lines -- those embed a live
+// remaining-duration string that's never the same text twice, so there's nothing stable to match).
 //
 // OfficialTranslationLookup.decide() is a pure decision function pulled out specifically so it
 // can be called directly here without a running game -- unlike Translator, this class has no
@@ -56,6 +58,25 @@ public class VerifyOfficialTranslation {
         // --- exact match is required, not just "close enough" ---
         assertTrue("even a trailing-space difference from the current language's official value counts as a mismatch",
                 OfficialTranslationLookup.decide(true, "Iron Ingot", "Iron Ingot ", "鐵錠") == null);
+
+        // --- decideEnchantmentLine: enchantment name + level ("Sharpness V"), a two-key
+        // composition (see Enchantment.getFullname), not a single flat key like item names ---
+        assertTrue("enchantment with a level suffix: reconstructed current text matches -> target reconstructed",
+                "Sharpness V".equals(OfficialTranslationLookup.decideEnchantmentLine(
+                        "鋒利", "V", true, "鋒利 V", "Sharpness", "V"))); // level text happens to be "V" in both zh_tw and en_us (roman numerals)
+        assertTrue("enchantment WITHOUT a level suffix (max level 1, e.g. Mending): no space/level appended",
+                "Mending".equals(OfficialTranslationLookup.decideEnchantmentLine(
+                        "修補", null, false, "修補", "Mending", null)));
+        assertTrue("rendered text doesn't match the reconstructed current-language text -> null (not this enchantment, or a mismatch)",
+                OfficialTranslationLookup.decideEnchantmentLine("鋒利", "V", true, "力量 III", "Sharpness", "V") == null);
+        assertTrue("needs a level but the current language has no entry for that specific level key -> null, don't guess",
+                OfficialTranslationLookup.decideEnchantmentLine("鋒利", null, true, "鋒利 V", "Sharpness", "V") == null);
+        assertTrue("current side matches but target language has no official name for this enchantment -> null (fall back to AI)",
+                OfficialTranslationLookup.decideEnchantmentLine("鋒利", "V", true, "鋒利 V", null, "V") == null);
+        assertTrue("current side matches, needs a level, but target language has no official level text -> null",
+                OfficialTranslationLookup.decideEnchantmentLine("鋒利", "V", true, "鋒利 V", "Sharpness", null) == null);
+        assertTrue("no current-language name at all for this enchantment (non-translatable description) -> null",
+                OfficialTranslationLookup.decideEnchantmentLine(null, "V", true, "鋒利 V", "Sharpness", "V") == null);
 
         System.out.println("ALL CHECKS PASSED");
     }

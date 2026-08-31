@@ -313,6 +313,25 @@ public class Translator {
         return true;
     }
 
+    /**
+     * Same short-circuit idea as {@link #tryOfficialTranslationForItemName}, but for an
+     * enchantment tooltip line ("Sharpness V"). Scoped to enchantments specifically -- NOT
+     * potion/status-effect lines, which embed a live remaining-duration string that's never the
+     * same text twice, so there's nothing stable to match against at all.
+     */
+    public static boolean tryOfficialTranslationForEnchantmentLine(ItemStack stack, String renderedText) {
+        if (stack == null || stack.isEmpty() || !stack.isEnchanted()) return false;
+
+        String currentGameLanguage = Minecraft.getInstance().getLanguageManager().getSelected();
+        String officialTranslation = OfficialTranslationLookup.lookupEnchantmentLine(stack, currentGameLanguage, resolveTargetLanguage(), renderedText);
+        if (officialTranslation == null) return false;
+
+        translationCache.put(keyFor(renderedText), officialTranslation);
+        cacheDirty = true;
+        LOGGER.debug("Used official enchantment translation: " + renderedText + " -> " + officialTranslation);
+        return true;
+    }
+
     public static void requestTranslateItemStackToTraditionalChinese(String textInEnglish, ItemStack stack) throws IOException, InterruptedException {
         if (stack != null && !IN_FLIGHT.contains(textInEnglish) && Config.ENABLE_ICON_CONFIG.get()) {
             RenderSystem.recordRenderCall(() -> {
