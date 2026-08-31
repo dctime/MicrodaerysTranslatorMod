@@ -99,6 +99,15 @@ public class Config {
             .comment("[timeout時間] (預設 30) Timeout Duration in seconds")
             .define(TIMEOUT_DURATION_CONFIG_PATH, 30);
 
+    public static final String MAX_REQUESTS_PER_MINUTE_PATH = "max_requests_per_minute";
+    public static final ModConfigSpec.IntValue MAX_REQUESTS_PER_MINUTE = BUILDER
+            .comment("[每分鐘最多送出幾次翻譯請求] (預設 10) Max translation requests sent per rolling 60 seconds.\n" +
+                    "只限制「同時併發數」(見原始碼裡的 Semaphore) 擋不住免費 API tier 常見的每分鐘總次數限制(RPM)——" +
+                    "開一個很多沒快取物品的容器，併發數補滿又補滿，短時間內一樣會超過。這裡是真正的每分鐘節流器，" +
+                    "超過額度的請求會被跳過、等下一次(下一幀/下一次 hover/容器還開著的下一個 tick)自然重試，不會排隊等待。\n" +
+                    "請依照你實際使用的 API 供應商/模型的免費額度調整這個數字。")
+            .defineInRange(MAX_REQUESTS_PER_MINUTE_PATH, 10, 1, Integer.MAX_VALUE);
+
     public static final String FEATURE_TOGGLE_PATH = "feature_toggle";
 
     static {

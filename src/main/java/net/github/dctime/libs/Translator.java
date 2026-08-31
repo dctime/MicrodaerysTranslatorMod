@@ -111,6 +111,14 @@ public class Translator {
     // caps how many translation requests can be in flight at once across ALL texts, so sweeping
     // the mouse over a long row of items doesn't fire off unbounded concurrent requests.
     private static final Semaphore CONCURRENCY_LIMIT = new Semaphore(4);
+    // CONCURRENCY_LIMIT alone doesn't stop a burst rate over time -- as each of those 4 slots
+    // finishes it immediately gets reused, e.g. while pretranslateOpenContainerIfAny() (#16) works
+    // through a container full of different uncached items every tick, which can add up to far
+    // more than a free API tier's requests-PER-MINUTE quota even though only 4 are ever truly
+    // concurrent. This is a real sliding-window throttle on top of the concurrency cap, not a
+    // duplicate of it. Config.MAX_REQUESTS_PER_MINUTE is read fresh on every check (not captured
+    // once here) so changing it in the config screen takes effect immediately.
+    private static final RateLimiter REQUEST_RATE_LIMITER = new RateLimiter(60_000L);
     // screenshot translation is a single, unrelated flow (fixed ":" text) with its own busy flag.
     public static volatile boolean screenshotTranslating = false;
 
@@ -516,6 +524,7 @@ public class Translator {
             return;
         }
 
+        if (!REQUEST_RATE_LIMITER.tryAcquire(Config.MAX_REQUESTS_PER_MINUTE.get(), System.currentTimeMillis())) return; // over the per-minute budget; a later render tick retries
         if (!CONCURRENCY_LIMIT.tryAcquire()) return; // too many requests already in flight; a later render tick retries
 
         // acquire/release must stay paired 1:1 with this exact ordering; a mismatch here isn't
