@@ -2,7 +2,10 @@
 // official translation already exists; #10: compare against the game's ACTUAL current display
 // language instead of always assuming English; #11: same idea extended to enchantment tooltip
 // lines, which are a two-key composition, not potion/effect lines -- those embed a live
-// remaining-duration string that's never the same text twice, so there's nothing stable to match).
+// remaining-duration string that's never the same text twice, so there's nothing stable to match;
+// #15: attribute-modifier VALUE lines ("Attack Speed: +1.5"), which need Minecraft's own
+// parameterized-template substitution, verified against the real en_us.json shipped in the
+// client jar, not String.format()).
 //
 // OfficialTranslationLookup.decide() is a pure decision function pulled out specifically so it
 // can be called directly here without a running game -- unlike Translator, this class has no
@@ -77,6 +80,29 @@ public class VerifyOfficialTranslation {
                 OfficialTranslationLookup.decideEnchantmentLine("鋒利", "V", true, "鋒利 V", "Sharpness", null) == null);
         assertTrue("no current-language name at all for this enchantment (non-translatable description) -> null",
                 OfficialTranslationLookup.decideEnchantmentLine(null, "V", true, "鋒利 V", "Sharpness", "V") == null);
+
+        // --- substituteTemplate: reproduces TranslatableContents.decomposeTemplate(), NOT
+        // String.format(). Templates below are copied verbatim from the real en_us.json shipped
+        // inside minecraft_1.21.1_client.jar (found via unzip, not guessed) ---
+        assertTrue("attribute.modifier.plus.0 (\"+%s %s\") substitutes both args in order",
+                "+1.5 Attack Speed".equals(OfficialTranslationLookup.substituteTemplate("+%s %s", "1.5", "Attack Speed")));
+        assertTrue("attribute.modifier.take.0 (\"-%s %s\")",
+                "-2 Max Health".equals(OfficialTranslationLookup.substituteTemplate("-%s %s", "2", "Max Health")));
+        assertTrue("attribute.modifier.plus.1 (\"+%s%% %s\"): %% is a literal percent sign, not a third argument",
+                "+20% Speed".equals(OfficialTranslationLookup.substituteTemplate("+%s%% %s", "20", "Speed")));
+        assertTrue("attribute.modifier.equals.0 (\"%s %s\", no leading sign) for the base-attack-stat case",
+                "7 Attack Damage".equals(OfficialTranslationLookup.substituteTemplate("%s %s", "7", "Attack Damage")));
+        assertTrue("a template with a positional reference (%1$s) is declined, not guessed at",
+                OfficialTranslationLookup.substituteTemplate("%1$s %s", "a", "b") == null);
+        assertTrue("running out of arguments for a %s is declined, not silently truncated",
+                OfficialTranslationLookup.substituteTemplate("%s %s", "only-one") == null);
+        assertTrue("a lone trailing %% with nothing after it is declined (malformed, not guessed at)",
+                OfficialTranslationLookup.substituteTemplate("100%", "x") == null);
+
+        // --- decideAttributeModifierLine itself needs a live Minecraft/Player/ItemStack, so it's
+        // not exercised here -- same disclosed limitation as everywhere else in tools/. The three
+        // real en_us templates above plus substituteTemplate's own correctness are what make that
+        // method trustworthy without needing a running game to prove the substitution step works.
 
         System.out.println("ALL CHECKS PASSED");
     }

@@ -359,10 +359,10 @@ public class Translator {
 
     // ItemStack.addAttributeTooltips() prints one of these as a header before a group of
     // attribute-modifier lines, e.g. "item.modifiers.mainhand" -> "When in Main Hand" -- a small,
-    // fixed, closed set (see EquipmentSlotGroup), so unlike the modifier VALUE lines below it
-    // (which embed a formatted number via Component.translatable(key, args...) and would need a
-    // real template-substitution engine to reconstruct correctly, not attempted yet), this header
-    // is a single flat key exactly like an item name, and the existing lookup() already handles it.
+    // fixed, closed set (see EquipmentSlotGroup), so this header is a single flat key exactly like
+    // an item name, and the existing lookup() already handles it. The modifier VALUE lines below
+    // it ("Attack Speed: +1.5") are a separate, more involved case -- see
+    // tryOfficialTranslationForAttributeModifierLine.
     private static final String[] EQUIPMENT_SLOT_GROUP_NAMES = {
             "any", "mainhand", "offhand", "hand", "feet", "legs", "chest", "head", "armor", "body"
     };
@@ -388,6 +388,29 @@ public class Translator {
             }
         }
         return false;
+    }
+
+    /**
+     * Same short-circuit idea, for an attribute-modifier VALUE line ("Attack Speed: +1.5").
+     * Reconstructs vanilla's own parameterized template (verified against the real en_us.json
+     * shipped in the client jar, e.g. "attribute.modifier.plus.0" = "+%s %s") rather than a
+     * simple flat key; see OfficialTranslationLookup.lookupAttributeModifierLine for the details.
+     * Requires the local player for the common "Attack Damage"/"Attack Speed" lines specifically
+     * (those add the player's own base attribute value); a null player just means those two won't
+     * match, not a crash.
+     */
+    public static boolean tryOfficialTranslationForAttributeModifierLine(ItemStack stack, String renderedText) {
+        if (stack == null || stack.isEmpty()) return false;
+
+        String currentGameLanguage = Minecraft.getInstance().getLanguageManager().getSelected();
+        String officialTranslation = OfficialTranslationLookup.lookupAttributeModifierLine(
+                stack, Minecraft.getInstance().player, currentGameLanguage, resolveTargetLanguage(), renderedText);
+        if (officialTranslation == null) return false;
+
+        translationCache.put(keyFor(renderedText), officialTranslation);
+        cacheDirty = true;
+        LOGGER.debug("Used official attribute modifier translation: " + renderedText + " -> " + officialTranslation);
+        return true;
     }
 
     public static void requestTranslateItemStackToTraditionalChinese(String textInEnglish, ItemStack stack) throws IOException, InterruptedException {
