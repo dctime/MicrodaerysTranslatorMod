@@ -26,7 +26,15 @@ public class TargetLanguage {
             // "already Japanese" -- kanji-only Japanese text won't be caught, but that's the same
             // ambiguity kanji has between zh/ja in general, not something worth a bigger heuristic here.
             "ja_jp", new Info("日文", Pattern.compile("[぀-ヿ]")),
-            "en_us", new Info("English", Pattern.compile("^[\\x00-\\x7F]*$"))
+            "en_us", new Info("English", Pattern.compile("^[\\x00-\\x7F]*$")),
+            // Spanish/French share most of the Latin alphabet with English (only a handful of
+            // accented characters differ), so an ASCII-range check like en_us's would misfire
+            // constantly -- plain English text would look "already Spanish/French". Rather than
+            // ship an inaccurate heuristic, these never report "already translated" (same safe
+            // default as an unknown language code): a few redundant translation calls beat
+            // silently skipping text that still needs translating.
+            "es_es", new Info("Español", Pattern.compile("(?!)")),
+            "fr_fr", new Info("Français", Pattern.compile("(?!)"))
     );
 
     public static String displayName(String languageCode) {

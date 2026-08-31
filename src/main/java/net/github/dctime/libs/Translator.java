@@ -261,13 +261,22 @@ public class Translator {
     }
 
     private static String resolvePrompt(boolean isScreenShot) {
-        String template = isScreenShot ? Config.PROMPT_SCREENSHOT.get() : Config.PROMPT.get();
-        // PROMPT/PROMPT_SCREENSHOT are freely player-editable config strings, so this must be a
-        // literal substitution, not String.format()/.formatted() semantics: a lone '%' typed into
-        // a custom prompt (e.g. "不要翻超過 90% 的內容") would make .formatted() throw
+        String override = isScreenShot ? Config.PROMPT_SCREENSHOT.get() : Config.PROMPT.get();
+        String targetLanguage = resolveTargetLanguage();
+
+        // blank (the default) -> pick the built-in prompt written natively for the target
+        // language (see PromptTemplates); a non-blank config value overrides that for every
+        // language instead, same as before this became per-language.
+        if (override.isBlank()) {
+            return isScreenShot ? PromptTemplates.screenshotPromptFor(targetLanguage) : PromptTemplates.promptFor(targetLanguage);
+        }
+
+        // PROMPT/PROMPT_SCREENSHOT overrides are freely player-editable config strings, so this
+        // must be a literal substitution, not String.format()/.formatted() semantics: a lone '%'
+        // typed into a custom prompt (e.g. "不要翻超過 90% 的內容") would make .formatted() throw
         // IllegalFormatException, which nothing upstream catches -- a config edit that once was
         // harmless plain text would crash every tooltip render. .replace() can never throw.
-        return template.replace("%s", TargetLanguage.displayName(resolveTargetLanguage()));
+        return override.replace("%s", TargetLanguage.displayName(targetLanguage));
     }
 
     public static void requestTranslateToTraditionalChinese(String textInEnglish) throws IOException, InterruptedException {

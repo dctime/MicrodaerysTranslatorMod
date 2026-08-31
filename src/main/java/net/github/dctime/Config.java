@@ -69,32 +69,17 @@ public class Config {
     public static final String PROMPT_PATH = "prompt";
     public static final ModConfigSpec.ConfigValue<String> PROMPT = BUILDER
             .comment("The prompt to use for translation [翻譯時使用的提示語]\n" +
-                    "貼近 Minecraft/模組語氣。保留佔位符與格式。不腦補。僅輸出翻譯文字。\n" +
-                    "語言無關範本，不寫死特定語言的詞彙表；每一處 %s 都會被換成 target_language 對應的語言名稱。")
-            .define(PROMPT_PATH,
-                    "只回%s的翻譯，不要多字、不要解釋。\n" +
-                    "遵守：\n" +
-                    "不翻譯：模組/方塊/物品 ID、路徑、Key、Tag、檔名、指令(/give 等)、進度代碼、顏色/格式碼(§ 或 &)\n" +
-                    "名詞使用%s Minecraft 社群慣用譯名；有官方%s翻譯的詞優先採用官方翻譯。\n" +
-                    "字面直譯、保持簡潔；不要加背景、不要腦補。\n" +
-                    "標點與大小寫盡量貼近原風格(專有名詞維持大小寫) 不要加句號。\n" +
-                    "待翻譯：\n"
-            );
+                    "留空(預設) = 依目標語言自動選擇內建的原生語言 prompt(每個語言各自一份，用該語言本身撰寫，不是同一份中文範本換語言名稱)。\n" +
+                    "填了任何內容 = 不論目標語言是什麼，一律使用這份自訂文字(%s 會換成目標語言名稱)，即向下相容舊版設定。\n" +
+                    "注意：NeoForge 的設定檔只有在這個 key 不存在時才會寫入新預設值；如果你在這次更新前就啟動過遊戲，這裡通常已經被寫入舊版的預設文字，" +
+                    "不會自動變成空字串、也就吃不到新的多語言 prompt。想改用新的內建原生 prompt，請手動把這個值清空。")
+            .define(PROMPT_PATH, "");
 
     public static final String PROMPT_SCREENSHOT_PATH = "prompt_screenshot";
     public static final ModConfigSpec.ConfigValue<String> PROMPT_SCREENSHOT = BUILDER
             .comment("The prompt to use for translation screenshots [翻譯螢幕截圖時使用的提示語]\n" +
-                    "語言無關範本；每一處 %s 都會被換成 target_language 對應的語言名稱。")
-            .define(PROMPT_SCREENSHOT_PATH,
-                    """
-                    請在圖片上找到所有的英文(不包含沒有英文的數字)並且翻譯成%s
-
-                    翻譯的格式為
-                    畫面簡介:xxx\\n
-                    xxx/xxx\\n(原文英文1/%s譯文1)(括號裡不需要顯示)
-                    xxx/xxx\\n(原文英文2/%s譯文2)(括號裡不需要顯示)
-                    """
-            );
+                    "留空(預設) = 依目標語言自動選擇內建的原生語言 prompt；填了內容 = 對所有語言套用這份自訂文字，同上一項 prompt 的規則。")
+            .define(PROMPT_SCREENSHOT_PATH, "");
 //
 //    // (Optional) 更嚴格版本：要求只輸出純文字一行，避免代碼框/前後空白
 //    public static final ModConfigSpec.ConfigValue<String> PROMPT_STRICT = BUILDER
