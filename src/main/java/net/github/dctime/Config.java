@@ -71,14 +71,15 @@ public class Config {
             .comment("The prompt to use for translation [翻譯時使用的提示語]\n" +
                     "留空(預設) = 依目標語言自動選擇內建的原生語言 prompt(每個語言各自一份，用該語言本身撰寫，不是同一份中文範本換語言名稱)。\n" +
                     "填了任何內容 = 不論目標語言是什麼，一律使用這份自訂文字(%s 會換成目標語言名稱)，即向下相容舊版設定。\n" +
-                    "注意：NeoForge 的設定檔只有在這個 key 不存在時才會寫入新預設值；如果你在這次更新前就啟動過遊戲，這裡通常已經被寫入舊版的預設文字，" +
-                    "不會自動變成空字串、也就吃不到新的多語言 prompt。想改用新的內建原生 prompt，請手動把這個值清空。")
+                    "注意：NeoForge 的設定檔只有在這個 key 不存在時才會寫入新預設值；如果你在這次更新前就啟動過遊戲，這裡通常已經被寫入舊版的預設文字。" +
+                    "這個 mod 認得幾個已知的舊版預設值，會自動當成留空處理，不用手動清空；只有你真的自己改過、寫過自訂內容時，才需要手動把這個值清空才能改用新版內建 prompt。")
             .define(PROMPT_PATH, "");
 
     public static final String PROMPT_SCREENSHOT_PATH = "prompt_screenshot";
     public static final ModConfigSpec.ConfigValue<String> PROMPT_SCREENSHOT = BUILDER
             .comment("The prompt to use for translation screenshots [翻譯螢幕截圖時使用的提示語]\n" +
-                    "留空(預設) = 依目標語言自動選擇內建的原生語言 prompt；填了內容 = 對所有語言套用這份自訂文字，同上一項 prompt 的規則。")
+                    "留空(預設) = 依目標語言自動選擇內建的原生語言 prompt；填了內容 = 對所有語言套用這份自訂文字，同上一項 prompt 的規則。\n" +
+                    "已知的舊版預設值一樣會被自動辨識、當成留空處理，不用手動清空。")
             .define(PROMPT_SCREENSHOT_PATH, "");
 //
 //    // (Optional) 更嚴格版本：要求只輸出純文字一行，避免代碼框/前後空白

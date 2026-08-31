@@ -300,7 +300,11 @@ public class Translator {
         if (stack == null || stack.isEmpty()) return false;
 
         String key = stack.getItem().getDescriptionId();
-        String officialTranslation = OfficialTranslationLookup.lookup(key, resolveTargetLanguage(), renderedText);
+        // the safety check inside lookup() must compare against whatever language the game is
+        // ACTUALLY showing right now, not always English -- a Chinese-UI client renders "羊毛",
+        // not "Wool", so that's what has to match zh_tw's official value, not en_us's.
+        String currentGameLanguage = Minecraft.getInstance().getLanguageManager().getSelected();
+        String officialTranslation = OfficialTranslationLookup.lookup(key, currentGameLanguage, resolveTargetLanguage(), renderedText);
         if (officialTranslation == null) return false;
 
         translationCache.put(keyFor(renderedText), officialTranslation);
