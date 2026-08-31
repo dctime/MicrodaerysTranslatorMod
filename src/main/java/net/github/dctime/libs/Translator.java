@@ -398,28 +398,38 @@ public class Translator {
         return true;
     }
 
-    // ItemStack.addAttributeTooltips() prints one of these as a header before a group of
-    // attribute-modifier lines, e.g. "item.modifiers.mainhand" -> "When in Main Hand" -- a small,
-    // fixed, closed set (see EquipmentSlotGroup), so this header is a single flat key exactly like
-    // an item name, and the existing lookup() already handles it. The modifier VALUE lines below
-    // it ("Attack Speed: +1.5") are a separate, more involved case -- see
-    // tryOfficialTranslationForAttributeModifierLine.
-    private static final String[] EQUIPMENT_SLOT_GROUP_NAMES = {
-            "any", "mainhand", "offhand", "hand", "feet", "legs", "chest", "head", "armor", "body"
+    // Argument-free ("flat") vanilla translation keys that can appear as a standalone tooltip
+    // line with no dynamic content -- same short-circuit idea as an item/enchantment name, just
+    // for headers vanilla builds elsewhere in ItemStack/PotionContents/SmithingTemplateItem.
+    // Verified against the real en_us.json shipped in the client jar and the decompiled callers
+    // (see tools/verify-official-translation). Adding a key here is always safe: one that never
+    // matches the currently rendered line just falls through to the AI path unchanged.
+    private static final String[] KNOWN_FLAT_TOOLTIP_KEYS = {
+            // ItemStack.addAttributeTooltips(), one per EquipmentSlotGroup: "When in Main Hand"
+            "item.modifiers.any", "item.modifiers.mainhand", "item.modifiers.offhand", "item.modifiers.hand",
+            "item.modifiers.feet", "item.modifiers.legs", "item.modifiers.chest", "item.modifiers.head",
+            "item.modifiers.armor", "item.modifiers.body",
+            // PotionContents.addPotionTooltip(): header shown above potion-effect lines on
+            // potions, tipped arrows, suspicious stew, etc. -- "When Applied:"
+            "potion.whenDrank",
+            // SmithingTemplateItem.appendHoverText(): "Applies to:" / "Ingredients:" -- only the
+            // title lines, not the value lines below them (those are prefixed with a leading
+            // space and differ per template, so they're left to the AI path).
+            "item.smithing_template.applies_to", "item.smithing_template.ingredients",
     };
 
     /**
-     * Same short-circuit idea as {@link #tryOfficialTranslationForItemName}, but for the "When in
-     * Main Hand" style header line above a group of attribute modifiers. Does NOT cover the
-     * modifier value lines themselves ("Attack Speed: +1.5") -- those interpolate a formatted
-     * number into a translatable template (Component.translatable(key, number, attributeName)),
-     * which needs actual template substitution to reconstruct, not just a flat key lookup.
+     * Same short-circuit idea as {@link #tryOfficialTranslationForItemName}, but for a
+     * standalone header line with no dynamic content -- see {@link #KNOWN_FLAT_TOOLTIP_KEYS}.
+     * Does NOT cover lines that interpolate a formatted value into a translatable template
+     * (e.g. "Attack Speed: +1.5", "Luck (00:37)") -- those need actual template substitution to
+     * reconstruct, not just a flat key lookup; see tryOfficialTranslationForAttributeModifierLine
+     * for the one such case this mod does handle.
      */
-    public static boolean tryOfficialTranslationForAttributeModifierHeaderLine(String renderedText) {
+    public static boolean tryOfficialTranslationForKnownFlatLine(String renderedText) {
         String currentGameLanguage = Minecraft.getInstance().getLanguageManager().getSelected();
         String targetLanguage = resolveTargetLanguage();
-        for (String slotGroupName : EQUIPMENT_SLOT_GROUP_NAMES) {
-            String key = "item.modifiers." + slotGroupName;
+        for (String key : KNOWN_FLAT_TOOLTIP_KEYS) {
             String officialTranslation = OfficialTranslationLookup.lookup(key, currentGameLanguage, targetLanguage, renderedText);
             if (officialTranslation != null) {
                 translationCache.put(keyFor(renderedText), officialTranslation);

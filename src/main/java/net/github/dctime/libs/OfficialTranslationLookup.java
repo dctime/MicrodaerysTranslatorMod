@@ -162,7 +162,7 @@ public class OfficialTranslationLookup {
 
     /**
      * Same idea again, for an attribute-modifier VALUE line ("Attack Speed: +1.5"). Unlike the
-     * header line (a single flat key, see Translator.tryOfficialTranslationForAttributeModifierHeaderLine),
+     * header line (a single flat key, see Translator.tryOfficialTranslationForKnownFlatLine),
      * vanilla builds this with Minecraft's OWN parameterized template system
      * (ItemStack.addModifierTooltip -> Component.translatable(key, number, attributeNameComponent)),
      * confirmed against the real en_us.json shipped in the client jar: e.g.
