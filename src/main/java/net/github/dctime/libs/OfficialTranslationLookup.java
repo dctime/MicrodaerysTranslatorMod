@@ -97,7 +97,12 @@ public class OfficialTranslationLookup {
         ClientLanguage current = forLanguage(currentGameLanguageCode);
         ClientLanguage target = forLanguage(targetLanguageCode);
 
-        for (Object2IntMap.Entry<Holder<Enchantment>> entry : stack.getEnchantments().entrySet()) {
+        // getTagEnchantments() (not the deprecated getEnchantments(), which is the exact same
+        // behavior minus the @Deprecated marker): vanilla's own tooltip rendering
+        // (ItemEnchantments.addToTooltip) reads the raw stored level, never
+        // GetEnchantmentLevelEvent-hooked values -- we need the same raw values it does, or a
+        // mod hooking that event could make our reconstructed text never match what's rendered.
+        for (Object2IntMap.Entry<Holder<Enchantment>> entry : stack.getTagEnchantments().entrySet()) {
             Enchantment enchantment = entry.getKey().value();
             int level = entry.getIntValue();
             String nameKey = translationKeyOf(enchantment.description());
