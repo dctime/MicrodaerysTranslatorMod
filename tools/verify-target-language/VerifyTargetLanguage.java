@@ -88,6 +88,15 @@ public class VerifyTargetLanguage {
             System.out.println("OK: confirmed .formatted() DOES throw here (why resolvePrompt uses .replace() instead)");
         }
 
+        // #7: the default PROMPT was rewritten to be language-agnostic and now uses %s three
+        // times (target language name repeated for the "prefer official translations" clause).
+        // String.replace() replaces every occurrence, not just the first -- confirm that holds.
+        String multiPlaceholder = "只回%s的翻譯。名詞使用%s Minecraft 社群慣用譯名；有官方%s翻譯的詞優先採用官方翻譯。";
+        String multiSubstituted = multiPlaceholder.replace("%s", TargetLanguage.displayName("ja_jp"));
+        assertTrue("every occurrence of %s in the template gets replaced, not just the first",
+                !multiSubstituted.contains("%s") && multiSubstituted.equals(
+                        "只回日文的翻譯。名詞使用日文 Minecraft 社群慣用譯名；有官方日文翻譯的詞優先採用官方翻譯。"));
+
         System.out.println("ALL CHECKS PASSED");
     }
 }

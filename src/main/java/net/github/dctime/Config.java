@@ -70,13 +70,12 @@ public class Config {
     public static final ModConfigSpec.ConfigValue<String> PROMPT = BUILDER
             .comment("The prompt to use for translation [翻譯時使用的提示語]\n" +
                     "貼近 Minecraft/模組語氣。保留佔位符與格式。不腦補。僅輸出翻譯文字。\n" +
-                    "%s 會被換成 target_language 對應的語言名稱。")
+                    "語言無關範本，不寫死特定語言的詞彙表；每一處 %s 都會被換成 target_language 對應的語言名稱。")
             .define(PROMPT_PATH,
                     "只回%s的翻譯，不要多字、不要解釋。\n" +
                     "遵守：\n" +
                     "不翻譯：模組/方塊/物品 ID、路徑、Key、Tag、檔名、指令(/give 等)、進度代碼、顏色/格式碼(§ 或 &)\n" +
-                    "名詞遵循遊戲慣用：block=方塊、slab=半磚、stairs=樓梯、planks=木材、log=原木、ore=礦石、ingot=錠、nugget=金粒、dye=染料、bucket=桶、stack=堆疊、craft=合成、smelt=熔煉、furnace=熔爐、blast furnace=高爐、smoker=煙燻爐、enchant=附魔、anvil=鐵砧、loot=戰利品、biome=生態域\n" +
-                    "優先使用《Minecraft》繁中(zh_tw)官方譯名；無官方譯名則用台灣社群慣用語。\n" +
+                    "名詞使用%s Minecraft 社群慣用譯名；有官方%s翻譯的詞優先採用官方翻譯。\n" +
                     "字面直譯、保持簡潔；不要加背景、不要腦補。\n" +
                     "標點與大小寫盡量貼近原風格(專有名詞維持大小寫) 不要加句號。\n" +
                     "待翻譯：\n"
@@ -85,15 +84,15 @@ public class Config {
     public static final String PROMPT_SCREENSHOT_PATH = "prompt_screenshot";
     public static final ModConfigSpec.ConfigValue<String> PROMPT_SCREENSHOT = BUILDER
             .comment("The prompt to use for translation screenshots [翻譯螢幕截圖時使用的提示語]\n" +
-                    "%s 會被換成 target_language 對應的語言名稱。")
+                    "語言無關範本；每一處 %s 都會被換成 target_language 對應的語言名稱。")
             .define(PROMPT_SCREENSHOT_PATH,
                     """
                     請在圖片上找到所有的英文(不包含沒有英文的數字)並且翻譯成%s
 
                     翻譯的格式為
                     畫面簡介:xxx\\n
-                    xxx/xxx\\n(原文英文1/中文1)(括號裡不需要顯示)
-                    xxx/xxx\\n(原文英文2/中文2)(括號裡不需要顯示)
+                    xxx/xxx\\n(原文英文1/%s譯文1)(括號裡不需要顯示)
+                    xxx/xxx\\n(原文英文2/%s譯文2)(括號裡不需要顯示)
                     """
             );
 //
