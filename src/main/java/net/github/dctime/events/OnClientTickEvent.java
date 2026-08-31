@@ -1,5 +1,6 @@
 package net.github.dctime.events;
 
+import net.github.dctime.Config;
 import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.KeyMapping;
 import net.github.dctime.libs.Translator;
@@ -31,6 +32,10 @@ public class OnClientTickEvent {
         if (++ticksSinceLastFlushCheck >= FLUSH_CHECK_INTERVAL_TICKS) {
             ticksSinceLastFlushCheck = 0;
             Translator.flushCacheToDiskIfDirty();
+        }
+
+        if (Config.ENABLE_PRETRANSLATE_CONTAINERS.get()) {
+            Translator.pretranslateOpenContainerIfAny();
         }
     }
 }

@@ -142,6 +142,12 @@ public class Config {
             .comment("[翻譯中是否在遊戲畫面顯示動畫] (預設 true) Whether to show animation on GUI when translating")
             .define(ENABLE_TRANSLATING_ANIMATION_CONFIG_PATH, true);
 
+    public static final String ENABLE_PRETRANSLATE_CONTAINERS_PATH = "enable_pretranslate_containers";
+    public static final ModConfigSpec.BooleanValue ENABLE_PRETRANSLATE_CONTAINERS = BUILDER
+            .comment("[開啟儲物箱/合成桌等容器畫面時是否預先翻譯裡面的物品] (預設 true)\n" +
+                    "Whether to proactively translate items inside an open container screen (chest, crafting table, etc.) instead of only translating on hover.")
+            .define(ENABLE_PRETRANSLATE_CONTAINERS_PATH, true);
+
 
     static {
         BUILDER.pop();

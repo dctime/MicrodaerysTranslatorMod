@@ -10,8 +10,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -306,6 +308,37 @@ public class Translator {
         return ModList.get().getModContainerById(itemId.getNamespace())
                 .map(container -> container.getModInfo().getDisplayName().equals(renderedText))
                 .orElse(false);
+    }
+
+    /**
+     * Called every tick (see OnClientTickEvent) while a container screen (chest, crafting table,
+     * ...) is open, so items inside it are already cached by the time the player hovers them.
+     * Deliberately NOT a one-shot call on screen-open: the whole IN_FLIGHT/Semaphore(4) safety
+     * net only stays safe because a request that loses tryAcquire() gets retried on a LATER call
+     * -- true every frame for hover (RenderTooltipEvent), but a single screen-open event never
+     * fires again, so most of a large container's items would silently never get retried. Calling
+     * this every tick while the screen stays open reuses that same "there will be a next attempt"
+     * guarantee instead of only pretending to.
+     * Tries the official-translation short-circuit first (same as tooltip line 0) before ever
+     * calling the AI, so a container full of ordinary vanilla items costs zero API calls.
+     */
+    public static void pretranslateOpenContainerIfAny() {
+        if (!(Minecraft.getInstance().screen instanceof AbstractContainerScreen<?> containerScreen)) return;
+
+        for (Slot slot : containerScreen.getMenu().slots) {
+            ItemStack stack = slot.getItem();
+            if (stack.isEmpty()) continue;
+
+            String renderedText = stack.getHoverName().getString();
+            if (textInCache(renderedText)) continue;
+            if (tryOfficialTranslationForItemName(stack, renderedText)) continue;
+
+            try {
+                requestTranslateItemStackToTraditionalChinese(renderedText, stack);
+            } catch (IOException | InterruptedException e) {
+                LOGGER.warn("Failed to pretranslate container item: " + e.getMessage());
+            }
+        }
     }
 
     /**
