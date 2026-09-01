@@ -1,0 +1,107 @@
+package net.github.dctime.datagen;
+
+import net.github.dctime.Config;
+import net.github.dctime.MicrodaerysTranslatorClient;
+import net.minecraft.data.PackOutput;
+
+/** French (fr_fr) strings -- see {@link LanguageProvider}'s javadoc for the per-locale-file rationale. */
+public class LanguageProviderFrFr extends net.neoforged.neoforge.common.data.LanguageProvider {
+
+    public LanguageProviderFrFr(PackOutput output) {
+        super(output, MicrodaerysTranslatorClient.MODID, "fr_fr");
+    }
+
+    @Override
+    protected void addTranslations() {
+        add("key." + MicrodaerysTranslatorClient.MODID + ".delete_translation_cache", "Effacer le cache de traduction");
+        add("key." + MicrodaerysTranslatorClient.MODID + ".show_translation_in_gui", "Afficher la traduction de la capture d'écran (maintenir)");
+        add("key." + MicrodaerysTranslatorClient.MODID + ".delete_showing_translation", "Retraduire le contenu affiché (maintenir)");
+        add("key.categories." + MicrodaerysTranslatorClient.MODID + ".key_mapping_category", "Google AI Studio Translator");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.API_KEY_PATH, "Clé API");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.MODEL_NAME_PATH, "Nom du modèle");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.PROMPT_PATH, "Instruction (prompt)");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.PROMPT_SCREENSHOT_PATH, "Instruction pour la traduction de captures d'écran");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENABLE_JADE_CONFIG_PATH, "Activer l'intégration Jade");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENABLE_FTB_QUEST_TRANSLATION_PATH, "Activer l'intégration FTB Quests");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENABLE_TOOLTIP_TRANSLATION_PATH, "Activer la traduction des infobulles d'objets");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENABLE_ADVANCEMENTS_CONFIG_PATH, "Activer la traduction des progrès");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENABLE_SCREENSHOT_CONFIG_PATH, "Activer la traduction des captures d'écran");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENABLE_ICON_CONFIG_PATH, "Activer l'envoi de l'icône de l'objet sur la première ligne pour Jade et les infobulles");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENABLE_TRANSLATING_ANIMATION_CONFIG_PATH, "Activer l'animation de traduction");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.TIMEOUT_DURATION_CONFIG_PATH, "Délai d'expiration");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.FEATURE_TOGGLE_PATH, "Fonctionnalités");
+        add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENDPOINT_CONFIG_PATH, "Fournisseur");
+
+        String p = MicrodaerysTranslatorClient.MODID + ".config.";
+        add(p + "title", "Microdaery's Translator");
+
+        add(p + "section.service", "Service de traduction");
+        add(p + "service", "Service");
+        add(p + "model", "Modèle");
+        add(p + "model.custom", "Personnalisé...");
+        add(p + "model.custom_id", "ID de modèle personnalisé");
+        add(p + "api_key", "Clé API");
+        add(p + "api_key.show", "Afficher");
+        add(p + "api_key.hide", "Masquer");
+        add(p + "api_key.paste", "Coller");
+        add(p + "api_key.ollama_note", "Service local - clé API non requise");
+        add(p + "test_connection", "Tester la connexion");
+        add(p + "test_connection.testing", "Test en cours...");
+        add(p + "test_connection.connected", "Connecté");
+        add(p + "test_connection.invalid_key", "Clé API invalide");
+        add(p + "test_connection.rate_limited", "Limite de débit dépassée");
+        add(p + "test_connection.cannot_connect", "Connexion impossible");
+        add(p + "test_connection.http_error", "Erreur HTTP %s");
+        add(p + "test_connection.model_not_found", "Modèle « %s » introuvable dans la liste (la liste est peut-être incomplète)");
+        add(p + "test_connection.note", "Confirme uniquement la connexion et l'autorisation -- ne garantit pas que les requêtes de traduction réussiront");
+
+        add(p + "section.language", "Langue");
+        add(p + "follow_game_language", "Suivre la langue de Minecraft");
+        add(p + "follow_game_language.tooltip", "Utilise la langue actuellement sélectionnée dans les options de Minecraft.");
+        add(p + "target_language", "Langue cible");
+        add(p + "target_language.custom", "Personnalisé/Inconnu : %s");
+
+        add(p + "section.features", "Fonctions de traduction");
+        add(p + "feature.tooltip", "Infobulle d'objet");
+        add(p + "feature.jade", "Infobulle Jade");
+        add(p + "feature.ftbquests", "FTB Quests");
+        add(p + "feature.advancements", "Progrès");
+        add(p + "feature.screenshot", "Traduction de capture d'écran");
+
+        add(p + "advanced_settings", "Paramètres avancés");
+        add(p + "model_cache_note", "Changer de fournisseur ou de modèle n'invalide ni n'efface automatiquement les anciennes traductions mises en cache.");
+        add(p + "clear_cache_confirm.title", "Effacer le cache de traduction ?");
+        add(p + "clear_cache_confirm.message", "Des paramètres liés à la traduction ont été modifiés. Effacer les %s traductions actuellement en cache ?");
+
+        add(p + "section.translation", "Traduction");
+        add(p + "include_icon", "Inclure l'icône de l'objet dans la traduction");
+        add(p + "include_icon.tooltip", "Envoie l'icône de l'objet aux modèles compatibles avec la vision pour un meilleur contexte de traduction.");
+        add(p + "pretranslate_containers", "Pré-traduire les objets des conteneurs");
+        add(p + "pretranslate_containers.tooltip", "Traduit automatiquement les objets visibles d'un conteneur avant même que vous les survoliez. Peut consommer plus de requêtes API.");
+        add(p + "custom_prompt", "Instruction de traduction personnalisée");
+        add(p + "custom_prompt.builtin", "Utiliser l'instruction intégrée");
+        add(p + "custom_prompt.custom", "Instruction personnalisée");
+        add(p + "edit_custom_prompt", "Modifier l'instruction personnalisée");
+        add(p + "edit_screenshot_prompt", "Modifier l'instruction pour les captures d'écran");
+        add(p + "reset_to_builtin", "Réinitialiser à l'instruction intégrée");
+
+        add(p + "section.interface", "Interface");
+        add(p + "translating_animation", "Afficher l'animation de traduction");
+        add(p + "translating_animation.tooltip", "Affiche une petite animation à l'écran en attendant le résultat de la traduction.");
+
+        add(p + "section.network", "Réseau");
+        add(p + "timeout", "Délai d'expiration des requêtes");
+        add(p + "timeout.seconds", "%s s");
+        add(p + "timeout.custom", "Personnalisé : %s s");
+        add(p + "rpm", "Requêtes par minute");
+        add(p + "rpm.tooltip", "Limite le nombre de requêtes de traduction IA envoyées en 60 secondes. Réduisez cette valeur si votre fournisseur renvoie une erreur HTTP 429.");
+        add(p + "rpm.custom", "Personnalisé : %s");
+
+        add(p + "section.cache", "Cache");
+        add(p + "clear_cache", "Effacer le cache de traduction (%s entrées)");
+
+        add(p + "prompt_edit.title", "Modifier l'instruction personnalisée");
+        add(p + "prompt_edit.screenshot_title", "Modifier l'instruction pour les captures d'écran");
+        add(p + "prompt_edit.hint", "Laisser vide pour utiliser l'instruction intégrée");
+    }
+}
