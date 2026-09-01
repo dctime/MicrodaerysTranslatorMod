@@ -8,9 +8,9 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.github.dctime.libs.OfficialTranslationLookup;
 import net.github.dctime.libs.Translator;
+import net.github.dctime.screen.TranslatorConfigScreen;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
-import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,10 +25,12 @@ public class MicrodaerysTranslatorClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(MicrodaerysTranslatorClient.class);
     public static final String MODID = "microdaerystranslator";
     public MicrodaerysTranslatorClient(ModContainer container) {
-        // Allows NeoForge to create a config screen for this mod's configs.
+        // Custom config screen (TranslatorConfigScreen) instead of NeoForge's generic
+        // ConfigurationScreen -- see mailbox #002: the auto-generated screen exposes raw config
+        // keys and free-text fields (endpoint/model_name/target_language/...) that aren't usable
+        // for a player who doesn't know what an API endpoint or a language code is.
         // The config screen is accessed by going to the Mods screen > clicking on your mod > clicking on config.
-        // Do not forget to add translations for your config options to the en_us.json file.
-        container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
+        container.registerExtensionPoint(IConfigScreenFactory.class, (c, parent) -> new TranslatorConfigScreen(parent));
         container.registerConfig(ModConfig.Type.CLIENT, Config.SPEC);
     }
 

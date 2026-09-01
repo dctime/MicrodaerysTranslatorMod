@@ -97,6 +97,21 @@ public class VerifyTargetLanguage {
                 !multiSubstituted.contains("%s") && multiSubstituted.equals(
                         "只回日文的翻譯。名詞使用日文 Minecraft 社群慣用譯名；有官方日文翻譯的詞優先採用官方翻譯。"));
 
+        // --- KNOWN_CODES: the GUI's language dropdown iterates this list, so it must actually
+        // list every language displayName()/isAlreadyInTargetLanguage() know about, in a stable
+        // order (see net.github.dctime.libs.TargetLanguage's KNOWN LinkedHashMap comment: this is
+        // meant to be structurally impossible to drift, not just conventionally kept in sync).
+        // List.equals() is order-sensitive, so this pins down BOTH membership and exact order in
+        // one assertion. The order itself is a contract now (it's what the GUI dropdown shows the
+        // player), not just "these ten codes exist" -- LinkedHashMap only preserves insertion
+        // order, it doesn't stop someone from reordering the put() calls later.
+        assertTrue("KNOWN_CODES lists exactly the ten curated languages, in this exact display order",
+                TargetLanguage.KNOWN_CODES.equals(java.util.List.of("zh_tw", "zh_cn", "ja_jp", "en_us", "es_es", "fr_fr", "ko_kr", "ru_ru", "de_de", "pt_br")));
+        for (String code : TargetLanguage.KNOWN_CODES) {
+            assertTrue("KNOWN_CODES entry '" + code + "' has a real display name (not just the raw code echoed back)",
+                    !TargetLanguage.displayName(code).equals(code));
+        }
+
         System.out.println("ALL CHECKS PASSED");
     }
 }

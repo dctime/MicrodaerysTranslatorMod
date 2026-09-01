@@ -22,8 +22,14 @@ public class PromptTemplates {
 
     private record Templates(String prompt, String promptScreenshot) {}
 
-    private static final Map<String, Templates> KNOWN = Map.of(
-            "zh_tw", new Templates(
+    // Map.ofEntries(), not Map.of(): Map.of() has no varargs overload past 10 key-value pairs
+    // (it tops out at Map.of(k1,v1, ..., k10,v10)) -- this map was AT that limit the moment the
+    // 10th language (pt_br) was added, so the 11th would have failed to compile with a confusing
+    // "no suitable method found for of(...)" error that gives no hint the real issue is a hidden
+    // arity cap. Map.ofEntries() takes a varargs array of Map.entry(...) instead, so there's no
+    // count ceiling to run into again.
+    private static final Map<String, Templates> KNOWN = Map.ofEntries(
+            Map.entry("zh_tw", new Templates(
                     """
                     只回繁體中文的翻譯，不要多字、不要解釋。
                     遵守：
@@ -41,8 +47,8 @@ public class PromptTemplates {
                     xxx/xxx\\n(原文英文1/繁體中文譯文1)(括號裡不需要顯示)
                     xxx/xxx\\n(原文英文2/繁體中文譯文2)(括號裡不需要顯示)
                     """
-            ),
-            "zh_cn", new Templates(
+            )),
+            Map.entry("zh_cn", new Templates(
                     """
                     只回简体中文的翻译，不要多字、不要解释。
                     遵守：
@@ -60,8 +66,8 @@ public class PromptTemplates {
                     xxx/xxx\\n(原文英文1/简体中文译文1)(括号里不需要显示)
                     xxx/xxx\\n(原文英文2/简体中文译文2)(括号里不需要显示)
                     """
-            ),
-            "ja_jp", new Templates(
+            )),
+            Map.entry("ja_jp", new Templates(
                     """
                     日本語の翻訳のみを返してください。余計な言葉や説明は不要です。
                     ルール：
@@ -79,8 +85,8 @@ public class PromptTemplates {
                     xxx/xxx\\n(原文の英語1/日本語訳1)(括弧内は表示不要)
                     xxx/xxx\\n(原文の英語2/日本語訳2)(括弧内は表示不要)
                     """
-            ),
-            "en_us", new Templates(
+            )),
+            Map.entry("en_us", new Templates(
                     """
                     Reply with ONLY the English translation. No extra words, no explanations.
                     Rules:
@@ -98,8 +104,8 @@ public class PromptTemplates {
                     xxx/xxx\\n(original text 1/English translation 1)(parentheses are not shown)
                     xxx/xxx\\n(original text 2/English translation 2)(parentheses are not shown)
                     """
-            ),
-            "es_es", new Templates(
+            )),
+            Map.entry("es_es", new Templates(
                     """
                     Responde ÚNICAMENTE con la traducción al español. Sin palabras adicionales ni explicaciones.
                     Reglas:
@@ -117,8 +123,8 @@ public class PromptTemplates {
                     xxx/xxx\\n(texto original 1/traducción al español 1)(los paréntesis no se muestran)
                     xxx/xxx\\n(texto original 2/traducción al español 2)(los paréntesis no se muestran)
                     """
-            ),
-            "fr_fr", new Templates(
+            )),
+            Map.entry("fr_fr", new Templates(
                     """
                     Réponds UNIQUEMENT avec la traduction en français. Sans mots supplémentaires ni explications.
                     Règles :
@@ -136,7 +142,83 @@ public class PromptTemplates {
                     xxx/xxx\\n(texte original 1/traduction française 1)(les parenthèses ne sont pas affichées)
                     xxx/xxx\\n(texte original 2/traduction française 2)(les parenthèses ne sont pas affichées)
                     """
-            )
+            )),
+            Map.entry("ko_kr", new Templates(
+                    """
+                    한국어 번역만 답하세요. 추가 설명 없이.
+                    규칙:
+                    번역하지 않음: 모드/블록/아이템 ID, 경로, 키, 태그, 파일명, 명령어(/give 등), 진행 상황 코드, 색상/서식 코드(§ 또는 &)
+                    한국 마인크래프트 커뮤니티에서 일반적으로 사용하는 용어를 사용하고, 공식 한국어 번역이 있으면 우선 사용하세요.
+                    직역하고 간결하게; 배경 설명이나 창작 내용을 추가하지 마세요.
+                    문장 부호와 대소문자는 원문 스타일에 최대한 가깝게(고유명사의 대소문자는 유지) 마침표를 붙이지 마세요.
+                    번역할 텍스트:
+                    """,
+                    """
+                    이미지에서 영어가 아닌 모든 텍스트(문자가 없는 숫자는 제외)를 찾아 한국어로 번역하세요
+
+                    형식:
+                    화면 요약:xxx\\n
+                    xxx/xxx\\n(원문 1/한국어 번역 1)(괄호는 표시하지 않음)
+                    xxx/xxx\\n(원문 2/한국어 번역 2)(괄호는 표시하지 않음)
+                    """
+            )),
+            Map.entry("ru_ru", new Templates(
+                    """
+                    Отвечай ТОЛЬКО переводом на русский язык. Без лишних слов и объяснений.
+                    Правила:
+                    Не переводить: ID модов/блоков/предметов, пути, ключи, теги, имена файлов, команды (например /give), коды достижений, коды цвета/формата (§ или &).
+                    Используй терминологию, принятую в русскоязычном сообществе Minecraft; отдавай предпочтение официальному русскому переводу, если он есть.
+                    Переводи дословно и кратко; не добавляй фоновую информацию или выдуманное содержание.
+                    Сохраняй пунктуацию/регистр близкими к оригинальному стилю (сохраняй регистр имён собственных); не добавляй точку в конце.
+                    Текст для перевода:
+                    """,
+                    """
+                    Найди весь текст на изображении, который ещё не на русском (кроме чисел без букв), и переведи его на русский
+
+                    Формат:
+                    Краткое описание сцены:xxx\\n
+                    xxx/xxx\\n(оригинальный текст 1/перевод на русский 1)(скобки не показывать)
+                    xxx/xxx\\n(оригинальный текст 2/перевод на русский 2)(скобки не показывать)
+                    """
+            )),
+            Map.entry("de_de", new Templates(
+                    """
+                    Antworte NUR mit der deutschen Übersetzung. Keine zusätzlichen Worte, keine Erklärungen.
+                    Regeln:
+                    Nicht übersetzen: Mod-/Block-/Item-IDs, Pfade, Schlüssel, Tags, Dateinamen, Befehle (z. B. /give), Fortschrittscodes, Farb-/Formatierungscodes (§ oder &).
+                    Verwende die in der deutschen Minecraft-Community übliche Terminologie; bevorzuge die offizielle deutsche Übersetzung, falls vorhanden.
+                    Übersetze wörtlich und knapp; füge keine Hintergrundinformationen oder erfundenen Inhalt hinzu.
+                    Halte Zeichensetzung/Groß- und Kleinschreibung nah am Originalstil (Groß-/Kleinschreibung von Eigennamen beibehalten); keinen Schlusspunkt hinzufügen.
+                    Zu übersetzender Text:
+                    """,
+                    """
+                    Finde allen Text im Bild, der noch nicht auf Deutsch ist (ausgenommen Zahlen ohne Buchstaben), und übersetze ihn ins Deutsche
+
+                    Format:
+                    Szenenübersicht:xxx\\n
+                    xxx/xxx\\n(Originaltext 1/deutsche Übersetzung 1)(Klammern nicht anzeigen)
+                    xxx/xxx\\n(Originaltext 2/deutsche Übersetzung 2)(Klammern nicht anzeigen)
+                    """
+            )),
+            Map.entry("pt_br", new Templates(
+                    """
+                    Responda APENAS com a tradução em português. Sem palavras extras, sem explicações.
+                    Regras:
+                    Não traduzir: IDs de mods/blocos/itens, caminhos, chaves, tags, nomes de arquivo, comandos (como /give), códigos de conquistas, códigos de cor/formatação (§ ou &).
+                    Use a terminologia padrão da comunidade brasileira de Minecraft; prefira a tradução oficial em português quando existir.
+                    Traduza de forma literal e concisa; não adicione contexto nem conteúdo inventado.
+                    Mantenha pontuação/maiúsculas e minúsculas próximas do estilo original (mantenha a grafia de nomes próprios); não adicione ponto final.
+                    Texto a traduzir:
+                    """,
+                    """
+                    Encontre todo o texto na imagem que ainda não está em português (exceto números sem letras) e traduza para o português
+
+                    Formato:
+                    Resumo da cena:xxx\\n
+                    xxx/xxx\\n(texto original 1/tradução em português 1)(parênteses não devem ser exibidos)
+                    xxx/xxx\\n(texto original 2/tradução em português 2)(parênteses não devem ser exibidos)
+                    """
+            ))
     );
 
     private static final String GENERIC_PROMPT = """
@@ -236,6 +318,18 @@ public class PromptTemplates {
     /** Same as {@link #isBlankOrLegacyDefault} but for the screenshot prompt's own separate history. */
     public static boolean isBlankOrLegacyScreenshotDefault(String prompt) {
         return prompt.isBlank() || LEGACY_PROMPT_SCREENSHOT_DEFAULTS.contains(prompt);
+    }
+
+    /**
+     * True if this language has a native (not generic-English-fallback) template. Exists so
+     * callers that need to verify "does this language actually have real coverage" (see
+     * tools/verify-prompt-templates) can ask directly instead of comparing promptFor()'s output
+     * against a second, independently-typed copy of what the generic fallback would produce --
+     * that comparison is itself a drift risk (a copy that silently goes stale if GENERIC_PROMPT's
+     * wording ever changes would compare unequal forever and never catch a real regression again).
+     */
+    public static boolean hasNativeTemplate(String languageCode) {
+        return KNOWN.containsKey(normalize(languageCode));
     }
 
     public static String promptFor(String languageCode) {

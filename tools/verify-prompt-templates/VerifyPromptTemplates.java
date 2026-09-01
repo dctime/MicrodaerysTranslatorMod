@@ -27,7 +27,7 @@ public class VerifyPromptTemplates {
     }
 
     public static void main(String[] args) {
-        String[] known = {"zh_tw", "zh_cn", "ja_jp", "en_us", "es_es", "fr_fr"};
+        String[] known = {"zh_tw", "zh_cn", "ja_jp", "en_us", "es_es", "fr_fr", "ko_kr", "ru_ru", "de_de", "pt_br"};
         for (String lang : known) {
             String prompt = PromptTemplates.promptFor(lang);
             String screenshot = PromptTemplates.screenshotPromptFor(lang);
@@ -46,6 +46,10 @@ public class VerifyPromptTemplates {
         assertTrue("en_us prompt is written in English (contains \"English translation\")", PromptTemplates.promptFor("en_us").contains("English translation"));
         assertTrue("es_es prompt is written in Spanish (contains \"traducción al español\")", PromptTemplates.promptFor("es_es").contains("traducción al español"));
         assertTrue("fr_fr prompt is written in French (contains \"traduction en français\")", PromptTemplates.promptFor("fr_fr").contains("traduction en français"));
+        assertTrue("ko_kr prompt is written in Korean (contains 한국어 번역)", PromptTemplates.promptFor("ko_kr").contains("한국어 번역"));
+        assertTrue("ru_ru prompt is written in Russian (contains переводом на русский язык)", PromptTemplates.promptFor("ru_ru").contains("переводом на русский язык"));
+        assertTrue("de_de prompt is written in German (contains deutschen Übersetzung)", PromptTemplates.promptFor("de_de").contains("deutschen Übersetzung"));
+        assertTrue("pt_br prompt is written in Portuguese (contains tradução em português)", PromptTemplates.promptFor("pt_br").contains("tradução em português"));
 
         // unknown language code: generic English-authored fallback, %s substituted with the raw code
         String unknownPrompt = PromptTemplates.promptFor("klingon");
@@ -53,6 +57,22 @@ public class VerifyPromptTemplates {
                 unknownPrompt.contains("Reply with ONLY the klingon translation"));
         assertTrue("unknown language fallback has no leftover %s either",
                 !unknownPrompt.contains("%s"));
+
+        // --- mailbox review #002 point H1 (tightened per point I4): PromptTemplates.KNOWN is a
+        // SECOND, independent language registry (a private Map literal) that
+        // TargetLanguage.KNOWN_CODES does not drive and is not derived from -- adding a language
+        // to TargetLanguage (so it shows up in the GUI dropdown) without also adding it here is a
+        // silent quality regression, not a crash: promptFor() falls through to GENERIC_PROMPT (an
+        // English-authored template) with no error, no log line, nothing. This asks
+        // PromptTemplates.hasNativeTemplate() directly -- a pinned copy of GENERIC_PROMPT's exact
+        // wording was tried first and rejected: that copy would itself be a second source of
+        // truth for the fallback's shape, silently stale (and the assertion silently useless) the
+        // moment someone edits GENERIC_PROMPT's wording without remembering to update the copy
+        // here too. hasNativeTemplate() has no such copy to go stale.
+        for (String code : TargetLanguage.KNOWN_CODES) {
+            assertTrue(code + " has a native prompt template in PromptTemplates.KNOWN (not silently falling back to the generic English template)",
+                    PromptTemplates.hasNativeTemplate(code));
+        }
 
         // TargetLanguage additions that ship alongside the new templates
         assertTrue("es_es displays as Español", TargetLanguage.displayName("es_es").equals("Español"));
@@ -63,6 +83,18 @@ public class VerifyPromptTemplates {
                 !TargetLanguage.isAlreadyInTargetLanguage("es_es", "Lingote de Hierro"));
         assertTrue("fr_fr never reports \"already translated\" for plain English text",
                 !TargetLanguage.isAlreadyInTargetLanguage("fr_fr", "Iron Ingot"));
+        assertTrue("ko_kr displays as 한국어", TargetLanguage.displayName("ko_kr").equals("한국어"));
+        assertTrue("ru_ru displays as Русский", TargetLanguage.displayName("ru_ru").equals("Русский"));
+        assertTrue("de_de displays as Deutsch", TargetLanguage.displayName("de_de").equals("Deutsch"));
+        assertTrue("pt_br displays as Português (Brasil)", TargetLanguage.displayName("pt_br").equals("Português (Brasil)"));
+        assertTrue("ko_kr detects Hangul text as already translated", TargetLanguage.isAlreadyInTargetLanguage("ko_kr", "철 주괴"));
+        assertTrue("ko_kr does not misfire on plain English text", !TargetLanguage.isAlreadyInTargetLanguage("ko_kr", "Iron Ingot"));
+        assertTrue("ru_ru detects Cyrillic text as already translated", TargetLanguage.isAlreadyInTargetLanguage("ru_ru", "Железный слиток"));
+        assertTrue("ru_ru does not misfire on plain English text", !TargetLanguage.isAlreadyInTargetLanguage("ru_ru", "Iron Ingot"));
+        assertTrue("de_de never reports \"already translated\" for plain English text (Latin-alphabet overlap, same as es_es/fr_fr)",
+                !TargetLanguage.isAlreadyInTargetLanguage("de_de", "Iron Ingot"));
+        assertTrue("pt_br never reports \"already translated\" for plain English text",
+                !TargetLanguage.isAlreadyInTargetLanguage("pt_br", "Iron Ingot"));
 
         // --- legacy-default recognition: confirmed against a real player's config in the wild ---
         // this is the EXACT prompt value a real player's config.toml still had, generated before

@@ -7,6 +7,14 @@
 // headless, for the same reason as every other Translator-touching check in this tools/
 // directory -- Translator's static field initializer touches Minecraft classes.
 //
+// The concurrent-save case below is deliberately narrow: it only proves save() itself can't
+// corrupt the file or throw when two calls overlap (unique-per-call tmp filenames -- see
+// save()'s javadoc). It does NOT prove, and cannot prove from here, any ordering guarantee
+// between two racing calls -- there isn't one at this layer. Translator gets ordering (its GUI's
+// "clear cache" path landing after, not before, a periodic flush that started first) from its own
+// single-thread cache-write executor serializing calls INTO save(), which this test doesn't
+// exercise (Translator can't be loaded headless).
+//
 // Run:
 //   GSON=$(find ~/.gradle -name 'gson-2.10.1.jar' | head -1)
 //   MAIN_CLASSES=build/classes/java/main
@@ -71,6 +79,42 @@ public class VerifyDiskCache {
         Map<String, Map<String, String>> fromCorrupt = TranslationDiskCache.load(corrupt);
         assertTrue("a corrupt JSON file falls back to an empty cache instead of throwing",
                 fromCorrupt != null && fromCorrupt.isEmpty());
+
+        // --- two overlapping save() calls to the SAME path must not corrupt each other or throw,
+        // even though which one's content "wins" is unspecified (see save()'s javadoc + the file
+        // header comment above) ---
+        Path concurrent = tempDir.resolve("concurrent.json");
+        Map<String, Map<String, String>> contentA = Map.of("zh-tw", Map.of("A", "A"));
+        Map<String, Map<String, String>> contentB = Map.of("zh-tw", Map.of("B", "B"));
+        Thread writerA = new Thread(() -> {
+            try {
+                for (int i = 0; i < 50; i++) TranslationDiskCache.save(concurrent, contentA);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Thread writerB = new Thread(() -> {
+            try {
+                for (int i = 0; i < 50; i++) TranslationDiskCache.save(concurrent, contentB);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        writerA.start();
+        writerB.start();
+        writerA.join();
+        writerB.join();
+
+        Map<String, Map<String, String>> afterRace = TranslationDiskCache.load(concurrent);
+        assertTrue("after two threads race-writing different content 50x each, the file still "
+                        + "parses as valid, uncorrupted JSON equal to ONE of the two contents (not a mix, not empty)",
+                afterRace.equals(contentA) || afterRace.equals(contentB));
+        long leftoverTmpFiles;
+        try (var listing = Files.list(tempDir)) {
+            leftoverTmpFiles = listing.filter(p -> p.getFileName().toString().endsWith(".tmp")).count();
+        }
+        assertTrue("no leftover .tmp files survive the race (each writer's move() either succeeded or the whole call threw)",
+                leftoverTmpFiles == 0);
 
         System.out.println("ALL CHECKS PASSED");
     }

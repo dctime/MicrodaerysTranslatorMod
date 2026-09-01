@@ -32,9 +32,13 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
 
 import static net.github.dctime.libs.ScreenShotter.getItemStackImage;
@@ -80,26 +84,87 @@ public class Translator {
         }
     }
 
+    // Every disk write goes through this single-thread executor, never ForkJoinPool.commonPool
+    // directly, so two overlapping flushes (the periodic tick's and, since clearCache() started
+    // flushing on demand, an on-demand one) can never run their save() calls concurrently against
+    // each other -- they queue instead. TranslationDiskCache.save() already gives each individual
+    // call a uniquely-named tmp file (so a race can't corrupt the file into a mixed/invalid blob),
+    // but it makes no promise about WHICH concurrent call's content ends up on disk if two run at
+    // once (see its javadoc) -- this executor is what turns "call order" into "disk order" for
+    // this mod's one real caller. Daemon thread: matches the previous commonPool-based behavior
+    // (doesn't block JVM shutdown by itself); see flushCacheToDiskSync() for the path that
+    // deliberately waits for a write to finish before returning.
+    private static final ExecutorService CACHE_WRITE_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "microdaerystranslator-cache-writer");
+        t.setDaemon(true);
+        return t;
+    });
+
     /** Cheap to call often (e.g. every tick): no-ops unless the cache actually changed since the last flush. */
     public static void flushCacheToDiskIfDirty() {
         if (!cacheDirty) return;
         cacheDirty = false;
+        CACHE_WRITE_EXECUTOR.execute(Translator::writeCacheToDisk);
+    }
 
-        Path file = cacheFilePath();
-        CompletableFuture.runAsync(() -> {
-            // ConcurrentHashMap iteration is thread-safe on its own, so the O(cache size)
-            // flatten can happen on the async thread too -- the caller (tick/logout) only pays
-            // O(1): clear the flag, hand off the task.
-            Map<String, Map<String, String>> nested = new HashMap<>();
-            for (Map.Entry<CacheKey, String> entry : translationCache.entrySet()) {
-                nested.computeIfAbsent(entry.getKey().lang(), lang -> new HashMap<>()).put(entry.getKey().text(), entry.getValue());
-            }
-            try {
-                TranslationDiskCache.save(file, nested);
-            } catch (IOException e) {
-                LOGGER.warn("Failed to write translation cache to disk: " + e.getMessage());
-            }
-        });
+    /**
+     * Same as {@link #flushCacheToDiskIfDirty()}, but BLOCKS the calling thread until the write
+     * has actually finished (or {@link #CACHE_WRITE_TIMEOUT_SECONDS} elapses), instead of merely
+     * queuing it. Used by {@link #clearCache}: that path can be followed immediately by the player
+     * quitting the game, and the periodic/logout flushes it would otherwise rely on don't fire
+     * reliably from the main menu (no world tick, no logout event) -- queuing the write (as
+     * flushCacheToDiskIfDirty() does) only narrows that race to milliseconds instead of closing
+     * it, since the write still happens on a daemon thread the JVM can kill mid-task on exit.
+     * <p>
+     * Waiting here is USUALLY cheap -- not because this task's own payload is small (it is, right
+     * after clear() empties the map, but that's not the point), but because {@code
+     * CACHE_WRITE_EXECUTOR} is single-threaded: if a periodic flush of a large cache is already
+     * running (or merely queued ahead of this call), this blocks until THAT finishes too, not just
+     * its own near-instant write. Bounded by a timeout specifically so that worst case (a slow
+     * disk, an antivirus lock, a network-mounted config dir) freezes the render thread for at most
+     * {@link #CACHE_WRITE_TIMEOUT_SECONDS} seconds, never indefinitely -- a timeout does NOT
+     * cancel the underlying task, which keeps running in the background and will still land
+     * eventually.
+     */
+    private static final int CACHE_WRITE_TIMEOUT_SECONDS = 5;
+
+    private static void flushCacheToDiskSync() {
+        if (!cacheDirty) return;
+        cacheDirty = false;
+        try {
+            CACHE_WRITE_EXECUTOR.submit(Translator::writeCacheToDisk).get(CACHE_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            cacheDirty = true; // unknown whether the write landed -- assume not, let a later flush retry
+        } catch (ExecutionException e) {
+            LOGGER.warn("Failed to flush translation cache to disk: " + e.getMessage());
+            cacheDirty = true; // the write did not land -- don't let the caller report success while this stays false
+        } catch (TimeoutException e) {
+            LOGGER.warn("Translation cache write did not finish within " + CACHE_WRITE_TIMEOUT_SECONDS
+                    + "s; continuing in the background instead of freezing the game.");
+            cacheDirty = true; // don't know yet whether the still-running task will succeed -- a later flush retries
+        }
+    }
+
+    private static void writeCacheToDisk() {
+        // ConcurrentHashMap iteration is thread-safe on its own, so the O(cache size) flatten can
+        // happen on the writer thread too -- the caller only pays O(1): clear the flag, hand off.
+        Map<String, Map<String, String>> nested = new HashMap<>();
+        for (Map.Entry<CacheKey, String> entry : translationCache.entrySet()) {
+            nested.computeIfAbsent(entry.getKey().lang(), lang -> new HashMap<>()).put(entry.getKey().text(), entry.getValue());
+        }
+        try {
+            TranslationDiskCache.save(cacheFilePath(), nested);
+        } catch (IOException e) {
+            LOGGER.warn("Failed to write translation cache to disk: " + e.getMessage());
+            // Without this, a failed write leaves cacheDirty permanently false (both callers set
+            // it false BEFORE this task runs, to avoid a re-check race), so the periodic flush
+            // would never retry -- the failed write is lost until some unrelated new translation
+            // happens to mark the cache dirty again. Safe to set unconditionally: if something
+            // else already set it true in the meantime, this is a harmless redundant write later,
+            // never a lost one.
+            cacheDirty = true;
+        }
     }
 
     // per-text in-flight tracking replaces the old single global "translating" lock, which
@@ -177,15 +242,52 @@ public class Translator {
         return translationCache.get(keyFor(text));
     }
 
-    public static void clearCache() {
-        // Execute logic to perform on click here
+    /** How many entries are currently cached, across all target languages. Cheap (O(1)): backed by ConcurrentHashMap.size(). */
+    public static int getCacheSize() {
+        return translationCache.size();
+    }
+
+    /**
+     * Clears the cache regardless of whether a player is present (e.g. the config screen can be
+     * opened from the main menu, before joining a world, or {@code DELETE_TRANSLATION_CACHE} can
+     * be pressed at the title screen -- {@code KeyConflictContext.UNIVERSAL} fires everywhere).
+     * {@code showMessage} only gates the chat feedback -- the clear itself, and {@code
+     * cacheDirty}, are never skipped just because there's no player to message. NOTE: this is a
+     * real behavior change from the old player-gated clearCache(): previously a no-player call was
+     * a full no-op (cache NOT cleared); now it always clears, only the chat message is
+     * conditional. Callers with no other feedback mechanism (a GUI updating its own "N entries"
+     * label, for instance) should pass false and surface the result themselves.
+     * <p>
+     * Flushes to disk SYNCHRONOUSLY (blocks until the write finishes) rather than going through
+     * the periodic tick/logout flush: neither of those fires reliably from the main menu (no world
+     * tick, no logout event), and merely queuing an async write (as flushCacheToDiskIfDirty() does
+     * elsewhere) leaves a real, if narrow, window where a player who quits within milliseconds of
+     * clearing can still lose the clear -- the write runs on a daemon thread the JVM can kill
+     * mid-task on exit. Blocking here is cheap: by this point clear() has already emptied the map,
+     * so the write is a handful of bytes, not O(cache size).
+     */
+    public static void clearCache(boolean showMessage) {
         if (Translator.translationCache.isEmpty()) return;
-        Player player = Minecraft.getInstance().player;
-        if (player == null) return;
         Translator.translationCache.clear();
-        cacheDirty = true; // otherwise a quit before the next periodic flush leaves the stale cache on disk
-        player.sendSystemMessage(Component.literal("Translation cache cleared.").withStyle(ChatFormatting.YELLOW));
-        player.sendSystemMessage(Component.literal("清除翻譯快取").withStyle(ChatFormatting.YELLOW));
+        cacheDirty = true; // otherwise a quit before the flush below leaves the stale cache on disk
+        flushCacheToDiskSync();
+        Player player = Minecraft.getInstance().player;
+        if (player != null) {
+            if (showMessage) {
+                player.sendSystemMessage(Component.literal("Translation cache cleared.").withStyle(ChatFormatting.YELLOW));
+                player.sendSystemMessage(Component.literal("清除翻譯快取").withStyle(ChatFormatting.YELLOW));
+            }
+        } else if (showMessage) {
+            // showMessage=true means the caller wanted chat feedback but there was no player to
+            // give it to -- log is the only feedback channel left for that case. showMessage=false
+            // callers (e.g. the GUI) have their own feedback (a widget label), so no log line here
+            // for them -- there's nothing unusual to record.
+            LOGGER.info("Translation cache cleared (no player present to notify in chat).");
+        }
+    }
+
+    public static void clearCache() {
+        clearCache(true);
     }
 
     private static HttpRequest setupRequest(String textInEnglish, @Nullable String image, boolean isScreenShot) {

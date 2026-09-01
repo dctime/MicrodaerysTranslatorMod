@@ -170,6 +170,17 @@ public class Config {
 
     static final ModConfigSpec SPEC = BUILDER.build();
 
+    /**
+     * Persists the current in-memory values to the client TOML file. {@code SPEC} itself is
+     * package-private (only {@link MicrodaerysTranslatorClient} needs it, to register the config),
+     * so screen/UI code in other packages needs this instead of reaching for {@code SPEC.save()}
+     * directly. Mirrors what NeoForge's own ConfigurationScreen does on close
+     * (ConfigurationSectionScreen#onClose -> context.modSpec.save()).
+     */
+    public static void save() {
+        SPEC.save();
+    }
+
     private static boolean validateItemName(final Object obj) {
         return obj instanceof String itemName && BuiltInRegistries.ITEM.containsKey(ResourceLocation.parse(itemName));
     }
