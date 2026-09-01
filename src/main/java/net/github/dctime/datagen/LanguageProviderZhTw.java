@@ -41,6 +41,7 @@ public class LanguageProviderZhTw extends net.neoforged.neoforge.common.data.Lan
         // === Custom config GUI (TranslatorConfigScreen / TranslatorAdvancedConfigScreen) ===
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");
+        add(p + "options_button", "Microdaery's Translator...");
 
         add(p + "section.service", "翻譯服務");
         add(p + "service", "服務");

@@ -34,6 +34,7 @@ public class LanguageProviderFrFr extends net.neoforged.neoforge.common.data.Lan
 
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");
+        add(p + "options_button", "Microdaery's Translator...");
 
         add(p + "section.service", "Service de traduction");
         add(p + "service", "Service");

@@ -48,6 +48,7 @@ public class LanguageProvider extends net.neoforged.neoforge.common.data.Languag
         // === Custom config GUI (TranslatorConfigScreen / TranslatorAdvancedConfigScreen) ===
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");
+        add(p + "options_button", "Microdaery's Translator...");
 
         add(p + "section.service", "Translation Service");
         add(p + "service", "Service");

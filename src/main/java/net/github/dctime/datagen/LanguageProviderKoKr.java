@@ -34,6 +34,7 @@ public class LanguageProviderKoKr extends net.neoforged.neoforge.common.data.Lan
 
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");
+        add(p + "options_button", "Microdaery's Translator...");
 
         add(p + "section.service", "번역 서비스");
         add(p + "service", "서비스");
