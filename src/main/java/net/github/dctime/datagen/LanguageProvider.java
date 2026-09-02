@@ -74,6 +74,35 @@ public class LanguageProvider extends net.neoforged.neoforge.common.data.Languag
         add(p + "provider.openai", "OpenAI");
         add(p + "provider.ollama", "Ollama (Local)");
         add(p + "provider.custom", "Custom Provider");
+
+        // === Multi-Provider Router (mailbox review rounds 023-032) ===
+        add(p + "provider_mode", "Provider Mode");
+        add(p + "provider_mode.single", "Single");
+        add(p + "provider_mode.single.tooltip", "Uses exactly one provider. No automatic fallback if it fails -- matches the mod's original behavior.");
+        add(p + "provider_mode.priority", "Priority");
+        add(p + "provider_mode.priority.tooltip", "Tries enabled providers in Priority order, falling back to the next one on a temporary failure (rate limit, timeout, connection error, server error).");
+        add(p + "provider_mode.round_robin", "Round Robin");
+        add(p + "provider_mode.round_robin.tooltip", "Rotates evenly among enabled, available providers.");
+        add(p + "provider_mode.automatic", "Automatic");
+        add(p + "provider_mode.automatic.tooltip", "Automatically picks the best available provider based on current load, recent failures, and latency, with Priority as a light tiebreaker. Still falls back on temporary failures. Recommended.");
+        add(p + "manage_providers", "Manage Providers");
+        add(p + "manage_providers.note", "Toggle providers on or off here. Reorder or configure a provider (API key, model, priority, requests/minute) via its Configure button.");
+        add(p + "provider.configure", "Configure");
+        add(p + "provider.enabled", "Enabled");
+        add(p + "provider.priority", "Priority");
+        add(p + "provider.priority.tooltip", "Lower number = tried first in Priority mode, and a light tiebreaker in Automatic mode. 1 = highest. Most players never need to change this.");
+        add(p + "provider.rpm", "Requests per Minute (this provider)");
+        add(p + "provider.rpm.tooltip", "This mod's suggested starting point for this provider's free tier -- not an official quota guarantee. Set this to match your own account's actual rate limit.");
+        add(p + "provider.status", "Status");
+        add(p + "provider.status.ready", "Ready");
+        add(p + "provider.status.rate_limited", "Rate limited (%ss)");
+        add(p + "provider.status.cooldown", "Cooling down (%ss)");
+        add(p + "provider.status.invalid_key", "Invalid API key");
+        add(p + "provider.status.cannot_connect", "Cannot connect");
+        add(p + "provider.status.disabled", "Disabled");
+        add(p + "provider.status.detail.untried", "(never tried)");
+        add(p + "provider.status.detail", "(avg %ss, last tried %ss ago)");
+
         add(p + "model", "Model");
         add(p + "model.custom", "Custom...");
         add(p + "model.custom_id", "Custom Model ID");

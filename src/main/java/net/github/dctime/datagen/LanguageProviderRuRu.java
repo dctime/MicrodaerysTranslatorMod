@@ -52,6 +52,34 @@ public class LanguageProviderRuRu extends net.neoforged.neoforge.common.data.Lan
         add(p + "provider.openai", "OpenAI");
         add(p + "provider.ollama", "Ollama (локально)");
         add(p + "provider.custom", "Пользовательский провайдер");
+
+        add(p + "provider_mode", "Режим провайдера");
+        add(p + "provider_mode.single", "Один");
+        add(p + "provider_mode.single.tooltip", "Использует только одного провайдера. Автоматического переключения при сбое нет -- как в исходном поведении мода.");
+        add(p + "provider_mode.priority", "Приоритет");
+        add(p + "provider_mode.priority.tooltip", "Пробует включённых провайдеров в порядке приоритета, переключаясь на следующего при временном сбое (превышение лимита запросов, тайм-аут, ошибка соединения, ошибка сервера).");
+        add(p + "provider_mode.round_robin", "По кругу");
+        add(p + "provider_mode.round_robin.tooltip", "Равномерно чередует включённых и доступных провайдеров.");
+        add(p + "provider_mode.automatic", "Автоматический");
+        add(p + "provider_mode.automatic.tooltip", "Автоматически выбирает наиболее подходящего провайдера на основе текущей нагрузки, недавних сбоев и задержки; приоритет учитывается только как второстепенный критерий. При временных сбоях также переключается. Рекомендуется.");
+        add(p + "manage_providers", "Управление провайдерами");
+        add(p + "manage_providers.note", "Здесь можно включать и отключать провайдеров. Кнопка Configure открывает настройку API-ключа, модели, приоритета и запросов в минуту.");
+        add(p + "provider.configure", "Настроить");
+        add(p + "provider.enabled", "Включён");
+        add(p + "provider.priority", "Приоритет");
+        add(p + "provider.priority.tooltip", "Чем меньше число, тем выше приоритет: в режиме Priority провайдер пробуется раньше, в режиме Automatic это второстепенный критерий. 1 -- наивысший приоритет; большинству игроков менять его не нужно.");
+        add(p + "provider.rpm", "Запросов в минуту (этот провайдер)");
+        add(p + "provider.rpm.tooltip", "Это предложенное модом начальное значение, а не официально гарантированная квота -- настройте его в соответствии с реальным лимитом вашего аккаунта.");
+        add(p + "provider.status", "Статус");
+        add(p + "provider.status.ready", "Готов");
+        add(p + "provider.status.rate_limited", "Превышен лимит запросов (%s с)");
+        add(p + "provider.status.cooldown", "Восстановление (%s с)");
+        add(p + "provider.status.invalid_key", "Недействительный API-ключ");
+        add(p + "provider.status.cannot_connect", "Не удаётся подключиться");
+        add(p + "provider.status.disabled", "Отключён");
+        add(p + "provider.status.detail.untried", "(не проверялся)");
+        add(p + "provider.status.detail", "(сред. %sс, попытка %sс назад)");
+
         add(p + "model", "Модель");
         add(p + "model.custom", "Пользовательская...");
         add(p + "model.custom_id", "ID пользовательской модели");

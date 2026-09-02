@@ -52,6 +52,34 @@ public class LanguageProviderKoKr extends net.neoforged.neoforge.common.data.Lan
         add(p + "provider.openai", "OpenAI");
         add(p + "provider.ollama", "Ollama (로컬)");
         add(p + "provider.custom", "사용자 지정 공급자");
+
+        add(p + "provider_mode", "제공자 모드");
+        add(p + "provider_mode.single", "단일");
+        add(p + "provider_mode.single.tooltip", "하나의 제공자만 사용합니다. 실패 시 자동 대체가 없습니다 -- 이 모드의 원래 동작과 동일합니다.");
+        add(p + "provider_mode.priority", "우선순위");
+        add(p + "provider_mode.priority.tooltip", "활성화된 제공자를 우선순위 순서로 시도하며, 일시적인 실패(속도 제한, 시간 초과, 연결 오류, 서버 오류) 시 다음 제공자로 대체합니다.");
+        add(p + "provider_mode.round_robin", "라운드 로빈");
+        add(p + "provider_mode.round_robin.tooltip", "활성화되고 사용 가능한 제공자를 균등하게 순환하며 사용합니다.");
+        add(p + "provider_mode.automatic", "자동");
+        add(p + "provider_mode.automatic.tooltip", "현재 부하, 최근 실패 기록, 지연 시간을 기반으로 가장 적합한 제공자를 자동으로 선택합니다. 우선순위는 보조 기준으로만 사용됩니다. 일시적인 실패 시에도 대체가 이루어집니다. 권장 설정입니다.");
+        add(p + "manage_providers", "제공자 관리");
+        add(p + "manage_providers.note", "여기서 각 제공자를 켜고 끌 수 있습니다. Configure 버튼으로 API 키, 모델, 우선순위, 분당 요청 수를 설정할 수 있습니다.");
+        add(p + "provider.configure", "설정");
+        add(p + "provider.enabled", "활성화");
+        add(p + "provider.priority", "우선순위");
+        add(p + "provider.priority.tooltip", "숫자가 작을수록 우선순위가 높습니다: Priority 모드에서는 먼저 시도되고, Automatic 모드에서는 보조 기준으로 사용됩니다. 1이 가장 높은 우선순위이며, 대부분의 경우 변경할 필요가 없습니다.");
+        add(p + "provider.rpm", "분당 요청 수 (이 제공자)");
+        add(p + "provider.rpm.tooltip", "이 값은 모드가 제안하는 시작값이며 공식적으로 보장된 할당량이 아닙니다 -- 실제 계정의 속도 제한에 맞게 조정하세요.");
+        add(p + "provider.status", "상태");
+        add(p + "provider.status.ready", "준비됨");
+        add(p + "provider.status.rate_limited", "속도 제한됨 (%s초)");
+        add(p + "provider.status.cooldown", "쿨다운 중 (%s초)");
+        add(p + "provider.status.invalid_key", "잘못된 API 키");
+        add(p + "provider.status.cannot_connect", "연결할 수 없음");
+        add(p + "provider.status.disabled", "비활성화됨");
+        add(p + "provider.status.detail.untried", "(시도한 적 없음)");
+        add(p + "provider.status.detail", "(평균 %s초, %s초 전 시도)");
+
         add(p + "model", "모델");
         add(p + "model.custom", "사용자 지정...");
         add(p + "model.custom_id", "사용자 지정 모델 ID");

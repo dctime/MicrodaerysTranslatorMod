@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import net.github.dctime.libs.routing.ProviderMode;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -39,10 +40,31 @@ public class Config {
         CUSTOM
     }
 
+    // Default changed from MISTRAL to GOOGLE_AI_STUDIO (deliberate, per an explicit user request
+    // this round, not test residue) -- before touching this default again, re-check the commit
+    // 4df36bb downgrade-behavior table: it documents "endpoint resets to MISTRAL on downgrade" for
+    // the OLD jar's default, which this change doesn't invalidate (an old jar's own compiled-in
+    // default doesn't change), but any FUTURE default change here should get the same cross-check.
     public static final String ENDPOINT_CONFIG_PATH = "endpoint";
     public static final ModConfigSpec.EnumValue<EndPoint> ENDPOINT_CONFIG = BUILDER
-            .comment("[選哪個Endpoint] (預設 Google AI studio) Which Endpoint")
-            .defineEnum(ENDPOINT_CONFIG_PATH, EndPoint.MISTRAL);
+            .comment("[選哪個Endpoint] (預設 Google AI studio) Which Endpoint\n" +
+                    "只有 provider_mode = SINGLE 時才會被使用；其他模式看下面各 provider 自己的 enabled/priority。")
+            .defineEnum(ENDPOINT_CONFIG_PATH, EndPoint.GOOGLE_AI_STUDIO);
+
+    // Multi-Provider Router (added for the router refactor). SINGLE keeps the pre-router behavior
+    // byte-for-byte (exactly one provider, zero fallback) -- an existing player is migrated to
+    // SINGLE, never silently switched into a mode with different failure behavior (see
+    // MicrodaerysTranslatorClient's one-time migration, gated by a file marker, not a TOML key --
+    // see libs/ProviderMigrationMarker's javadoc for why). AUTOMATIC is the default for a genuinely
+    // fresh install only.
+    public static final String PROVIDER_MODE_PATH = "provider_mode";
+    public static final ModConfigSpec.EnumValue<ProviderMode> PROVIDER_MODE = BUILDER
+            .comment("[多 Provider 路由模式] (新安裝預設 AUTOMATIC，既有玩家升級後會被遷移成 SINGLE)\n" +
+                    "SINGLE: 完全比照舊版行為，只用 endpoint 指定的那個 provider，失敗不 fallback。\n" +
+                    "PRIORITY: 依照下面每個 provider 的 priority 由小到大嘗試，前面的失敗才會 fallback 到下一個。\n" +
+                    "ROUND_ROBIN: 在所有啟用且可用的 provider 之間輪流。\n" +
+                    "AUTOMATIC: 依照即時負載/失敗紀錄/延遲/priority 自動評分挑選，同時仍會在暫時性失敗時 fallback。")
+            .defineEnum(PROVIDER_MODE_PATH, ProviderMode.AUTOMATIC);
 
     // === Basic keys for Google AI Studio ===
     public static final String API_KEY_PATH = "api_key";
@@ -59,11 +81,16 @@ public class Config {
                     "4. 同意聲明：填入金鑰即代表您知悉上述資料流向，並同意提供者的服務條款。\n")
             .define(API_KEY_PATH, "");
 
+    // Default changed from "mistral-small-latest" to "gemini-3.5-flash-lite" alongside
+    // ENDPOINT_CONFIG's default above -- follow-on fix, not independent: ProviderConfigResolver's
+    // legacy-fallback applies this value to whichever provider ENDPOINT_CONFIG currently names, so
+    // leaving the old Mistral model id here would have shown "Custom..." with a Mistral model under
+    // a Google-default install. Same downgrade-table cross-check note as ENDPOINT_CONFIG above.
     public static final String MODEL_NAME_PATH = "model_name";
     public static final ModConfigSpec.ConfigValue<String> MODEL_NAME = BUILDER
             .comment("The model name to use for translation [使用的模型]\n" +
-                    "(Google 有 gemma-3-4b-it, Mistral 有 mistral-small-latest, ollama 要看你載什麼模型)")
-            .define(MODEL_NAME_PATH, "mistral-small-latest");
+                    "(Google 有 gemini-3.5-flash-lite, Mistral 有 mistral-small-latest, ollama 要看你載什麼模型)")
+            .define(MODEL_NAME_PATH, "gemini-3.5-flash-lite");
 
     public static final String FOLLOW_GAME_LANGUAGE_PATH = "follow_game_language";
     public static final ModConfigSpec.BooleanValue FOLLOW_GAME_LANGUAGE = BUILDER
@@ -113,13 +140,22 @@ public class Config {
             .comment("[timeout時間] (預設 30) Timeout Duration in seconds")
             .define(TIMEOUT_DURATION_CONFIG_PATH, 30);
 
+    // Repurposed for the router refactor (semantics preserved, layering changed): this used to be
+    // the ONLY per-minute throttle, applied per translated text against whichever single provider
+    // was active. Now that each provider also has its OWN max_requests_per_minute (see
+    // defineProvider below), this key is the GLOBAL safety ceiling sitting on top of all of them
+    // combined (see TranslationRouter's GLOBAL_RATE_LIMITER) -- it still means exactly "requests
+    // per rolling 60 seconds", just measured across every provider together now, not one provider
+    // alone. A skipped request is still dropped, not queued, exactly as before.
     public static final String MAX_REQUESTS_PER_MINUTE_PATH = "max_requests_per_minute";
     public static final ModConfigSpec.IntValue MAX_REQUESTS_PER_MINUTE = BUILDER
-            .comment("[每分鐘最多送出幾次翻譯請求] (預設 10) Max translation requests sent per rolling 60 seconds.\n" +
+            .comment("[全域每分鐘最多送出幾次翻譯請求，跨所有 provider 加總] (預設 10) Global max translation requests " +
+                    "sent per rolling 60 seconds, summed across every provider combined.\n" +
                     "只限制「同時併發數」(見原始碼裡的 Semaphore) 擋不住免費 API tier 常見的每分鐘總次數限制(RPM)——" +
                     "開一個很多沒快取物品的容器，併發數補滿又補滿，短時間內一樣會超過。這裡是真正的每分鐘節流器，" +
                     "超過額度的請求會被跳過、等下一次(下一幀/下一次 hover/容器還開著的下一個 tick)自然重試，不會排隊等待。\n" +
-                    "請依照你實際使用的 API 供應商/模型的免費額度調整這個數字。")
+                    "這是一個安全上限，疊加在每個 provider 各自的 max_requests_per_minute 之上——多開幾家 provider " +
+                    "不代表全域總量可以無限往上疊，請依你實際的整體使用量調整這個數字。")
             .defineInRange(MAX_REQUESTS_PER_MINUTE_PATH, 10, 1, Integer.MAX_VALUE);
 
     public static final String FEATURE_TOGGLE_PATH = "feature_toggle";
@@ -195,11 +231,22 @@ public class Config {
     // gets its own top-level TOML table holding an independent api_key + model pair, so switching
     // providers never overwrites another provider's saved credentials -- this is the actual fix for
     // the "switch Google -> Groq -> Google, Google's key is gone" bug this refactor exists to close.
+    // enabled/priority/max_requests_per_minute added for the router refactor. All three are
+    // ordinary persisted TOML values (NOT runtime state -- see ProviderRuntimeState's javadoc for
+    // why in-flight/cooldown/failure counts deliberately live only in memory, never here).
+    // max_requests_per_minute's default is this mod's OWN suggested starting point, not a claimed
+    // official quota -- providers change their free-tier limits over time and vary by account tier;
+    // each field's comment says so explicitly so a player knows to match it to their own account.
     public record ProviderConfigKeys(@Nullable ModConfigSpec.ConfigValue<String> apiKey,
-                                      ModConfigSpec.ConfigValue<String> model) {
+                                      ModConfigSpec.ConfigValue<String> model,
+                                      ModConfigSpec.BooleanValue enabled,
+                                      ModConfigSpec.IntValue priority,
+                                      ModConfigSpec.IntValue maxRequestsPerMinute) {
     }
 
-    private static ProviderConfigKeys defineProvider(String sectionKey, boolean withApiKey) {
+    private static ProviderConfigKeys defineProvider(String sectionKey, boolean withApiKey,
+                                                       boolean defaultEnabled, int defaultPriority,
+                                                       int defaultRpm) {
         BUILDER.push(sectionKey);
         ModConfigSpec.ConfigValue<String> apiKey = withApiKey
                 ? BUILDER.comment("API key for this provider. Sent only to this provider's own endpoint, never logged.")
@@ -208,20 +255,37 @@ public class Config {
         ModConfigSpec.ConfigValue<String> model = BUILDER
                 .comment("Model id to use with this provider.")
                 .define("model", "");
+        ModConfigSpec.BooleanValue enabled = BUILDER
+                .comment("Whether this provider participates in routing (ignored in SINGLE mode, which only " +
+                        "ever uses the endpoint above). A provider with no API key saved is never actually " +
+                        "attempted even if this is true.")
+                .define("enabled", defaultEnabled);
+        ModConfigSpec.IntValue priority = BUILDER
+                .comment("Lower number = tried first in PRIORITY mode, and a small bias (not a hard rule) in " +
+                        "AUTOMATIC mode. 1 = highest. Most players never need to change this.")
+                .defineInRange("priority", defaultPriority, 1, 11);
+        ModConfigSpec.IntValue maxRequestsPerMinute = BUILDER
+                .comment("This mod's suggested starting point for this provider's free tier -- not an official " +
+                        "quota guarantee. Set this to match your own account's actual rate limit.")
+                .defineInRange("max_requests_per_minute", defaultRpm, 1, Integer.MAX_VALUE);
         BUILDER.pop();
-        return new ProviderConfigKeys(apiKey, model);
+        return new ProviderConfigKeys(apiKey, model, enabled, priority, maxRequestsPerMinute);
     }
 
-    public static final ProviderConfigKeys PROVIDER_GOOGLE = defineProvider("google", true);
-    public static final ProviderConfigKeys PROVIDER_NVIDIA = defineProvider("nvidia", true);
-    public static final ProviderConfigKeys PROVIDER_GROQ = defineProvider("groq", true);
-    public static final ProviderConfigKeys PROVIDER_OPENROUTER = defineProvider("openrouter", true);
-    public static final ProviderConfigKeys PROVIDER_MISTRAL = defineProvider("mistral", true);
-    public static final ProviderConfigKeys PROVIDER_DEEPSEEK = defineProvider("deepseek", true);
-    public static final ProviderConfigKeys PROVIDER_CEREBRAS = defineProvider("cerebras", true);
-    public static final ProviderConfigKeys PROVIDER_ANTHROPIC = defineProvider("anthropic", true);
-    public static final ProviderConfigKeys PROVIDER_OPENAI = defineProvider("openai", true);
-    public static final ProviderConfigKeys PROVIDER_OLLAMA = defineProvider("ollama", false);
+    // Default-enabled table and RPM suggestions per the router spec: Google/NVIDIA/Groq/OpenRouter
+    // start enabled (a reasonable free-tier-friendly default pool for a brand new install), the
+    // rest start disabled so a fresh install doesn't silently start sending requests to providers
+    // the player never configured. Priority defaults match ProviderInfo.ALL's existing order.
+    public static final ProviderConfigKeys PROVIDER_GOOGLE = defineProvider("google", true, true, 1, 10);
+    public static final ProviderConfigKeys PROVIDER_NVIDIA = defineProvider("nvidia", true, true, 2, 30);
+    public static final ProviderConfigKeys PROVIDER_GROQ = defineProvider("groq", true, true, 3, 30);
+    public static final ProviderConfigKeys PROVIDER_OPENROUTER = defineProvider("openrouter", true, true, 4, 20);
+    public static final ProviderConfigKeys PROVIDER_MISTRAL = defineProvider("mistral", true, false, 5, 10);
+    public static final ProviderConfigKeys PROVIDER_DEEPSEEK = defineProvider("deepseek", true, false, 6, 10);
+    public static final ProviderConfigKeys PROVIDER_CEREBRAS = defineProvider("cerebras", true, false, 7, 20);
+    public static final ProviderConfigKeys PROVIDER_ANTHROPIC = defineProvider("anthropic", true, false, 8, 10);
+    public static final ProviderConfigKeys PROVIDER_OPENAI = defineProvider("openai", true, false, 9, 10);
+    public static final ProviderConfigKeys PROVIDER_OLLAMA = defineProvider("ollama", false, false, 10, 60);
 
     // Custom Provider has a different shape (base URL / auth mode / vision toggle instead of a
     // curated model list), so it isn't built through defineProvider() / PROVIDER_KEYS.
@@ -231,6 +295,9 @@ public class Config {
     public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_MODEL;
     public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_AUTH_MODE;
     public static final ModConfigSpec.BooleanValue CUSTOM_PROVIDER_SUPPORTS_VISION;
+    public static final ModConfigSpec.BooleanValue CUSTOM_PROVIDER_ENABLED;
+    public static final ModConfigSpec.IntValue CUSTOM_PROVIDER_PRIORITY;
+    public static final ModConfigSpec.IntValue CUSTOM_PROVIDER_MAX_REQUESTS_PER_MINUTE;
 
     static {
         BUILDER.push("custom");
@@ -249,6 +316,16 @@ public class Config {
         CUSTOM_PROVIDER_SUPPORTS_VISION = BUILDER
                 .comment("Whether this custom endpoint's model accepts image input.")
                 .define("supports_vision", false);
+        CUSTOM_PROVIDER_ENABLED = BUILDER
+                .comment("Whether this custom provider participates in routing (ignored in SINGLE mode). " +
+                        "Never actually attempted if base_url is blank, even if this is true.")
+                .define("enabled", false);
+        CUSTOM_PROVIDER_PRIORITY = BUILDER
+                .comment("Lower number = tried first in PRIORITY mode, and a small bias in AUTOMATIC mode.")
+                .defineInRange("priority", 11, 1, 11);
+        CUSTOM_PROVIDER_MAX_REQUESTS_PER_MINUTE = BUILDER
+                .comment("This mod's suggested starting point -- set this to match your own server's actual limit.")
+                .defineInRange("max_requests_per_minute", 10, 1, Integer.MAX_VALUE);
         BUILDER.pop();
     }
 

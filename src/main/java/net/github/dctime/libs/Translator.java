@@ -4,11 +4,11 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.github.dctime.Config;
 import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.events.ScreenEventRender;
-import net.github.dctime.libs.provider.AuthMode;
-import net.github.dctime.libs.provider.ProviderAdapterRegistry;
-import net.github.dctime.libs.provider.ProviderConfigResolver;
-import net.github.dctime.libs.provider.ProviderSettings;
-import net.github.dctime.libs.provider.TranslationProviderAdapter;
+import net.github.dctime.libs.routing.ProviderFailureType;
+import net.github.dctime.libs.routing.TranslationJob;
+import net.github.dctime.libs.routing.TranslationResult;
+import net.github.dctime.libs.routing.TranslationRouter;
+import net.github.dctime.libs.routing.VisionRequirement;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -27,12 +27,7 @@ import net.neoforged.fml.loading.FMLPaths;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -40,7 +35,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
@@ -48,11 +42,6 @@ import java.util.function.BooleanSupplier;
 import static net.github.dctime.libs.ScreenShotter.getItemStackImage;
 
 public class Translator {
-    // language is part of the key so switching Config.TARGET_LANGUAGE doesn't serve a cached
-    // translation from a previous target language. A record has built-in equals/hashCode, so
-    // there's no string-concatenation-with-a-delimiter to accidentally collide with real content.
-    private record CacheKey(String lang, String text) {}
-
     // single source of truth for "what language are we actually translating into right now" --
     // every call site (cache key, prompt, skip-detection, official-translation lookup) must go
     // through this, not read Config.TARGET_LANGUAGE.get() directly, or they can silently drift
@@ -63,11 +52,16 @@ public class Translator {
                 : Config.TARGET_LANGUAGE.get();
     }
 
-    private static CacheKey keyFor(String text) {
-        return new CacheKey(resolveTargetLanguage(), text);
+    // Promoted from a private nested record to the shared net.github.dctime.libs.TranslationCacheKey
+    // (mailbox review round 023/024, point R2): a Router job can span several sequential provider
+    // attempts, widening the window in which Config.TARGET_LANGUAGE could change mid-flight -- job
+    // identity is resolved ONCE here at request time and reused verbatim for IN_FLIGHT and the
+    // eventual cache write-back, never re-resolved from live config partway through.
+    private static TranslationCacheKey keyFor(String text) {
+        return new TranslationCacheKey(resolveTargetLanguage(), text);
     }
 
-    private static ConcurrentHashMap<CacheKey, String> translationCache = new ConcurrentHashMap<>();
+    private static ConcurrentHashMap<TranslationCacheKey, String> translationCache = new ConcurrentHashMap<>();
 
     // set (O(1)) whenever translationCache changes; a periodic tick (see OnClientTickEvent)
     // flushes to disk only when this is true, instead of re-serializing the whole cache on every
@@ -83,7 +77,7 @@ public class Translator {
         Map<String, Map<String, String>> nested = TranslationDiskCache.load(cacheFilePath());
         for (Map.Entry<String, Map<String, String>> langEntry : nested.entrySet()) {
             for (Map.Entry<String, String> textEntry : langEntry.getValue().entrySet()) {
-                translationCache.put(new CacheKey(langEntry.getKey(), textEntry.getKey()), textEntry.getValue());
+                translationCache.put(new TranslationCacheKey(langEntry.getKey(), textEntry.getKey()), textEntry.getValue());
             }
         }
     }
@@ -154,7 +148,7 @@ public class Translator {
         // ConcurrentHashMap iteration is thread-safe on its own, so the O(cache size) flatten can
         // happen on the writer thread too -- the caller only pays O(1): clear the flag, hand off.
         Map<String, Map<String, String>> nested = new HashMap<>();
-        for (Map.Entry<CacheKey, String> entry : translationCache.entrySet()) {
+        for (Map.Entry<TranslationCacheKey, String> entry : translationCache.entrySet()) {
             nested.computeIfAbsent(entry.getKey().lang(), lang -> new HashMap<>()).put(entry.getKey().text(), entry.getValue());
         }
         try {
@@ -171,29 +165,17 @@ public class Translator {
         }
     }
 
-    // per-text in-flight tracking replaces the old single global "translating" lock, which
-    // dropped every request but the first when hovering across several items in one frame.
-    private static final Set<String> IN_FLIGHT = ConcurrentHashMap.newKeySet();
-    // 429 (RPM) backoff bookkeeping, keyed by the same text as IN_FLIGHT/translationCache.
-    private static final Map<String, Long> RETRY_AFTER = new ConcurrentHashMap<>();
-    private static final Map<String, Integer> RETRY_ATTEMPTS = new ConcurrentHashMap<>();
-    // caps how many translation requests can be in flight at once across ALL texts, so sweeping
-    // the mouse over a long row of items doesn't fire off unbounded concurrent requests.
-    private static final Semaphore CONCURRENCY_LIMIT = new Semaphore(4);
-    // CONCURRENCY_LIMIT alone doesn't stop a burst rate over time -- as each of those 4 slots
-    // finishes it immediately gets reused, e.g. while pretranslateOpenContainerIfAny() (#16) works
-    // through a container full of different uncached items every tick, which can add up to far
-    // more than a free API tier's requests-PER-MINUTE quota even though only 4 are ever truly
-    // concurrent. This is a real sliding-window throttle on top of the concurrency cap, not a
-    // duplicate of it. Config.MAX_REQUESTS_PER_MINUTE is read fresh on every check (not captured
-    // once here) so changing it in the config screen takes effect immediately.
-    private static final RateLimiter REQUEST_RATE_LIMITER = new RateLimiter(60_000L);
+    // per-job in-flight tracking replaces the old single global "translating" lock, which dropped
+    // every request but the first when hovering across several items in one frame. Keyed by
+    // TranslationCacheKey (lang+text), not raw text (mailbox review round 023/024, point R2) -- see
+    // keyFor()'s javadoc. RETRY_AFTER/RETRY_ATTEMPTS (the old text-keyed 429 backoff) and
+    // CONCURRENCY_LIMIT/REQUEST_RATE_LIMITER/CLIENT (the old single global throttle/HTTP client) are
+    // gone, not renamed -- replaced by per-provider ProviderRuntimeState and TranslationRouter's own
+    // global safety cap/HttpClient (mailbox review round 023, point R1; see TranslationRouter's
+    // class javadoc for the full replacement).
+    private static final Set<TranslationCacheKey> IN_FLIGHT = ConcurrentHashMap.newKeySet();
     // screenshot translation is a single, unrelated flow (fixed ":" text) with its own busy flag.
     public static volatile boolean screenshotTranslating = false;
-
-    private static final HttpClient CLIENT = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
 
     public static boolean isTranslating() {
         return screenshotTranslating || !IN_FLIGHT.isEmpty();
@@ -202,6 +184,16 @@ public class Translator {
     private static boolean hasShowAPIKEYError = false;
     private static boolean hasShowRequestTooFrequentError = false;
     private static boolean hasShowOtherError = false;
+    // Deliberately its OWN flag, not sharing hasShowOtherError (mailbox review round 029, point
+    // W1): every other flag here is reset by resetHttpErrorFlags() on the NEXT SUCCESSFUL
+    // translation -- but NO_ELIGIBLE_PROVIDER is a configuration problem (every provider disabled),
+    // and by definition no translation can ever succeed while it holds, so that reset event can
+    // never fire. Sharing hasShowOtherError would let an earlier, unrelated transient error
+    // permanently latch it (or vice versa) for the rest of the session. Reset instead by {@link
+    // #resetProviderEligibilityErrorFlag()}, called when the provider pool configuration actually
+    // changes (see PendingTranslatorConfig.saveToConfig()) -- the one event that can actually change
+    // this condition.
+    private static boolean hasShowNoEligibleProviderError = false;
     private static Logger LOGGER = LoggerFactory.getLogger(Translator.class);
     // --- ftb quest ---
 
@@ -292,36 +284,6 @@ public class Translator {
 
     public static void clearCache() {
         clearCache(true);
-    }
-
-    /**
-     * The active provider's live (api_key, model, plus Custom Provider's base URL/auth mode),
-     * resolved through {@link ProviderConfigResolver} -- the single source of truth for this that
-     * {@code PendingTranslatorConfig.loadFromConfig()} also uses, so a legacy-config player's first
-     * translation request after upgrading (before ever opening the config screen) still resolves
-     * to their pre-existing api_key/model instead of a blank per-provider field.
-     */
-    private static ProviderSettings resolveActiveProviderSettings(Config.EndPoint endpoint) {
-        ProviderConfigResolver.ResolvedProviderConfig resolved = ProviderConfigResolver.resolve(endpoint);
-        if (endpoint != Config.EndPoint.CUSTOM) {
-            return new ProviderSettings(endpoint, resolved.apiKey(), resolved.model(), null, null, resolved.supportsVision());
-        }
-        AuthMode authMode = "NONE".equalsIgnoreCase(Config.CUSTOM_PROVIDER_AUTH_MODE.get())
-                ? AuthMode.NONE : AuthMode.BEARER;
-        return new ProviderSettings(endpoint, resolved.apiKey(), resolved.model(),
-                Config.CUSTOM_PROVIDER_BASE_URL.get(), authMode, resolved.supportsVision());
-    }
-
-    private static HttpRequest buildRequest(TranslationProviderAdapter adapter, ProviderSettings settings,
-                                             String fixedText, @Nullable String image, boolean isScreenShot,
-                                             Config.EndPoint endpoint) {
-        String prompt = isScreenShot ? resolvePrompt(true) : resolvePrompt(false) + "\n" + fixedText;
-        HttpRequest request = adapter.buildTranslationRequest(settings, prompt, image, isScreenShot,
-                Config.TIMEOUT_DURATION_CONFIG.get());
-        // temporary diagnostic logging, see the [DIAG] log in handleHttpResponse
-        LOGGER.info("[DIAG] translation request: endpoint=" + endpoint + " model=" + settings.model()
-                + " url=" + request.uri() + " hasImage=" + (image != null) + " prompt=[" + prompt + "]");
-        return request;
     }
 
     private static String resolvePrompt(boolean isScreenShot) {
@@ -548,7 +510,7 @@ public class Translator {
     }
 
     public static void requestTranslateItemStackToTraditionalChinese(String textInEnglish, ItemStack stack) throws IOException, InterruptedException {
-        if (stack != null && !IN_FLIGHT.contains(textInEnglish) && Config.ENABLE_ICON_CONFIG.get()) {
+        if (stack != null && !IN_FLIGHT.contains(keyFor(textInEnglish)) && Config.ENABLE_ICON_CONFIG.get()) {
             RenderSystem.recordRenderCall(() -> {
                 String image = getItemStackImage(stack);
                 try {
@@ -583,21 +545,28 @@ public class Translator {
             return;
         }
 
+        // Job identity resolved ONCE here, reused verbatim for IN_FLIGHT and the eventual cache
+        // write-back below -- never re-derived mid-flight (mailbox review round 023/024, point R2).
+        TranslationCacheKey jobKey = keyFor(fixedText);
+
         if (isScreenShot) {
             if (screenshotTranslating) return;
         } else {
-            if (IN_FLIGHT.contains(fixedText)) return;
-            Long retryAfter = RETRY_AFTER.get(fixedText);
-            if (retryAfter != null) {
-                if (System.currentTimeMillis() < retryAfter) return; // still backing off after a 429
-                RETRY_AFTER.remove(fixedText);
-            }
+            if (IN_FLIGHT.contains(jobKey)) return;
+            // The old text-keyed 429 backoff check (RETRY_AFTER/RETRY_ATTEMPTS) that used to live
+            // here is gone, not merely moved -- TranslationRouter's hard filter now checks each
+            // CANDIDATE provider's own ProviderRuntimeState cooldown before ever selecting it, which
+            // is what replaces this (mailbox review round 023, point R1: the old maps were keyed by
+            // TEXT, so a 429 from one provider blocked retries for a completely unrelated text).
         }
 
         // temporary diagnostic logging (issue: translation comes back unchanged/English even
         // though the game language is zh_tw) -- LOGGER.debug doesn't show up at NeoForge's
-        // default log level, hence .info() here so it actually lands in logs/latest.log.
-        LOGGER.info("[DIAG] endpoint=" + Config.ENDPOINT_CONFIG.get()
+        // default log level, hence .info() here so it actually lands in logs/latest.log. Which
+        // provider actually ends up handling this job is no longer a single fixed "endpoint" (see
+        // the per-attempt [DIAG] logs in TranslationRouter instead) -- provider_mode is what's
+        // actually stable and worth logging at this call site.
+        LOGGER.info("[DIAG] provider_mode=" + Config.PROVIDER_MODE.get()
                 + " resolvedTargetLanguage=" + resolveTargetLanguage()
                 + " followGameLanguage=" + Config.FOLLOW_GAME_LANGUAGE.get()
                 + " configTargetLanguage=" + Config.TARGET_LANGUAGE.get()
@@ -614,209 +583,121 @@ public class Translator {
             return;
         }
 
-        Config.EndPoint endpoint = Config.ENDPOINT_CONFIG.get();
-        TranslationProviderAdapter adapter = ProviderAdapterRegistry.forEndpoint(endpoint);
+        String prompt = isScreenShot ? resolvePrompt(true) : resolvePrompt(false) + "\n" + fixedText;
+        // The old per-request vision-capability gate (mailbox review round 017, point O1) that used
+        // to live here, keyed off a single pre-resolved provider's own supportsVision, is gone --
+        // TranslationRouter now makes this decision PER CANDIDATE, since which provider actually
+        // ends up serving the job is dynamic: VisionRequirement.REQUIRED (screenshot) hard-excludes
+        // any candidate that can't accept an image at all (see TranslationRouter.hardFilter, and
+        // handleTranslationFailure's UNSUPPORTED_CAPABILITY case below for the player-facing
+        // message this produces if literally none of the enabled providers support vision);
+        // VisionRequirement.OPTIONAL (item icon) keeps a text-only candidate eligible and simply
+        // omits the image for that specific attempt (see TranslationRouter.imageForAttempt) --
+        // same silent-degrade behavior as before, just decided per-attempt instead of once upfront.
+        VisionRequirement visionRequirement = isScreenShot ? VisionRequirement.REQUIRED
+                : (image != null ? VisionRequirement.OPTIONAL : VisionRequirement.NONE);
+        TranslationJob job = new TranslationJob(jobKey, prompt, image, isScreenShot, visionRequirement);
 
-        HttpRequest request;
-        boolean visionUnsupportedForScreenshot = false;
-        try {
-            ProviderSettings settings = resolveActiveProviderSettings(endpoint);
+        if (isScreenShot) screenshotTranslating = true; else IN_FLIGHT.add(jobKey);
 
-            // Vision-capability gate (mailbox review round 017, point O1): supportsVision was
-            // being collected (ModelPreset.supportsVision, Config.CUSTOM_PROVIDER_SUPPORTS_VISION)
-            // but never actually consulted here -- every image was attached unconditionally
-            // whenever ENABLE_ICON_CONFIG/Screenshot Translation was on, regardless of whether the
-            // selected model could do anything with it. The two callers need different treatment
-            // because they have different fallbacks available:
-            if (image != null && !settings.supportsVision()) {
-                if (isScreenShot) {
-                    // No text-only fallback exists for screenshot translation -- the image IS the
-                    // payload, there is nothing else to send. Sending it anyway would just cost a
-                    // request that 400s (or is silently ignored) on every single attempt until the
-                    // player figures out why nothing happens; telling them clearly, once, and not
-                    // sending the doomed request at all is strictly better (acceptance test 11).
-                    // Flagged rather than returned directly so this stays inside the one try/catch
-                    // that already owns "don't let anything here crash the render thread".
-                    visionUnsupportedForScreenshot = true;
-                    request = null;
-                } else {
-                    // Item icon (tooltip line 0): a text-only fallback DOES exist -- just don't
-                    // attach the image and translate the name as plain text (acceptance test 10).
-                    // No message shown; this is the expected, silent-degrade path, not an error.
-                    image = null;
-                    request = buildRequest(adapter, settings, fixedText, image, isScreenShot, endpoint);
-                }
-            } else {
-                request = buildRequest(adapter, settings, fixedText, image, isScreenShot, endpoint);
+        TranslationRouter.translate(job).whenComplete((result, throwable) -> {
+            if (isScreenShot) screenshotTranslating = false; else IN_FLIGHT.remove(jobKey);
+
+            if (throwable != null) {
+                // TranslationRouter.translate's own contract is to always complete normally for
+                // every EXPECTED failure path -- reaching here means a genuine bug in that class,
+                // not a translated/classified failure. Must never crash: this callback can run on
+                // an HTTP client worker thread, not the render thread.
+                LOGGER.warn("TranslationRouter.translate completed exceptionally (this should not happen): "
+                        + throwable.getMessage());
+                return;
             }
-        } catch (Exception e) {
-            // Reachable today via: Custom Provider with a blank/malformed base URL (see
-            // OpenAiCompatibleAdapter.resolveSpec), or -- in principle, should be unreachable in
-            // practice -- ProviderConfigResolver.resolve() finding no Config.PROVIDER_KEYS entry
-            // for this endpoint. Either way, must never crash the render thread.
-            LOGGER.warn("Failed to build translation request for endpoint " + endpoint + ": " + e.getMessage());
-            return;
-        }
 
-        if (visionUnsupportedForScreenshot) {
-            // Deliberately NOT gated by a one-shot hasShowXxxError flag the way the other
-            // showMessage() calls in this file are (mailbox review round 017, point P2): those
-            // flags exist to stop the render loop from spamming the same message every frame while
-            // hovering an item -- but screenshot translation is player-triggered by a single key
-            // press, already de-duplicated by screenshotTranslating (no concurrent re-entry), so
-            // there's no flood risk to guard against. Gating it anyway created a real dead end: a
-            // player who disabled tooltip translation and only uses Screenshot Translation would
-            // never trigger handleHttpResponse() (the flag's only reset point), so after the first
-            // "not supported" message, every subsequent press would silently do nothing at all --
-            // exactly the "why isn't this doing anything" confusion this message exists to prevent.
-            //
-            // Also localized via a real per-locale lang key (mailbox review round 017, point P1),
-            // not the bilingual (en, zh) literal pair every OTHER showMessage() call in this file
-            // still uses -- this is a genuinely new message added after the 10-locale lang
-            // infrastructure already existed for this round's work, so it doesn't inherit the
-            // pre-existing bilingual convention the rest of Translator.java's chat messages still
-            // have (that broader rewrite is tracked separately, see mailbox review #002 point G1).
-            Minecraft.getInstance().execute(() -> {
-                if (Minecraft.getInstance().player != null) {
-                    Minecraft.getInstance().player.sendSystemMessage(
-                            Component.translatable(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported")
-                                    .withStyle(ChatFormatting.YELLOW));
-                }
-            });
-            return; // before screenshotTranslating is ever set true, so no cleanup needed
-        }
+            if (!result.succeeded()) {
+                handleTranslationFailure(result.finalFailure(), isScreenShot);
+                return;
+            }
 
-        if (!REQUEST_RATE_LIMITER.tryAcquire(Config.MAX_REQUESTS_PER_MINUTE.get(), System.currentTimeMillis())) return; // over the per-minute budget; a later render tick retries
-        if (!CONCURRENCY_LIMIT.tryAcquire()) return; // too many requests already in flight; a later render tick retries
-
-        // acquire/release must stay paired 1:1 with this exact ordering; a mismatch here isn't
-        // caught by any automated test (see the disclosed limitation at the top of
-        // tools/verify-concurrency/VerifyConcurrency.java) -- review this finally block by eye
-        // before changing it.
-        if (isScreenShot) screenshotTranslating = true; else IN_FLIGHT.add(fixedText);
-
-        CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .whenComplete((resp, throwable) -> {
-                    try {
-                        if (throwable != null) {
-                            handleConnectionError(throwable);
-                            return;
-                        }
-
-                        handleHttpResponse(resp, fixedText, isScreenShot, adapter);
-
-                    } finally {
-                        CONCURRENCY_LIMIT.release();
-                        if (isScreenShot) screenshotTranslating = false; else IN_FLIGHT.remove(fixedText);
-                    }
-                });
+            String translatedText = cleanText(result.translatedText());
+            if (isScreenShot) {
+                showScreenShotResult(translatedText);
+            } else {
+                // Same jobKey as IN_FLIGHT.add() above, not a re-resolved keyFor(fixedText) -- if
+                // Config.TARGET_LANGUAGE changed mid-flight (possible now that a job can span
+                // several sequential provider attempts), this still writes to the language bucket
+                // the job actually started under, never a wrong/currently-live one (round 023/024,
+                // point R2 again).
+                translationCache.put(jobKey, translatedText);
+                cacheDirty = true;
+                LOGGER.debug("Translated: " + fixedText + " -> " + translatedText + " (via " + result.providerUsed() + ")");
+            }
+            resetHttpErrorFlags();
+        });
     }
 
-    private static void handleHttpResponse(HttpResponse<String> resp,
-                                           String text,
-                                           boolean isScreenShot,
-                                           TranslationProviderAdapter adapter) {
+    /** Maps a clean job failure to the same player-facing chat messages {@code handleHttpError}
+     *  used to show directly from a raw HTTP status code -- now driven by {@link
+     *  ProviderFailureType}, TranslationRouter's classification, since a job might have tried
+     *  several providers before finally giving up. A null failure means nothing actually happened
+     *  (global budget exhaustion, or every attempt this job made was a provider-budget skip rather
+     *  than a real network call) -- matches the pre-Router "dropped, not queued" semantics: say
+     *  nothing, a later render tick retries naturally (mailbox review round 027, point V2). */
+    private static void handleTranslationFailure(@Nullable ProviderFailureType failure, boolean isScreenShot) {
+        if (failure == null) return;
 
-        String responseText = resp.body();
-        String translatedText;
-
-        // temporary diagnostic logging, see the [DIAG] log in requestTranslateToTraditionalChinese
-        LOGGER.info("[DIAG] response status=" + resp.statusCode() + " body=[" + responseText + "]");
-
-        // Status must be checked BEFORE attempting to parse. OpenAiCompatibleAdapter deliberately
-        // returns null (not throw) when a response body has no "choices" -- e.g. a 429's
-        // {"error": {...}} body -- so relying on parse-throws-on-error alone silently treated a
-        // rate-limited/erroring response as a blank success: no backoff scheduled, error-suppression
-        // flags cleared, and RETRY_ATTEMPTS reset as if the request had actually succeeded. That
-        // regression shipped in 4df36bb and affects every OpenAI-compatible-shaped provider.
-        if (resp.statusCode() / 100 != 2) {
-            handleHttpError(resp.statusCode(), text, isScreenShot);
-            return;
-        }
-
-        try {
-            // Parsing is dispatched by WHICH adapter built the request, never by sniffing the
-            // response body's shape -- several OpenAI-compatible-shaped providers share the exact
-            // same choices[0].message.content response shape, so shape-sniffing would have become
-            // ambiguous the moment a second one existed.
-            translatedText = adapter.parseTranslationResponse(responseText);
-        } catch (Exception e) {
-            LOGGER.warn("Error parsing response: " + responseText);
-            handleHttpError(resp.statusCode(), text, isScreenShot);
-            return;
-        }
-
-        resetHttpErrorFlags();
-        if (!isScreenShot) RETRY_ATTEMPTS.remove(text);
-
-        LOGGER.info("[DIAG] parsed translatedText=[" + translatedText + "]");
-
-        if (translatedText == null || translatedText.isBlank()) return;
-
-        translatedText = cleanText(translatedText);
-
-        if (!isScreenShot) {
-            translationCache.put(keyFor(text), translatedText);
-            cacheDirty = true;
-            LOGGER.debug("Translated: " + text + " -> " + translatedText);
-        } else {
-            showScreenShotResult(translatedText);
-        }
-
-        LOGGER.debug("status: " + resp.statusCode());
-    }
-
-    private static void handleHttpError(int statusCode, String text, boolean isScreenShot) {
-
-        switch (statusCode) {
-
-            case 403 -> showMessage(
+        switch (failure) {
+            case AUTH -> showMessage(
                     "Translation failed! Check Your API Key in config!",
                     "無法翻譯! 請檢查你的 config 資料夾的 API KEY",
                     ChatFormatting.YELLOW,
                     () -> hasShowAPIKEYError,
                     () -> hasShowAPIKEYError = true
             );
-
-            case 429 -> {
-                if (!isScreenShot) scheduleRetryBackoff(text);
-                showMessage(
-                        "Translation failed! You request too frequently (RPM exceeded)",
-                        "無法翻譯! 請求過快導致超過 RPM 限制",
-                        ChatFormatting.YELLOW,
-                        () -> hasShowRequestTooFrequentError,
-                        () -> hasShowRequestTooFrequentError = true
-                );
+            case RATE_LIMIT -> showMessage(
+                    "Translation failed! You request too frequently (RPM exceeded)",
+                    "無法翻譯! 請求過快導致超過 RPM 限制",
+                    ChatFormatting.YELLOW,
+                    () -> hasShowRequestTooFrequentError,
+                    () -> hasShowRequestTooFrequentError = true
+            );
+            case TIMEOUT, CONNECTION -> showMessage(
+                    "Translate failed! Check Your Internet Connection",
+                    "無法翻譯! 請檢查網路連線",
+                    ChatFormatting.YELLOW,
+                    () -> hasShowConnectionError,
+                    () -> hasShowConnectionError = true
+            );
+            case UNSUPPORTED_CAPABILITY -> {
+                // Only reachable for a screenshot job -- an item-icon job uses
+                // VisionRequirement.OPTIONAL, which TranslationRouter.hardFilter never excludes a
+                // candidate for (see that class's javadoc); only REQUIRED (screenshot) can produce
+                // this. No text-only fallback exists for screenshot translation, matching the old
+                // pre-Router vision gate's own reasoning (mailbox review round 017, point O1).
+                if (isScreenShot) {
+                    Minecraft.getInstance().execute(() -> {
+                        if (Minecraft.getInstance().player != null) {
+                            Minecraft.getInstance().player.sendSystemMessage(
+                                    Component.translatable(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported")
+                                            .withStyle(ChatFormatting.YELLOW));
+                        }
+                    });
+                }
             }
-
-            default -> showMessage(
-                    "Translation failed! HTTP Status Code: " + statusCode,
-                    "翻譯失敗! HTTP 回傳碼: " + statusCode,
+            case NO_ELIGIBLE_PROVIDER -> showMessage(
+                    "Translation failed! No provider is enabled/configured -- check Manage Providers in config.",
+                    "無法翻譯! 目前沒有任何已啟用/已設定的翻譯 Provider，請至設定的 Manage Providers 檢查",
+                    ChatFormatting.RED,
+                    () -> hasShowNoEligibleProviderError,
+                    () -> hasShowNoEligibleProviderError = true
+            );
+            case SERVER, BAD_REQUEST, MALFORMED_RESPONSE, UNKNOWN -> showMessage(
+                    "Translation failed! (" + failure + ")",
+                    "翻譯失敗! (" + failure + ")",
                     ChatFormatting.RED,
                     () -> hasShowOtherError,
                     () -> hasShowOtherError = true
             );
         }
-    }
-
-    // simple exponential backoff (4s, 8s, 16s, capped at 30s) before this exact text is allowed
-    // to be retried again, so a burst of 429s doesn't just get retried every render frame.
-    private static void scheduleRetryBackoff(String text) {
-        int attempt = RETRY_ATTEMPTS.merge(text, 1, Integer::sum);
-        RETRY_AFTER.put(text, System.currentTimeMillis() + RetryPolicy.backoffDelayMs(attempt));
-    }
-
-    private static void handleConnectionError(Throwable throwable) {
-
-        LOGGER.warn("Translation request failed: " + throwable.getMessage());
-
-        showMessage(
-                "Translate failed! Check Your Internet Connection",
-                "無法翻譯! 請檢查網路連線",
-                ChatFormatting.YELLOW,
-                () -> hasShowConnectionError,
-                () -> hasShowConnectionError = true
-        );
     }
 
     private static void showMessage(String en,
@@ -860,6 +741,16 @@ public class Translator {
         hasShowRequestTooFrequentError = false;
         hasShowOtherError = false;
         hasShowConnectionError = false;
+    }
+
+    /** Call whenever the provider pool configuration actually changes (e.g. {@code
+     *  PendingTranslatorConfig.saveToConfig()}) -- the only event that can change whether {@code
+     *  NO_ELIGIBLE_PROVIDER} still holds, unlike the other error flags which reset on the next
+     *  successful translation (see {@link #hasShowNoEligibleProviderError}'s own javadoc, mailbox
+     *  review round 029, point W1). Safe to call more often than strictly necessary -- resetting it
+     *  when the condition still holds just means the message can show again, never a problem. */
+    public static void resetProviderEligibilityErrorFlag() {
+        hasShowNoEligibleProviderError = false;
     }
 
     private static void sendDataToScreen(String finalTranslatedText) {

@@ -52,6 +52,34 @@ public class LanguageProviderZhCn extends net.neoforged.neoforge.common.data.Lan
         add(p + "provider.openai", "OpenAI");
         add(p + "provider.ollama", "Ollama（本地）");
         add(p + "provider.custom", "自定义提供商");
+
+        add(p + "provider_mode", "Provider 模式");
+        add(p + "provider_mode.single", "单一");
+        add(p + "provider_mode.single.tooltip", "只使用一个 provider，失败时不会自动切换 -- 与本模组原本的行为相同。");
+        add(p + "provider_mode.priority", "优先级");
+        add(p + "provider_mode.priority.tooltip", "按照优先级顺序尝试已启用的 provider，遇到临时性失败（RPM 超限、超时、连接错误、服务器错误）时自动切换到下一个。");
+        add(p + "provider_mode.round_robin", "轮询");
+        add(p + "provider_mode.round_robin.tooltip", "在已启用且可用的 provider 之间平均轮流使用。");
+        add(p + "provider_mode.automatic", "自动");
+        add(p + "provider_mode.automatic.tooltip", "根据当前负载、近期失败记录与延迟自动选择最合适的 provider，优先级只作为次要参考。遇到临时性失败同样会自动切换。推荐使用。");
+        add(p + "manage_providers", "管理 Provider");
+        add(p + "manage_providers.note", "在这里开关每个 provider。点击 Configure 可设置 API 密钥、模型、优先级与每分钟请求数。");
+        add(p + "provider.configure", "设置");
+        add(p + "provider.enabled", "启用");
+        add(p + "provider.priority", "优先级");
+        add(p + "provider.priority.tooltip", "数字越小越优先：Priority 模式会优先尝试它，Automatic 模式会将其作为次要参考。1 为最高优先级，大多数玩家不需要修改此值。");
+        add(p + "provider.rpm", "每分钟请求数（此 provider）");
+        add(p + "provider.rpm.tooltip", "这是本模组建议的起始值，并非官方保证的额度 -- 请根据你自己账号实际的速率限制调整。");
+        add(p + "provider.status", "状态");
+        add(p + "provider.status.ready", "就绪");
+        add(p + "provider.status.rate_limited", "已达速率限制（%s 秒）");
+        add(p + "provider.status.cooldown", "冷却中（%s 秒）");
+        add(p + "provider.status.invalid_key", "API 密钥无效");
+        add(p + "provider.status.cannot_connect", "无法连接");
+        add(p + "provider.status.disabled", "已禁用");
+        add(p + "provider.status.detail.untried", "（未尝试过）");
+        add(p + "provider.status.detail", "（平均 %s 秒，上次尝试于 %s 秒前）");
+
         add(p + "model", "模型");
         add(p + "model.custom", "自定义...");
         add(p + "model.custom_id", "自定义模型 ID");

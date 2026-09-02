@@ -52,6 +52,34 @@ public class LanguageProviderEsEs extends net.neoforged.neoforge.common.data.Lan
         add(p + "provider.openai", "OpenAI");
         add(p + "provider.ollama", "Ollama (Local)");
         add(p + "provider.custom", "Proveedor personalizado");
+
+        add(p + "provider_mode", "Modo de proveedor");
+        add(p + "provider_mode.single", "Único");
+        add(p + "provider_mode.single.tooltip", "Usa exactamente un proveedor. Sin conmutación automática si falla -- igual que el comportamiento original del mod.");
+        add(p + "provider_mode.priority", "Prioridad");
+        add(p + "provider_mode.priority.tooltip", "Intenta los proveedores habilitados en orden de prioridad, cambiando al siguiente ante un fallo temporal (límite de velocidad, tiempo de espera, error de conexión, error de servidor).");
+        add(p + "provider_mode.round_robin", "Turno rotativo");
+        add(p + "provider_mode.round_robin.tooltip", "Rota equitativamente entre los proveedores habilitados y disponibles.");
+        add(p + "provider_mode.automatic", "Automático");
+        add(p + "provider_mode.automatic.tooltip", "Selecciona automáticamente el mejor proveedor disponible según la carga actual, fallos recientes y latencia, usando la Prioridad como criterio secundario. Sigue cambiando de proveedor ante fallos temporales. Recomendado.");
+        add(p + "manage_providers", "Administrar proveedores");
+        add(p + "manage_providers.note", "Activa o desactiva proveedores aquí. Usa el botón Configure para ajustar la clave API, el modelo, la prioridad y las solicitudes por minuto.");
+        add(p + "provider.configure", "Configurar");
+        add(p + "provider.enabled", "Habilitado");
+        add(p + "provider.priority", "Prioridad");
+        add(p + "provider.priority.tooltip", "Un número menor se prueba antes en modo Priority y sirve como criterio secundario en modo Automatic. 1 es la prioridad más alta; la mayoría de jugadores no necesita cambiar esto.");
+        add(p + "provider.rpm", "Solicitudes por minuto (este proveedor)");
+        add(p + "provider.rpm.tooltip", "Este es un punto de partida sugerido por el mod, no una cuota oficial garantizada -- ajústalo según el límite real de tu propia cuenta.");
+        add(p + "provider.status", "Estado");
+        add(p + "provider.status.ready", "Listo");
+        add(p + "provider.status.rate_limited", "Límite de velocidad alcanzado (%ss)");
+        add(p + "provider.status.cooldown", "En enfriamiento (%ss)");
+        add(p + "provider.status.invalid_key", "Clave API inválida");
+        add(p + "provider.status.cannot_connect", "No se puede conectar");
+        add(p + "provider.status.disabled", "Deshabilitado");
+        add(p + "provider.status.detail.untried", "(sin probar)");
+        add(p + "provider.status.detail", "(prom. %ss, probado hace %ss)");
+
         add(p + "model", "Modelo");
         add(p + "model.custom", "Personalizado...");
         add(p + "model.custom_id", "ID de modelo personalizado");

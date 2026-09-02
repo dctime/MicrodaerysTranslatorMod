@@ -62,6 +62,25 @@ public class VerifyRateLimiter {
         assertTrue("t=0: the SAME limiter instance immediately allows more once called with a higher limit",
                 dynamicLimiter.tryAcquire(5, 0L));
 
+        // --- currentCount() is stale unless tryAcquire has run recently (mailbox review round 026,
+        // point U1): an idle provider that nobody calls tryAcquire on again never gets its old
+        // timestamps evicted, since eviction only happens inside tryAcquire. usageAt() must NOT
+        // have that problem -- it evicts on its own even with zero tryAcquire calls in between. ---
+        RateLimiter staleLimiter = new RateLimiter(60_000L);
+        assertTrue("t=0: fill the window (limit=3)", staleLimiter.tryAcquire(3, 0L));
+        assertTrue("t=0: fill the window (limit=3)", staleLimiter.tryAcquire(3, 0L));
+        assertTrue("t=0: fill the window (limit=3)", staleLimiter.tryAcquire(3, 0L));
+        assertTrue("t=0: currentCount() correctly reports 3 right after filling",
+                staleLimiter.currentCount() == 3);
+        assertTrue("t=120_000 (well past the 60s window), with NO tryAcquire call in between: "
+                        + "currentCount() is STALE and still reports the old count of 3 -- this is the bug U1 warns about",
+                staleLimiter.currentCount() == 3);
+        assertTrue("t=120_000, same limiter, same lack of any tryAcquire call in between: "
+                        + "usageAt() evicts on its own and correctly reports 0",
+                staleLimiter.usageAt(120_000L) == 0);
+        assertTrue("after calling usageAt(), currentCount() now also reports 0 (usageAt's eviction is real, not read-only)",
+                staleLimiter.currentCount() == 0);
+
         System.out.println("ALL CHECKS PASSED");
     }
 }
