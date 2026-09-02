@@ -45,6 +45,17 @@ public class LanguageProvider extends net.neoforged.neoforge.common.data.Languag
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.FEATURE_TOGGLE_PATH, "Feature Toggle");
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENDPOINT_CONFIG_PATH, "Endpoint");
 
+        // === Runtime chat messages (Translator.java) ===
+        // Only this one key exists here so far -- every OTHER chat message Translator.java sends
+        // is still the older bilingual (English line + Chinese line) literal-string convention;
+        // rewriting those to real per-locale lang keys is tracked separately (mailbox review #002
+        // point G1, "the whole mod" follow-up), not done as part of this round. This key is new
+        // (added alongside the 11-provider expansion's vision-capability check) and this round
+        // already had the 10-locale lang infrastructure in place, so it went straight to a real
+        // key instead of adding a third bilingual message to the pile.
+        add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
+                "Translation failed! The selected model does not support image input -- try a different model in the config screen.");
+
         // === Custom config GUI (TranslatorConfigScreen / TranslatorAdvancedConfigScreen) ===
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");
@@ -52,6 +63,17 @@ public class LanguageProvider extends net.neoforged.neoforge.common.data.Languag
 
         add(p + "section.service", "Translation Service");
         add(p + "service", "Service");
+        add(p + "provider.google", "Google AI Studio");
+        add(p + "provider.nvidia", "NVIDIA NIM");
+        add(p + "provider.groq", "Groq");
+        add(p + "provider.openrouter", "OpenRouter");
+        add(p + "provider.mistral", "Mistral AI");
+        add(p + "provider.deepseek", "DeepSeek");
+        add(p + "provider.cerebras", "Cerebras");
+        add(p + "provider.anthropic", "Anthropic Claude");
+        add(p + "provider.openai", "OpenAI");
+        add(p + "provider.ollama", "Ollama (Local)");
+        add(p + "provider.custom", "Custom Provider");
         add(p + "model", "Model");
         add(p + "model.custom", "Custom...");
         add(p + "model.custom_id", "Custom Model ID");
@@ -68,7 +90,16 @@ public class LanguageProvider extends net.neoforged.neoforge.common.data.Languag
         add(p + "test_connection.cannot_connect", "Cannot connect");
         add(p + "test_connection.http_error", "HTTP Error %s");
         add(p + "test_connection.model_not_found", "Model '%s' not found in list (list may be incomplete)");
+        add(p + "test_connection.invalid_base_url", "Invalid Base URL");
         add(p + "test_connection.note", "Confirms connection & authorization only -- not a guarantee that translation requests will succeed");
+
+        add(p + "custom_provider.name", "Provider Name");
+        add(p + "custom_provider.base_url", "Base URL");
+        add(p + "custom_provider.authentication", "Authentication");
+        add(p + "custom_provider.authentication.bearer", "Bearer Token");
+        add(p + "custom_provider.authentication.none", "None");
+        add(p + "custom_provider.supports_images", "Supports Image Input");
+        add(p + "custom_provider.privacy_note", "Requests and translation content are sent directly to the server configured above.");
 
         add(p + "section.language", "Language");
         add(p + "follow_game_language", "Follow Minecraft Language");

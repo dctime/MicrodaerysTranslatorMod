@@ -32,12 +32,26 @@ public class LanguageProviderRuRu extends net.neoforged.neoforge.common.data.Lan
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.FEATURE_TOGGLE_PATH, "Функции");
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENDPOINT_CONFIG_PATH, "Провайдер");
 
+        add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
+                "Не удалось перевести! Выбранная модель не поддерживает ввод изображений -- попробуйте выбрать другую модель в настройках.");
+
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");
         add(p + "options_button", "Microdaery's Translator...");
 
         add(p + "section.service", "Служба перевода");
         add(p + "service", "Служба");
+        add(p + "provider.google", "Google AI Studio");
+        add(p + "provider.nvidia", "NVIDIA NIM");
+        add(p + "provider.groq", "Groq");
+        add(p + "provider.openrouter", "OpenRouter");
+        add(p + "provider.mistral", "Mistral AI");
+        add(p + "provider.deepseek", "DeepSeek");
+        add(p + "provider.cerebras", "Cerebras");
+        add(p + "provider.anthropic", "Anthropic Claude");
+        add(p + "provider.openai", "OpenAI");
+        add(p + "provider.ollama", "Ollama (локально)");
+        add(p + "provider.custom", "Пользовательский провайдер");
         add(p + "model", "Модель");
         add(p + "model.custom", "Пользовательская...");
         add(p + "model.custom_id", "ID пользовательской модели");
@@ -54,7 +68,16 @@ public class LanguageProviderRuRu extends net.neoforged.neoforge.common.data.Lan
         add(p + "test_connection.cannot_connect", "Не удаётся подключиться");
         add(p + "test_connection.http_error", "Ошибка HTTP %s");
         add(p + "test_connection.model_not_found", "Модель «%s» не найдена в списке (список может быть неполным)");
+        add(p + "test_connection.invalid_base_url", "Недействительный базовый URL");
         add(p + "test_connection.note", "Подтверждает только соединение и авторизацию -- не гарантирует, что запросы на перевод будут успешными");
+
+        add(p + "custom_provider.name", "Название провайдера");
+        add(p + "custom_provider.base_url", "Базовый URL");
+        add(p + "custom_provider.authentication", "Аутентификация");
+        add(p + "custom_provider.authentication.bearer", "Bearer-токен");
+        add(p + "custom_provider.authentication.none", "Нет");
+        add(p + "custom_provider.supports_images", "Поддержка ввода изображений");
+        add(p + "custom_provider.privacy_note", "Запросы и содержимое перевода отправляются напрямую на сервер, указанный выше.");
 
         add(p + "section.language", "Язык");
         add(p + "follow_game_language", "Следовать языку Minecraft");

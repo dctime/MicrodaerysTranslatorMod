@@ -32,12 +32,26 @@ public class LanguageProviderZhCn extends net.neoforged.neoforge.common.data.Lan
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.FEATURE_TOGGLE_PATH, "功能");
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENDPOINT_CONFIG_PATH, "提供者");
 
+        add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
+                "翻译失败！目前选择的模型不支持图片输入 -- 请到设置画面换一个模型试试。");
+
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");
         add(p + "options_button", "Microdaery's Translator...");
 
         add(p + "section.service", "翻译服务");
         add(p + "service", "服务");
+        add(p + "provider.google", "Google AI Studio");
+        add(p + "provider.nvidia", "NVIDIA NIM");
+        add(p + "provider.groq", "Groq");
+        add(p + "provider.openrouter", "OpenRouter");
+        add(p + "provider.mistral", "Mistral AI");
+        add(p + "provider.deepseek", "DeepSeek");
+        add(p + "provider.cerebras", "Cerebras");
+        add(p + "provider.anthropic", "Anthropic Claude");
+        add(p + "provider.openai", "OpenAI");
+        add(p + "provider.ollama", "Ollama（本地）");
+        add(p + "provider.custom", "自定义提供商");
         add(p + "model", "模型");
         add(p + "model.custom", "自定义...");
         add(p + "model.custom_id", "自定义模型 ID");
@@ -54,7 +68,16 @@ public class LanguageProviderZhCn extends net.neoforged.neoforge.common.data.Lan
         add(p + "test_connection.cannot_connect", "无法连接");
         add(p + "test_connection.http_error", "HTTP 错误 %s");
         add(p + "test_connection.model_not_found", "列表中找不到模型“%s”，列表可能不完整");
+        add(p + "test_connection.invalid_base_url", "Base URL 无效");
         add(p + "test_connection.note", "仅验证连接与授权，不保证一定能成功翻译");
+
+        add(p + "custom_provider.name", "提供商名称");
+        add(p + "custom_provider.base_url", "Base URL");
+        add(p + "custom_provider.authentication", "验证方式");
+        add(p + "custom_provider.authentication.bearer", "Bearer Token");
+        add(p + "custom_provider.authentication.none", "无");
+        add(p + "custom_provider.supports_images", "支持图片输入");
+        add(p + "custom_provider.privacy_note", "请求与翻译内容会直接发送到上面配置的服务器。");
 
         add(p + "section.language", "语言");
         add(p + "follow_game_language", "跟随 Minecraft 语言");

@@ -38,6 +38,9 @@ public class LanguageProviderZhTw extends net.neoforged.neoforge.common.data.Lan
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.FEATURE_TOGGLE_PATH, "功能");
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENDPOINT_CONFIG_PATH, "提供者");
 
+        add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
+                "翻譯失敗！目前選擇的模型不支援圖片輸入 -- 請到設定畫面換一個模型試試。");
+
         // === Custom config GUI (TranslatorConfigScreen / TranslatorAdvancedConfigScreen) ===
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");
@@ -45,6 +48,17 @@ public class LanguageProviderZhTw extends net.neoforged.neoforge.common.data.Lan
 
         add(p + "section.service", "翻譯服務");
         add(p + "service", "服務");
+        add(p + "provider.google", "Google AI Studio");
+        add(p + "provider.nvidia", "NVIDIA NIM");
+        add(p + "provider.groq", "Groq");
+        add(p + "provider.openrouter", "OpenRouter");
+        add(p + "provider.mistral", "Mistral AI");
+        add(p + "provider.deepseek", "DeepSeek");
+        add(p + "provider.cerebras", "Cerebras");
+        add(p + "provider.anthropic", "Anthropic Claude");
+        add(p + "provider.openai", "OpenAI");
+        add(p + "provider.ollama", "Ollama（本機）");
+        add(p + "provider.custom", "自訂供應商");
         add(p + "model", "模型");
         add(p + "model.custom", "自訂...");
         add(p + "model.custom_id", "自訂模型 ID");
@@ -61,7 +75,16 @@ public class LanguageProviderZhTw extends net.neoforged.neoforge.common.data.Lan
         add(p + "test_connection.cannot_connect", "無法連線");
         add(p + "test_connection.http_error", "HTTP 錯誤 %s");
         add(p + "test_connection.model_not_found", "清單中找不到模型「%s」，清單可能不完整");
+        add(p + "test_connection.invalid_base_url", "Base URL 無效");
         add(p + "test_connection.note", "僅驗證連線與授權，不保證一定能成功翻譯");
+
+        add(p + "custom_provider.name", "供應商名稱");
+        add(p + "custom_provider.base_url", "Base URL");
+        add(p + "custom_provider.authentication", "驗證方式");
+        add(p + "custom_provider.authentication.bearer", "Bearer Token");
+        add(p + "custom_provider.authentication.none", "無");
+        add(p + "custom_provider.supports_images", "支援圖片輸入");
+        add(p + "custom_provider.privacy_note", "請求與翻譯內容會直接送到上面設定的伺服器。");
 
         add(p + "section.language", "語言");
         add(p + "follow_game_language", "跟隨 Minecraft 語言");

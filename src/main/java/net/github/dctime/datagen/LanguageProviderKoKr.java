@@ -32,12 +32,26 @@ public class LanguageProviderKoKr extends net.neoforged.neoforge.common.data.Lan
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.FEATURE_TOGGLE_PATH, "기능");
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENDPOINT_CONFIG_PATH, "공급자");
 
+        add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
+                "번역 실패! 선택한 모델은 이미지 입력을 지원하지 않습니다 -- 설정 화면에서 다른 모델을 선택해 보세요.");
+
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");
         add(p + "options_button", "Microdaery's Translator...");
 
         add(p + "section.service", "번역 서비스");
         add(p + "service", "서비스");
+        add(p + "provider.google", "Google AI Studio");
+        add(p + "provider.nvidia", "NVIDIA NIM");
+        add(p + "provider.groq", "Groq");
+        add(p + "provider.openrouter", "OpenRouter");
+        add(p + "provider.mistral", "Mistral AI");
+        add(p + "provider.deepseek", "DeepSeek");
+        add(p + "provider.cerebras", "Cerebras");
+        add(p + "provider.anthropic", "Anthropic Claude");
+        add(p + "provider.openai", "OpenAI");
+        add(p + "provider.ollama", "Ollama (로컬)");
+        add(p + "provider.custom", "사용자 지정 공급자");
         add(p + "model", "모델");
         add(p + "model.custom", "사용자 지정...");
         add(p + "model.custom_id", "사용자 지정 모델 ID");
@@ -54,7 +68,16 @@ public class LanguageProviderKoKr extends net.neoforged.neoforge.common.data.Lan
         add(p + "test_connection.cannot_connect", "연결할 수 없습니다");
         add(p + "test_connection.http_error", "HTTP 오류 %s");
         add(p + "test_connection.model_not_found", "목록에서 모델 '%s'을(를) 찾을 수 없습니다 (목록이 불완전할 수 있습니다)");
+        add(p + "test_connection.invalid_base_url", "잘못된 기본 URL");
         add(p + "test_connection.note", "연결 및 인증만 확인합니다 -- 번역 요청이 반드시 성공한다는 보장은 아닙니다");
+
+        add(p + "custom_provider.name", "공급자 이름");
+        add(p + "custom_provider.base_url", "기본 URL");
+        add(p + "custom_provider.authentication", "인증");
+        add(p + "custom_provider.authentication.bearer", "Bearer 토큰");
+        add(p + "custom_provider.authentication.none", "없음");
+        add(p + "custom_provider.supports_images", "이미지 입력 지원");
+        add(p + "custom_provider.privacy_note", "요청과 번역 내용은 위에 설정한 서버로 직접 전송됩니다.");
 
         add(p + "section.language", "언어");
         add(p + "follow_game_language", "Minecraft 언어 따르기");

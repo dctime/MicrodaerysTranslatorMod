@@ -32,12 +32,26 @@ public class LanguageProviderDeDe extends net.neoforged.neoforge.common.data.Lan
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.FEATURE_TOGGLE_PATH, "Funktionen");
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENDPOINT_CONFIG_PATH, "Anbieter");
 
+        add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
+                "Übersetzung fehlgeschlagen! Das ausgewählte Modell unterstützt keine Bildeingabe -- versuche ein anderes Modell im Einstellungsbildschirm.");
+
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");
         add(p + "options_button", "Microdaery's Translator...");
 
         add(p + "section.service", "Übersetzungsdienst");
         add(p + "service", "Dienst");
+        add(p + "provider.google", "Google AI Studio");
+        add(p + "provider.nvidia", "NVIDIA NIM");
+        add(p + "provider.groq", "Groq");
+        add(p + "provider.openrouter", "OpenRouter");
+        add(p + "provider.mistral", "Mistral AI");
+        add(p + "provider.deepseek", "DeepSeek");
+        add(p + "provider.cerebras", "Cerebras");
+        add(p + "provider.anthropic", "Anthropic Claude");
+        add(p + "provider.openai", "OpenAI");
+        add(p + "provider.ollama", "Ollama (Lokal)");
+        add(p + "provider.custom", "Benutzerdefinierter Anbieter");
         add(p + "model", "Modell");
         add(p + "model.custom", "Benutzerdefiniert...");
         add(p + "model.custom_id", "Benutzerdefinierte Modell-ID");
@@ -54,7 +68,16 @@ public class LanguageProviderDeDe extends net.neoforged.neoforge.common.data.Lan
         add(p + "test_connection.cannot_connect", "Verbindung nicht möglich");
         add(p + "test_connection.http_error", "HTTP-Fehler %s");
         add(p + "test_connection.model_not_found", "Modell „%s“ nicht in der Liste gefunden (Liste ist möglicherweise unvollständig)");
+        add(p + "test_connection.invalid_base_url", "Ungültige Basis-URL");
         add(p + "test_connection.note", "Bestätigt nur Verbindung & Autorisierung -- keine Garantie, dass Übersetzungsanfragen erfolgreich sind");
+
+        add(p + "custom_provider.name", "Anbietername");
+        add(p + "custom_provider.base_url", "Basis-URL");
+        add(p + "custom_provider.authentication", "Authentifizierung");
+        add(p + "custom_provider.authentication.bearer", "Bearer-Token");
+        add(p + "custom_provider.authentication.none", "Keine");
+        add(p + "custom_provider.supports_images", "Unterstützt Bildeingabe");
+        add(p + "custom_provider.privacy_note", "Anfragen und Übersetzungsinhalte werden direkt an den oben konfigurierten Server gesendet.");
 
         add(p + "section.language", "Sprache");
         add(p + "follow_game_language", "Minecraft-Sprache übernehmen");

@@ -32,12 +32,26 @@ public class LanguageProviderJaJp extends net.neoforged.neoforge.common.data.Lan
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.FEATURE_TOGGLE_PATH, "機能");
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENDPOINT_CONFIG_PATH, "エンドポイント");
 
+        add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
+                "翻訳に失敗しました！選択中のモデルは画像入力に対応していません -- 設定画面で別のモデルに変更してください。");
+
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");
         add(p + "options_button", "Microdaery's Translator...");
 
         add(p + "section.service", "翻訳サービス");
         add(p + "service", "サービス");
+        add(p + "provider.google", "Google AI Studio");
+        add(p + "provider.nvidia", "NVIDIA NIM");
+        add(p + "provider.groq", "Groq");
+        add(p + "provider.openrouter", "OpenRouter");
+        add(p + "provider.mistral", "Mistral AI");
+        add(p + "provider.deepseek", "DeepSeek");
+        add(p + "provider.cerebras", "Cerebras");
+        add(p + "provider.anthropic", "Anthropic Claude");
+        add(p + "provider.openai", "OpenAI");
+        add(p + "provider.ollama", "Ollama（ローカル）");
+        add(p + "provider.custom", "カスタムプロバイダー");
         add(p + "model", "モデル");
         add(p + "model.custom", "カスタム...");
         add(p + "model.custom_id", "カスタムモデルID");
@@ -54,7 +68,16 @@ public class LanguageProviderJaJp extends net.neoforged.neoforge.common.data.Lan
         add(p + "test_connection.cannot_connect", "接続できません");
         add(p + "test_connection.http_error", "HTTPエラー %s");
         add(p + "test_connection.model_not_found", "モデル「%s」が一覧に見つかりません（一覧が不完全な可能性があります）");
+        add(p + "test_connection.invalid_base_url", "ベース URL が無効です");
         add(p + "test_connection.note", "接続と認証のみを確認します -- 翻訳リクエストが必ず成功するとは限りません");
+
+        add(p + "custom_provider.name", "プロバイダー名");
+        add(p + "custom_provider.base_url", "ベース URL");
+        add(p + "custom_provider.authentication", "認証方式");
+        add(p + "custom_provider.authentication.bearer", "Bearer トークン");
+        add(p + "custom_provider.authentication.none", "なし");
+        add(p + "custom_provider.supports_images", "画像入力に対応");
+        add(p + "custom_provider.privacy_note", "リクエストと翻訳内容は上記で設定したサーバーに直接送信されます。");
 
         add(p + "section.language", "言語");
         add(p + "follow_game_language", "Minecraftの言語に従う");

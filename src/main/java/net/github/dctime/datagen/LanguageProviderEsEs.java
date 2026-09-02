@@ -32,12 +32,26 @@ public class LanguageProviderEsEs extends net.neoforged.neoforge.common.data.Lan
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.FEATURE_TOGGLE_PATH, "Funciones");
         add(MicrodaerysTranslatorClient.MODID + ".configuration." + Config.ENDPOINT_CONFIG_PATH, "Proveedor");
 
+        add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
+                "¡Traducción fallida! El modelo seleccionado no admite entrada de imágenes -- prueba con otro modelo en la pantalla de configuración.");
+
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");
         add(p + "options_button", "Microdaery's Translator...");
 
         add(p + "section.service", "Servicio de traducción");
         add(p + "service", "Servicio");
+        add(p + "provider.google", "Google AI Studio");
+        add(p + "provider.nvidia", "NVIDIA NIM");
+        add(p + "provider.groq", "Groq");
+        add(p + "provider.openrouter", "OpenRouter");
+        add(p + "provider.mistral", "Mistral AI");
+        add(p + "provider.deepseek", "DeepSeek");
+        add(p + "provider.cerebras", "Cerebras");
+        add(p + "provider.anthropic", "Anthropic Claude");
+        add(p + "provider.openai", "OpenAI");
+        add(p + "provider.ollama", "Ollama (Local)");
+        add(p + "provider.custom", "Proveedor personalizado");
         add(p + "model", "Modelo");
         add(p + "model.custom", "Personalizado...");
         add(p + "model.custom_id", "ID de modelo personalizado");
@@ -54,7 +68,16 @@ public class LanguageProviderEsEs extends net.neoforged.neoforge.common.data.Lan
         add(p + "test_connection.cannot_connect", "No se puede conectar");
         add(p + "test_connection.http_error", "Error HTTP %s");
         add(p + "test_connection.model_not_found", "No se encontró el modelo '%s' en la lista (la lista puede estar incompleta)");
+        add(p + "test_connection.invalid_base_url", "URL base no válida");
         add(p + "test_connection.note", "Solo confirma la conexión y autorización -- no garantiza que las solicitudes de traducción vayan a funcionar");
+
+        add(p + "custom_provider.name", "Nombre del proveedor");
+        add(p + "custom_provider.base_url", "URL base");
+        add(p + "custom_provider.authentication", "Autenticación");
+        add(p + "custom_provider.authentication.bearer", "Token Bearer");
+        add(p + "custom_provider.authentication.none", "Ninguna");
+        add(p + "custom_provider.supports_images", "Admite entrada de imágenes");
+        add(p + "custom_provider.privacy_note", "Las solicitudes y el contenido de traducción se envían directamente al servidor configurado arriba.");
 
         add(p + "section.language", "Idioma");
         add(p + "follow_game_language", "Seguir el idioma de Minecraft");
