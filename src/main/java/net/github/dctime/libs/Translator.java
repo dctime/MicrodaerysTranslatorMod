@@ -723,6 +723,17 @@ public class Translator {
         // temporary diagnostic logging, see the [DIAG] log in requestTranslateToTraditionalChinese
         LOGGER.info("[DIAG] response status=" + resp.statusCode() + " body=[" + responseText + "]");
 
+        // Status must be checked BEFORE attempting to parse. OpenAiCompatibleAdapter deliberately
+        // returns null (not throw) when a response body has no "choices" -- e.g. a 429's
+        // {"error": {...}} body -- so relying on parse-throws-on-error alone silently treated a
+        // rate-limited/erroring response as a blank success: no backoff scheduled, error-suppression
+        // flags cleared, and RETRY_ATTEMPTS reset as if the request had actually succeeded. That
+        // regression shipped in 4df36bb and affects every OpenAI-compatible-shaped provider.
+        if (resp.statusCode() / 100 != 2) {
+            handleHttpError(resp.statusCode(), text, isScreenShot);
+            return;
+        }
+
         try {
             // Parsing is dispatched by WHICH adapter built the request, never by sniffing the
             // response body's shape -- several OpenAI-compatible-shaped providers share the exact
