@@ -6,6 +6,9 @@ import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.libs.TargetLanguage;
 import net.github.dctime.libs.Translator;
 import net.github.dctime.libs.TranslationConnectionTester;
+import net.github.dctime.libs.BaseUrlUtil;
+import net.github.dctime.libs.provider.AuthMode;
+import net.github.dctime.libs.provider.ProviderInfo;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -49,6 +52,7 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
 
     private final PendingTranslatorConfig pending;
     private boolean blockedOnBlankCustomModel = false;
+    private boolean blockedOnInvalidBaseUrl = false;
 
     private CycleButton<Boolean> followLanguageButtonRef;
     private CycleButton<String> targetLanguageButtonRef;
@@ -107,7 +111,7 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
 
         ProviderInfo provider = ProviderInfo.of(pending.endpoint);
 
-        CycleButton<Config.EndPoint> serviceButton = CycleButton.<Config.EndPoint>builder(ep -> ProviderInfo.of(ep).displayName())
+        CycleButton<Config.EndPoint> serviceButton = CycleButton.<Config.EndPoint>builder(ep -> Component.translatable(ProviderInfo.of(ep).displayNameKey()))
                 .withValues(ProviderInfo.ALL.stream().map(ProviderInfo::endpoint).toList())
                 .withInitialValue(pending.endpoint)
                 .displayOnlyValue()
@@ -117,71 +121,46 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
                 });
         list.addSmall(new StringWidget(Component.translatable(P + "service"), font).alignLeft(), serviceButton);
 
-        List<String> modelChoices = new ArrayList<>();
-        for (ProviderInfo.ModelPreset preset : provider.models()) modelChoices.add(preset.modelId());
-        modelChoices.add(PendingTranslatorConfig.CUSTOM_MODEL);
-        CycleButton<String> modelButton = CycleButton.<String>builder(id -> modelDisplayName(provider, id))
-                .withValues(modelChoices)
-                .withInitialValue(pending.modelSelection)
-                .displayOnlyValue()
-                .create(Component.translatable(P + "model"), (btn, val) -> {
-                    pending.modelSelection = val;
-                    refreshOptions();
-                });
-        list.addSmall(new StringWidget(Component.translatable(P + "model"), font).alignLeft(), modelButton);
-
-        if (pending.modelSelection.equals(PendingTranslatorConfig.CUSTOM_MODEL)) {
-            EditBox customModelBox = new EditBox(font, 150, 20, Component.translatable(P + "model.custom_id"));
-            customModelBox.setMaxLength(256);
-            customModelBox.setValue(pending.customModel);
-            customModelBox.setResponder(v -> pending.customModel = v);
-            StringWidget customModelLabel = new StringWidget(Component.translatable(P + "model.custom_id"), font).alignLeft();
-            // Only shown after a rejected Done attempt (see handleDone()) -- not a live "you might
-            // regret this" nag while the player is still typing.
-            if (blockedOnBlankCustomModel && pending.customModel.isBlank()) {
-                customModelLabel.setColor(0xFFFF5555);
-                customModelBox.setTextColor(0xFFFF5555);
-            }
-            list.addSmall(customModelLabel, customModelBox);
-        }
-
-        list.addSmall(new StringWidget(Component.translatable(P + "model_cache_note")
-                .withStyle(ChatFormatting.GRAY), font).alignLeft(), null);
-
-        if (provider.requiresApiKey()) {
-            EditBox apiKeyBox = new EditBox(font, 150, 20, Component.translatable(P + "api_key"));
-            apiKeyBox.setMaxLength(512);
-            apiKeyBox.setValue(pending.apiKey);
-            // Sanitize on EVERY change, not just this mod's own Paste button below: EditBox has
-            // its own native Ctrl+V handling that fires this same responder without ever going
-            // through that button, and typing normally can't produce control characters anyway --
-            // see PendingTranslatorConfig.sanitizeApiKey()'s javadoc for why this matters (a
-            // trailing newline here crashes Test Connection's click handler synchronously). NOTE:
-            // the EditBox's own displayed text is NOT rewritten back to the sanitized value here
-            // (that would fight the box's own cursor/selection state) -- only pending.apiKey (what
-            // Test Connection and Done actually use) is guaranteed clean; the visible box may
-            // still show a raw pasted newline until the player retypes or the screen rebuilds.
-            apiKeyBox.setResponder(v -> pending.apiKey = PendingTranslatorConfig.sanitizeApiKey(v));
-            if (!pending.apiKeyRevealed) {
-                apiKeyBox.setFormatter((text, index) -> FormattedCharSequence.forward("•".repeat(text.length()), Style.EMPTY));
-            }
-            list.addSmall(new StringWidget(Component.translatable(P + "api_key"), font).alignLeft(), apiKeyBox);
-
-            Button showHideButton = Button.builder(
-                    Component.translatable(pending.apiKeyRevealed ? P + "api_key.hide" : P + "api_key.show"),
-                    b -> {
-                        pending.apiKeyRevealed = !pending.apiKeyRevealed;
-                        refreshOptions();
-                    }).build();
-            Button pasteButton = Button.builder(Component.translatable(P + "api_key.paste"), b -> {
-                String clipboard = Minecraft.getInstance().keyboardHandler.getClipboard();
-                if (clipboard != null) pending.apiKey = PendingTranslatorConfig.sanitizeApiKey(clipboard);
-                refreshOptions(); // also re-renders the EditBox with the now-sanitized value, unlike the native-paste path above
-            }).build();
-            list.addSmall(showHideButton, pasteButton);
+        if (pending.endpoint == Config.EndPoint.CUSTOM) {
+            addCustomProviderFields();
         } else {
-            list.addSmall(new StringWidget(Component.translatable(P + "api_key.ollama_note")
+            List<String> modelChoices = new ArrayList<>();
+            for (ProviderInfo.ModelPreset preset : provider.models()) modelChoices.add(preset.modelId());
+            modelChoices.add(PendingTranslatorConfig.CUSTOM_MODEL);
+            CycleButton<String> modelButton = CycleButton.<String>builder(id -> modelDisplayName(provider, id))
+                    .withValues(modelChoices)
+                    .withInitialValue(pending.modelSelection)
+                    .displayOnlyValue()
+                    .create(Component.translatable(P + "model"), (btn, val) -> {
+                        pending.modelSelection = val;
+                        refreshOptions();
+                    });
+            list.addSmall(new StringWidget(Component.translatable(P + "model"), font).alignLeft(), modelButton);
+
+            if (pending.modelSelection.equals(PendingTranslatorConfig.CUSTOM_MODEL)) {
+                EditBox customModelBox = new EditBox(font, 150, 20, Component.translatable(P + "model.custom_id"));
+                customModelBox.setMaxLength(256);
+                customModelBox.setValue(pending.customModel);
+                customModelBox.setResponder(v -> pending.customModel = v);
+                StringWidget customModelLabel = new StringWidget(Component.translatable(P + "model.custom_id"), font).alignLeft();
+                // Only shown after a rejected Done attempt (see handleDone()) -- not a live "you might
+                // regret this" nag while the player is still typing.
+                if (blockedOnBlankCustomModel && pending.customModel.isBlank()) {
+                    customModelLabel.setColor(0xFFFF5555);
+                    customModelBox.setTextColor(0xFFFF5555);
+                }
+                list.addSmall(customModelLabel, customModelBox);
+            }
+
+            list.addSmall(new StringWidget(Component.translatable(P + "model_cache_note")
                     .withStyle(ChatFormatting.GRAY), font).alignLeft(), null);
+
+            if (provider.requiresApiKey()) {
+                addApiKeyFields();
+            } else {
+                list.addSmall(new StringWidget(Component.translatable(P + "api_key.ollama_note")
+                        .withStyle(ChatFormatting.GRAY), font).alignLeft(), null);
+            }
         }
 
         testConnectionButtonRef = Button.builder(Component.translatable(P + "test_connection"), b -> onTestConnectionPressed()).build();
@@ -217,6 +196,106 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
         list.addSmall(advancedButton, null);
     }
 
+    /** The standard masked API-key block, used by every built-in provider that
+     *  {@link ProviderInfo#requiresApiKey()}. Extracted so {@link #addCustomProviderFields()} can
+     *  reuse the exact same widget/sanitization/reveal behavior for its own key field. */
+    private void addApiKeyFields() {
+        EditBox apiKeyBox = new EditBox(font, 150, 20, Component.translatable(P + "api_key"));
+        apiKeyBox.setMaxLength(512);
+        apiKeyBox.setValue(pending.apiKey);
+        // Sanitize on EVERY change, not just this mod's own Paste button below: EditBox has
+        // its own native Ctrl+V handling that fires this same responder without ever going
+        // through that button, and typing normally can't produce control characters anyway --
+        // see PendingTranslatorConfig.sanitizeApiKey()'s javadoc for why this matters (a
+        // trailing newline here crashes Test Connection's click handler synchronously). NOTE:
+        // the EditBox's own displayed text is NOT rewritten back to the sanitized value here
+        // (that would fight the box's own cursor/selection state) -- only pending.apiKey (what
+        // Test Connection and Done actually use) is guaranteed clean; the visible box may
+        // still show a raw pasted newline until the player retypes or the screen rebuilds.
+        apiKeyBox.setResponder(v -> pending.apiKey = PendingTranslatorConfig.sanitizeApiKey(v));
+        if (!pending.apiKeyRevealed) {
+            apiKeyBox.setFormatter((text, index) -> FormattedCharSequence.forward("•".repeat(text.length()), Style.EMPTY));
+        }
+        list.addSmall(new StringWidget(Component.translatable(P + "api_key"), font).alignLeft(), apiKeyBox);
+
+        Button showHideButton = Button.builder(
+                Component.translatable(pending.apiKeyRevealed ? P + "api_key.hide" : P + "api_key.show"),
+                b -> {
+                    pending.apiKeyRevealed = !pending.apiKeyRevealed;
+                    refreshOptions();
+                }).build();
+        Button pasteButton = Button.builder(Component.translatable(P + "api_key.paste"), b -> {
+            String clipboard = Minecraft.getInstance().keyboardHandler.getClipboard();
+            if (clipboard != null) pending.apiKey = PendingTranslatorConfig.sanitizeApiKey(clipboard);
+            refreshOptions(); // also re-renders the EditBox with the now-sanitized value, unlike the native-paste path above
+        }).build();
+        list.addSmall(showHideButton, pasteButton);
+    }
+
+    /**
+     * Custom Provider's fields -- shown INSTEAD of the standard Model CycleButton + API key block
+     * (see the branch in {@link #addOptions()}), never alongside them. First-version scope per
+     * spec: OpenAI-compatible chat completions only, Bearer/None auth, no arbitrary JSON
+     * templating. Base URL/model are free text (there is nothing to curate a preset list from);
+     * {@link PendingTranslatorConfig#customModel} doubles as this provider's plain model field --
+     * {@code modelSelection} is always {@link PendingTranslatorConfig#CUSTOM_MODEL} for Custom
+     * (see {@code ProviderInfo.of(CUSTOM).models()}, deliberately empty), so the existing blank-
+     * model blocking logic in {@link #handleDone()} already covers this field with no extra code.
+     */
+    private void addCustomProviderFields() {
+        EditBox nameBox = new EditBox(font, 150, 20, Component.translatable(P + "custom_provider.name"));
+        nameBox.setMaxLength(64);
+        nameBox.setValue(pending.customProviderName);
+        nameBox.setResponder(v -> pending.customProviderName = v);
+        list.addSmall(new StringWidget(Component.translatable(P + "custom_provider.name"), font).alignLeft(), nameBox);
+
+        EditBox baseUrlBox = new EditBox(font, 150, 20, Component.translatable(P + "custom_provider.base_url"));
+        baseUrlBox.setMaxLength(512);
+        baseUrlBox.setValue(pending.customProviderBaseUrl);
+        baseUrlBox.setResponder(v -> pending.customProviderBaseUrl = v);
+        StringWidget baseUrlLabel = new StringWidget(Component.translatable(P + "custom_provider.base_url"), font).alignLeft();
+        // Only shown after a rejected Done attempt (see handleDone()) -- same convention as blank
+        // Custom Model below; not a live nag while the player is still typing the URL.
+        if (blockedOnInvalidBaseUrl && !BaseUrlUtil.isValid(pending.customProviderBaseUrl)) {
+            baseUrlLabel.setColor(0xFFFF5555);
+            baseUrlBox.setTextColor(0xFFFF5555);
+        }
+        list.addSmall(baseUrlLabel, baseUrlBox);
+
+        CycleButton<AuthMode> authButton = CycleButton.<AuthMode>builder(mode -> Component.translatable(
+                        mode == AuthMode.NONE ? P + "custom_provider.authentication.none" : P + "custom_provider.authentication.bearer"))
+                .withValues(AuthMode.BEARER, AuthMode.NONE)
+                .withInitialValue(pending.customProviderAuthMode)
+                .displayOnlyValue()
+                .create(Component.translatable(P + "custom_provider.authentication"), (btn, val) -> {
+                    pending.customProviderAuthMode = val;
+                    refreshOptions();
+                });
+        list.addSmall(new StringWidget(Component.translatable(P + "custom_provider.authentication"), font).alignLeft(), authButton);
+
+        addApiKeyFields();
+
+        EditBox modelBox = new EditBox(font, 150, 20, Component.translatable(P + "model.custom_id"));
+        modelBox.setMaxLength(256);
+        modelBox.setValue(pending.customModel);
+        modelBox.setResponder(v -> pending.customModel = v);
+        StringWidget modelLabel = new StringWidget(Component.translatable(P + "model.custom_id"), font).alignLeft();
+        if (blockedOnBlankCustomModel && pending.customModel.isBlank()) {
+            modelLabel.setColor(0xFFFF5555);
+            modelBox.setTextColor(0xFFFF5555);
+        }
+        list.addSmall(modelLabel, modelBox);
+
+        CycleButton<Boolean> visionButton = CycleButton.onOffBuilder(pending.customProviderSupportsVision)
+                .displayOnlyValue()
+                .create(Component.translatable(P + "custom_provider.supports_images"),
+                        (btn, val) -> pending.customProviderSupportsVision = val);
+        list.addSmall(new StringWidget(Component.translatable(P + "custom_provider.supports_images"), font).alignLeft(), visionButton);
+
+        list.addSmall(new StringWidget(Component.translatable(P + "custom_provider.privacy_note")
+                .withStyle(ChatFormatting.GRAY), font).alignLeft(), null);
+    }
+
     private CycleButton<String> buildTargetLanguageButton() {
         List<String> choices = new ArrayList<>(TargetLanguage.KNOWN_CODES);
         if (!choices.contains(pending.targetLanguage)) choices.add(pending.targetLanguage);
@@ -250,7 +329,7 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
         for (int i = 0; i < models.size(); i++) {
             ProviderInfo.ModelPreset preset = models.get(i);
             if (preset.modelId().equals(modelId)) {
-                return i == 0 ? Component.literal("★ ").append(preset.displayName()) : preset.displayName();
+                return i == 0 ? Component.literal("★ " + preset.displayName()) : Component.literal(preset.displayName());
             }
         }
         return Component.literal(modelId); // shouldn't happen: modelId always comes from this provider's own preset list or CUSTOM_MODEL
@@ -265,7 +344,11 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
         testInFlight = true;
         testConnectionButtonRef.active = false;
         testStatusWidgetRef.setMessage(Component.translatable(P + "test_connection.testing"));
-        TranslationConnectionTester.test(pending.endpoint, pending.apiKey, pending.resolvedModel(), result ->
+        // Uses PENDING values, not yet saved -- see the class javadoc's acceptance test 6 (Test
+        // Connection doesn't need Done first). Custom Provider's base URL/auth mode are only
+        // meaningful for that endpoint; the tester ignores them for every other provider.
+        TranslationConnectionTester.test(pending.endpoint, pending.apiKey, pending.resolvedModel(),
+                pending.customProviderBaseUrl, pending.customProviderAuthMode, result ->
                 Minecraft.getInstance().execute(() -> {
                     // the player may have closed/replaced this screen while the request was in
                     // flight -- don't touch widgets that no longer belong to the visible screen.
@@ -289,6 +372,7 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
             case RATE_LIMITED -> Component.translatable(P + "test_connection.rate_limited").withStyle(ChatFormatting.YELLOW);
             case CANNOT_CONNECT -> Component.translatable(P + "test_connection.cannot_connect").withStyle(ChatFormatting.RED);
             case HTTP_ERROR -> Component.translatable(P + "test_connection.http_error", result.httpStatusCode()).withStyle(ChatFormatting.RED);
+            case INVALID_BASE_URL -> Component.translatable(P + "test_connection.invalid_base_url").withStyle(ChatFormatting.RED);
         };
     }
 
@@ -313,6 +397,21 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
         // this since it doesn't depend on model_name at all).
         if (pending.resolvedModel().isBlank()) {
             blockedOnBlankCustomModel = true;
+            refreshOptions();
+            return;
+        }
+
+        // Same blocking treatment for Custom Provider's Base URL, added per mailbox review round
+        // 016 point M3: a blank or malformed Base URL builds a syntactically-legal RELATIVE URI
+        // (URI.create doesn't reject it), which HttpRequest.newBuilder().uri(...) then rejects --
+        // synchronously, on whatever thread asked for a request. This is the SAME failure shape as
+        // E1 (API key with an embedded newline) and just as easy to trigger: pick Custom Provider,
+        // leave Base URL empty, press Done. OpenAiCompatibleAdapter still independently guards
+        // against this at request-build time too (a hand-edited or pre-this-fix TOML value could
+        // bypass this GUI check entirely) -- this block is the first, clearest line of defense, not
+        // the only one.
+        if (pending.endpoint == Config.EndPoint.CUSTOM && !BaseUrlUtil.isValid(pending.customProviderBaseUrl)) {
+            blockedOnInvalidBaseUrl = true;
             refreshOptions();
             return;
         }

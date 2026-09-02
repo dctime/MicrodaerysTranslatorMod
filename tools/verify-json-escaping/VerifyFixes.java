@@ -96,18 +96,32 @@ public class VerifyFixes {
                 parseTextFieldWithGson("{\"contents\":[{\"parts\":[{\"text\": \"" + newSingleEscaped + "\"}]}]}")
                         .equals("say \"hi\""));
 
-        // --- Ollama/Mistral builders: real production code, one escape pass, valid JSON ---
+        // --- Ollama/OpenAI-compatible builders: real production code, one escape pass, valid JSON ---
         String ollamaJson = JsonUtil.buildOllamaJson(raw, null, "phi3");
         JsonObject ollamaRoot = JsonParser.parseString(ollamaJson).getAsJsonObject();
         assertTrue("JsonUtil.buildOllamaJson() output parses with Gson and round-trips",
                 ollamaRoot.get("prompt").getAsString().equals(raw));
 
-        String mistralJson = JsonUtil.buildMistralJson(raw, null, "mistral-small-latest");
-        JsonObject mistralRoot = JsonParser.parseString(mistralJson).getAsJsonObject();
-        String mistralContent = mistralRoot.getAsJsonArray("messages").get(0).getAsJsonObject()
+        // Renamed from buildMistralJson (round 016, 11-provider expansion) -- Mistral's shape was
+        // already this exact OpenAI-compatible format, now shared by 8 providers instead of one.
+        String openAiCompatibleJson = JsonUtil.buildOpenAiCompatibleJson(raw, null, "mistral-small-latest");
+        JsonObject openAiCompatibleRoot = JsonParser.parseString(openAiCompatibleJson).getAsJsonObject();
+        String openAiCompatibleContent = openAiCompatibleRoot.getAsJsonArray("messages").get(0).getAsJsonObject()
                 .get("content").getAsString();
-        assertTrue("JsonUtil.buildMistralJson() output parses with Gson and round-trips",
-                mistralContent.equals(raw));
+        assertTrue("JsonUtil.buildOpenAiCompatibleJson() output parses with Gson and round-trips",
+                openAiCompatibleContent.equals(raw));
+
+        // New in round 016: Anthropic's shape (max_tokens required, content is a plain string or
+        // an array of typed blocks -- see AnthropicAdapter's javadoc for why it isn't reused for
+        // the other 8 OpenAI-compatible-shaped providers).
+        String anthropicJson = JsonUtil.buildAnthropicJson(raw, null, "claude-sonnet-5", 1024);
+        JsonObject anthropicRoot = JsonParser.parseString(anthropicJson).getAsJsonObject();
+        String anthropicContent = anthropicRoot.getAsJsonArray("messages").get(0).getAsJsonObject()
+                .get("content").getAsString();
+        assertTrue("JsonUtil.buildAnthropicJson() output parses with Gson and round-trips",
+                anthropicContent.equals(raw));
+        assertTrue("JsonUtil.buildAnthropicJson() output includes the required max_tokens field",
+                anthropicRoot.get("max_tokens").getAsInt() == 1024);
 
         // --- zero-size crop guard boundary math (front-guard before `new NativeImage`) ---
         assertTrue("zero-width selection (startX==endX) is rejected", isRejected(10, 20, 10, 30));

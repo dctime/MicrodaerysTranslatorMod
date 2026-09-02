@@ -1,10 +1,14 @@
 package net.github.dctime.libs;
 
-import com.google.gson.*;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.github.dctime.Config;
 import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.events.ScreenEventRender;
+import net.github.dctime.libs.provider.AuthMode;
+import net.github.dctime.libs.provider.ProviderAdapterRegistry;
+import net.github.dctime.libs.provider.ProviderConfigResolver;
+import net.github.dctime.libs.provider.ProviderSettings;
+import net.github.dctime.libs.provider.TranslationProviderAdapter;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -290,89 +294,34 @@ public class Translator {
         clearCache(true);
     }
 
-    private static HttpRequest setupRequest(String textInEnglish, @Nullable String image, boolean isScreenShot) {
-//        String model = "gemma-3-27b-it";
-        String model = Config.MODEL_NAME.get();
-        String url = String.format("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", model);
-//
-        String prompt = resolvePrompt(isScreenShot) + "\n" + textInEnglish;
-        if (isScreenShot) {
-            prompt = resolvePrompt(true);
+    /**
+     * The active provider's live (api_key, model, plus Custom Provider's base URL/auth mode),
+     * resolved through {@link ProviderConfigResolver} -- the single source of truth for this that
+     * {@code PendingTranslatorConfig.loadFromConfig()} also uses, so a legacy-config player's first
+     * translation request after upgrading (before ever opening the config screen) still resolves
+     * to their pre-existing api_key/model instead of a blank per-provider field.
+     */
+    private static ProviderSettings resolveActiveProviderSettings(Config.EndPoint endpoint) {
+        ProviderConfigResolver.ResolvedProviderConfig resolved = ProviderConfigResolver.resolve(endpoint);
+        if (endpoint != Config.EndPoint.CUSTOM) {
+            return new ProviderSettings(endpoint, resolved.apiKey(), resolved.model(), null, null, resolved.supportsVision());
         }
-
-        String jsonBody = JsonUtil.getGeminiJsonBody(image, prompt);
-
-        // temporary diagnostic logging, see the [DIAG] log in requestTranslateToTraditionalChinese
-        LOGGER.info("[DIAG] Gemini request: model=" + model + " url=" + url + " hasImage=" + (image != null)
-                + " prompt=[" + prompt + "]");
-
-        String apiKey = Config.API_KEY.get();
-//        if (apiKey.isBlank()) return null; // TODO:
-
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(Config.TIMEOUT_DURATION_CONFIG.get()))
-                .header("Content-Type", "application/json; charset=utf-8")
-                .header("x-goog-api-key", apiKey) // 可以用 ?key=... 也行
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                .build();
-//
-        if (textInEnglish.isBlank()) {
-            translationCache.put(keyFor(textInEnglish), "");
-            cacheDirty = true;
-            return null;
-        }
-
-        return req;
+        AuthMode authMode = "NONE".equalsIgnoreCase(Config.CUSTOM_PROVIDER_AUTH_MODE.get())
+                ? AuthMode.NONE : AuthMode.BEARER;
+        return new ProviderSettings(endpoint, resolved.apiKey(), resolved.model(),
+                Config.CUSTOM_PROVIDER_BASE_URL.get(), authMode, resolved.supportsVision());
     }
 
-    public static HttpRequest setupRequestOllama(String textInEnglish,
-                                                 @Nullable String imageBase64,
-                                                 boolean isScreenShot) {
-
-        if (textInEnglish == null || textInEnglish.isBlank()) {
-            return null;
-        }
-
-        String prompt = resolvePrompt(isScreenShot) + "\n" + textInEnglish;
-
-        String model = Config.MODEL_NAME.get(); // 例如 "phi3"
-
-        String url = "http://127.0.0.1:11434/api/generate";
-
-        String jsonBody = JsonUtil.buildOllamaJson(prompt, imageBase64, model);
-
-        return HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(Config.TIMEOUT_DURATION_CONFIG.get()))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                .build();
-    }
-
-    public static HttpRequest setupRequestMistral(String textInEnglish,
-                                                 @Nullable String imageBase64,
-                                                 boolean isScreenShot) {
-
-        if (textInEnglish == null || textInEnglish.isBlank()) {
-            return null;
-        }
-
-        String prompt = resolvePrompt(isScreenShot) + "\n" + textInEnglish;
-
-        String model = Config.MODEL_NAME.get();
-
-        String url = "https://api.mistral.ai/v1/chat/completions";
-
-        String jsonBody = JsonUtil.buildMistralJson(prompt, imageBase64, model);
-
-        return HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(Config.TIMEOUT_DURATION_CONFIG.get()))
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + Config.API_KEY.get())
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                .build();
+    private static HttpRequest buildRequest(TranslationProviderAdapter adapter, ProviderSettings settings,
+                                             String fixedText, @Nullable String image, boolean isScreenShot,
+                                             Config.EndPoint endpoint) {
+        String prompt = isScreenShot ? resolvePrompt(true) : resolvePrompt(false) + "\n" + fixedText;
+        HttpRequest request = adapter.buildTranslationRequest(settings, prompt, image, isScreenShot,
+                Config.TIMEOUT_DURATION_CONFIG.get());
+        // temporary diagnostic logging, see the [DIAG] log in handleHttpResponse
+        LOGGER.info("[DIAG] translation request: endpoint=" + endpoint + " model=" + settings.model()
+                + " url=" + request.uri() + " hasImage=" + (image != null) + " prompt=[" + prompt + "]");
+        return request;
     }
 
     private static String resolvePrompt(boolean isScreenShot) {
@@ -655,17 +604,86 @@ public class Translator {
                 + " gameSelectedLanguage=" + Minecraft.getInstance().getLanguageManager().getSelected()
                 + " textToTranslate=" + fixedText);
 
-        HttpRequest request;
-        if (Config.ENDPOINT_CONFIG.get() == Config.EndPoint.OLLAMA)
-            request = setupRequestOllama(fixedText, image, isScreenShot);
-        else if (Config.ENDPOINT_CONFIG.get() == Config.EndPoint.MISTRAL)
-            request = setupRequestMistral(fixedText, image, isScreenShot);
-        else
-            request = setupRequest(fixedText, image, isScreenShot);
-
-        if (request == null) {
-            LOGGER.warn("HTTP request is NULL.");
+        // Unified blank-text guard (previously only Gemini's own setupRequest had this -- the
+        // Ollama/Mistral builders just returned null on blank text without caching "", so blank
+        // text would silently re-attempt and re-log a warning every single time it was
+        // encountered; consolidating onto the adapter-agnostic call site is also what fixes that).
+        if (fixedText.isBlank()) {
+            translationCache.put(keyFor(fixedText), "");
+            cacheDirty = true;
             return;
+        }
+
+        Config.EndPoint endpoint = Config.ENDPOINT_CONFIG.get();
+        TranslationProviderAdapter adapter = ProviderAdapterRegistry.forEndpoint(endpoint);
+
+        HttpRequest request;
+        boolean visionUnsupportedForScreenshot = false;
+        try {
+            ProviderSettings settings = resolveActiveProviderSettings(endpoint);
+
+            // Vision-capability gate (mailbox review round 017, point O1): supportsVision was
+            // being collected (ModelPreset.supportsVision, Config.CUSTOM_PROVIDER_SUPPORTS_VISION)
+            // but never actually consulted here -- every image was attached unconditionally
+            // whenever ENABLE_ICON_CONFIG/Screenshot Translation was on, regardless of whether the
+            // selected model could do anything with it. The two callers need different treatment
+            // because they have different fallbacks available:
+            if (image != null && !settings.supportsVision()) {
+                if (isScreenShot) {
+                    // No text-only fallback exists for screenshot translation -- the image IS the
+                    // payload, there is nothing else to send. Sending it anyway would just cost a
+                    // request that 400s (or is silently ignored) on every single attempt until the
+                    // player figures out why nothing happens; telling them clearly, once, and not
+                    // sending the doomed request at all is strictly better (acceptance test 11).
+                    // Flagged rather than returned directly so this stays inside the one try/catch
+                    // that already owns "don't let anything here crash the render thread".
+                    visionUnsupportedForScreenshot = true;
+                    request = null;
+                } else {
+                    // Item icon (tooltip line 0): a text-only fallback DOES exist -- just don't
+                    // attach the image and translate the name as plain text (acceptance test 10).
+                    // No message shown; this is the expected, silent-degrade path, not an error.
+                    image = null;
+                    request = buildRequest(adapter, settings, fixedText, image, isScreenShot, endpoint);
+                }
+            } else {
+                request = buildRequest(adapter, settings, fixedText, image, isScreenShot, endpoint);
+            }
+        } catch (Exception e) {
+            // Reachable today via: Custom Provider with a blank/malformed base URL (see
+            // OpenAiCompatibleAdapter.resolveSpec), or -- in principle, should be unreachable in
+            // practice -- ProviderConfigResolver.resolve() finding no Config.PROVIDER_KEYS entry
+            // for this endpoint. Either way, must never crash the render thread.
+            LOGGER.warn("Failed to build translation request for endpoint " + endpoint + ": " + e.getMessage());
+            return;
+        }
+
+        if (visionUnsupportedForScreenshot) {
+            // Deliberately NOT gated by a one-shot hasShowXxxError flag the way the other
+            // showMessage() calls in this file are (mailbox review round 017, point P2): those
+            // flags exist to stop the render loop from spamming the same message every frame while
+            // hovering an item -- but screenshot translation is player-triggered by a single key
+            // press, already de-duplicated by screenshotTranslating (no concurrent re-entry), so
+            // there's no flood risk to guard against. Gating it anyway created a real dead end: a
+            // player who disabled tooltip translation and only uses Screenshot Translation would
+            // never trigger handleHttpResponse() (the flag's only reset point), so after the first
+            // "not supported" message, every subsequent press would silently do nothing at all --
+            // exactly the "why isn't this doing anything" confusion this message exists to prevent.
+            //
+            // Also localized via a real per-locale lang key (mailbox review round 017, point P1),
+            // not the bilingual (en, zh) literal pair every OTHER showMessage() call in this file
+            // still uses -- this is a genuinely new message added after the 10-locale lang
+            // infrastructure already existed for this round's work, so it doesn't inherit the
+            // pre-existing bilingual convention the rest of Translator.java's chat messages still
+            // have (that broader rewrite is tracked separately, see mailbox review #002 point G1).
+            Minecraft.getInstance().execute(() -> {
+                if (Minecraft.getInstance().player != null) {
+                    Minecraft.getInstance().player.sendSystemMessage(
+                            Component.translatable(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported")
+                                    .withStyle(ChatFormatting.YELLOW));
+                }
+            });
+            return; // before screenshotTranslating is ever set true, so no cleanup needed
         }
 
         if (!REQUEST_RATE_LIMITER.tryAcquire(Config.MAX_REQUESTS_PER_MINUTE.get(), System.currentTimeMillis())) return; // over the per-minute budget; a later render tick retries
@@ -685,7 +703,7 @@ public class Translator {
                             return;
                         }
 
-                        handleHttpResponse(resp, fixedText, isScreenShot);
+                        handleHttpResponse(resp, fixedText, isScreenShot, adapter);
 
                     } finally {
                         CONCURRENCY_LIMIT.release();
@@ -696,22 +714,21 @@ public class Translator {
 
     private static void handleHttpResponse(HttpResponse<String> resp,
                                            String text,
-                                           boolean isScreenShot) {
+                                           boolean isScreenShot,
+                                           TranslationProviderAdapter adapter) {
 
         String responseText = resp.body();
         String translatedText;
 
-        // temporary diagnostic logging, see the [DIAG] logs in requestTranslateToTraditionalChinese/setupRequest
+        // temporary diagnostic logging, see the [DIAG] log in requestTranslateToTraditionalChinese
         LOGGER.info("[DIAG] response status=" + resp.statusCode() + " body=[" + responseText + "]");
 
         try {
-            if (isOllamaResponse(responseText)) {
-                translatedText = parseOllamaResponse(responseText);
-            } else if (isMistralResponse(responseText)) {
-                translatedText = parseMistralResponse(responseText);
-            } else {
-                translatedText = parseGeminiResponse(responseText);
-            }
+            // Parsing is dispatched by WHICH adapter built the request, never by sniffing the
+            // response body's shape -- several OpenAI-compatible-shaped providers share the exact
+            // same choices[0].message.content response shape, so shape-sniffing would have become
+            // ambiguous the moment a second one existed.
+            translatedText = adapter.parseTranslationResponse(responseText);
         } catch (Exception e) {
             LOGGER.warn("Error parsing response: " + responseText);
             handleHttpError(resp.statusCode(), text, isScreenShot);
@@ -736,74 +753,6 @@ public class Translator {
         }
 
         LOGGER.debug("status: " + resp.statusCode());
-    }
-
-    private static boolean isOllamaResponse(String responseText) {
-        return responseText.contains("\"response\"");
-    }
-
-    private static boolean isMistralResponse(String responseText) {
-        try {
-            JsonObject root = JsonParser.parseString(responseText).getAsJsonObject();
-            if (root.has("choices")) {
-                JsonArray choices = root.getAsJsonArray("choices");
-                if (choices.size() > 0) {
-                    JsonObject firstChoice = choices.get(0).getAsJsonObject();
-                    if (firstChoice.has("message")) {
-                        JsonObject message = firstChoice.getAsJsonObject("message");
-                        return message.has("content");
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // JSON 解析失敗，肯定不是有效 Ollama 回應
-            return false;
-        }
-        return false;
-    }
-
-    private static String parseGeminiResponse(String responseText) {
-
-        JsonObject response = JsonParser
-                .parseString(responseText)
-                .getAsJsonObject();
-
-        return response.getAsJsonArray("candidates")
-                .get(0).getAsJsonObject()
-                .getAsJsonObject("content")
-                .getAsJsonArray("parts")
-                .get(0).getAsJsonObject()
-                .get("text").getAsString();
-    }
-
-    public static String parseOllamaResponse(String responseText) {
-        JsonObject root = JsonParser.parseString(responseText).getAsJsonObject();
-
-        if (root.has("response")) {
-            return root.get("response").getAsString();
-        }
-
-        return null;
-    }
-
-    public static String parseMistralResponse(String responseText) {
-        JsonObject root = JsonParser.parseString(responseText).getAsJsonObject();
-
-        // 先抓 choices array
-        if (root.has("choices")) {
-            JsonArray choices = root.getAsJsonArray("choices");
-            if (choices.size() > 0) {
-                JsonObject firstChoice = choices.get(0).getAsJsonObject();
-                if (firstChoice.has("message")) {
-                    JsonObject message = firstChoice.getAsJsonObject("message");
-                    if (message.has("content")) {
-                        return message.get("content").getAsString();
-                    }
-                }
-            }
-        }
-
-        return null;
     }
 
     private static void handleHttpError(int statusCode, String text, boolean isScreenShot) {

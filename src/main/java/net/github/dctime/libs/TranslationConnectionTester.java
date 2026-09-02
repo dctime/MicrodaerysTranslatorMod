@@ -1,12 +1,11 @@
 package net.github.dctime.libs;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import net.github.dctime.Config;
+import net.github.dctime.libs.provider.AuthMode;
+import net.github.dctime.libs.provider.ProviderAdapterRegistry;
+import net.github.dctime.libs.provider.ProviderSettings;
+import net.github.dctime.libs.provider.TranslationProviderAdapter;
 
-import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -14,9 +13,18 @@ import java.time.Duration;
 import java.util.function.Consumer;
 
 /**
- * "Test Connection" for the config GUI: for each provider, hits a list-models endpoint (NOT a
- * generation endpoint) with the player's PENDING (not-yet-saved) endpoint/apiKey/model, so it
- * doesn't cost generation quota/tokens and can be pressed freely before Done is ever clicked.
+ * "Test Connection" for the config GUI: for each provider, hits a model-listing endpoint (NOT a
+ * generation endpoint, unless the adapter's {@code supportsModelListing()} is false) with the
+ * player's PENDING (not-yet-saved) endpoint/apiKey/model/[Custom base URL/auth mode], so it
+ * doesn't cost generation quota/tokens for most providers and can be pressed freely before Done is
+ * ever clicked.
+ * <p>
+ * Adapter-aware: this class no longer has any per-provider knowledge itself -- it looks up the
+ * right {@link TranslationProviderAdapter} via {@link ProviderAdapterRegistry} and asks IT to
+ * build the request and check whether the configured model appears in the response. Used to be a
+ * hand-written exhaustive {@code switch} per provider here, completely independent from
+ * {@link Translator}'s own (different) per-provider dispatch -- exactly the drift-prone
+ * duplication this refactor removes.
  * <p>
  * Deliberately separate from {@link Translator}'s translation request path: doesn't touch
  * {@code translationCache}/{@code IN_FLIGHT}/the concurrency semaphore/the RPM rate limiter, and
@@ -38,7 +46,8 @@ public class TranslationConnectionTester {
     /**
      * @param status          connection/authorization outcome; the headline result.
      * @param httpStatusCode  the raw HTTP status code, for HTTP_ERROR's "HTTP Error {code}"
-     *                        display; -1 when there was no HTTP response at all (CANNOT_CONNECT).
+     *                        display; -1 when there was no HTTP response at all (CANNOT_CONNECT or
+     *                        INVALID_BASE_URL).
      * @param modelFound      secondary hint only, meaningful when status == OK. False does NOT
      *                        mean the model can't be used -- list-models responses can be
      *                        paginated (Google) or use tags the player's model_name string doesn't
@@ -58,7 +67,26 @@ public class TranslationConnectionTester {
      * {@code Minecraft.getInstance().execute(...)} themselves before touching any widget.
      */
     public static void test(Config.EndPoint endpoint, String apiKey, String model, Consumer<Result> callback) {
-        HttpRequest request = buildRequest(endpoint, apiKey);
+        test(endpoint, apiKey, model, null, null, callback);
+    }
+
+    /** Overload carrying Custom Provider's extra pending fields; ignored for every other endpoint. */
+    public static void test(Config.EndPoint endpoint, String apiKey, String model,
+                             String customBaseUrl, AuthMode customAuthMode, Consumer<Result> callback) {
+        TranslationProviderAdapter adapter = ProviderAdapterRegistry.forEndpoint(endpoint);
+        // supportsVision is irrelevant here -- a connection test never attaches an image.
+        ProviderSettings settings = new ProviderSettings(endpoint, apiKey, model, customBaseUrl, customAuthMode, true);
+
+        HttpRequest request;
+        try {
+            request = adapter.buildConnectionTestRequest(settings);
+        } catch (IllegalArgumentException e) {
+            // Custom Provider with a blank/malformed base URL -- caught here specifically so it
+            // never reaches the render thread as an uncaught exception; every other provider's
+            // base URL is a compile-time constant and can't trigger this.
+            callback.accept(new Result(ConnectionTestStatus.Status.INVALID_BASE_URL, -1, false));
+            return;
+        }
 
         CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .whenComplete((resp, throwable) -> {
@@ -71,88 +99,9 @@ public class TranslationConnectionTester {
                         return;
                     }
                     ConnectionTestStatus.Status status = ConnectionTestStatus.fromHttpCode(resp.statusCode());
-                    boolean modelFound = status == ConnectionTestStatus.Status.OK && modelAppearsIn(endpoint, resp.body(), model);
+                    boolean modelFound = status == ConnectionTestStatus.Status.OK
+                            && adapter.modelAppearsInConnectionTestResponse(resp.body(), model);
                     callback.accept(new Result(status, resp.statusCode(), modelFound));
                 });
-    }
-
-    private static HttpRequest buildRequest(Config.EndPoint endpoint, String apiKey) {
-        Duration timeout = Duration.ofSeconds(10);
-        return switch (endpoint) {
-            // x-goog-api-key header, matching Translator.setupRequest() -- not "?key=" in the URL
-            // (Config.java's own comment notes the query-param form "works too", but the header
-            // form is what this mod actually uses elsewhere, and is the only form that keeps the
-            // key out of anything that logs a URI).
-            case GOOGLE_AI_STUDIO -> HttpRequest.newBuilder()
-                    .uri(URI.create("https://generativelanguage.googleapis.com/v1beta/models"))
-                    .timeout(timeout)
-                    .header("x-goog-api-key", apiKey)
-                    .GET().build();
-            case MISTRAL -> HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.mistral.ai/v1/models"))
-                    .timeout(timeout)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .GET().build();
-            // No API key: Ollama is a local, unauthenticated server (see Config.ENDPOINT_CONFIG's
-            // OLLAMA case in Translator -- same host:port, no Authorization/x-goog-api-key header).
-            case OLLAMA -> HttpRequest.newBuilder()
-                    .uri(URI.create("http://127.0.0.1:11434/api/tags"))
-                    .timeout(timeout)
-                    .GET().build();
-        };
-    }
-
-    /** Best-effort match against a list-models response; false on any parse failure (never throws). */
-    private static boolean modelAppearsIn(Config.EndPoint endpoint, String responseBody, String model) {
-        if (model == null || model.isBlank()) return false;
-        try {
-            JsonObject root = JsonParser.parseString(responseBody).getAsJsonObject();
-            return switch (endpoint) {
-                // {"models": [{"name": "models/gemini-1.5-flash", ...}, ...]} -- both the
-                // response's names and the player's model id may or may not carry the "models/"
-                // prefix, so strip it from both sides before comparing.
-                case GOOGLE_AI_STUDIO -> streamNames(root, "models", "name")
-                        .anyMatch(name -> stripPrefix(name, "models/").equals(stripPrefix(model, "models/")));
-                // {"data": [{"id": "mistral-small-latest", ...}, ...]}
-                case MISTRAL -> streamNames(root, "data", "id").anyMatch(id -> id.equals(model));
-                // {"models": [{"name": "llama3:latest", ...}, ...]} -- Ollama tags every model
-                // with ":latest" (or another tag). Stripping the tag from BOTH sides (as an
-                // earlier version of this did) is a false-positive trap: a player who typed
-                // "llama3:70b" but only has "llama3:latest" installed would match anyway (both
-                // strip down to "llama3"), showing a green "Connected" with no warning even though
-                // that exact model isn't there -- worse than not checking at all, since it's a
-                // confident wrong answer instead of an honest "can't tell". So: if the player
-                // wrote a tag, require an exact match (no stripping); only strip the RESPONSE
-                // side's tag when the player didn't write one themselves (matching Ollama's own
-                // "no tag = :latest" convention loosely -- any installed tag of that base name
-                // counts, not just :latest specifically).
-                case OLLAMA -> {
-                    boolean playerSpecifiedTag = model.contains(":");
-                    yield streamNames(root, "models", "name")
-                            .anyMatch(name -> playerSpecifiedTag ? name.equals(model) : stripTag(name).equals(model));
-                }
-            };
-        } catch (Exception e) {
-            return false; // unexpected shape: treat as "couldn't confirm", never a crash
-        }
-    }
-
-    private static java.util.stream.Stream<String> streamNames(JsonObject root, String arrayField, String nameField) {
-        if (!root.has(arrayField) || !root.get(arrayField).isJsonArray()) return java.util.stream.Stream.empty();
-        JsonArray array = root.getAsJsonArray(arrayField);
-        return java.util.stream.StreamSupport.stream(array.spliterator(), false)
-                .filter(JsonElement::isJsonObject)
-                .map(JsonElement::getAsJsonObject)
-                .filter(o -> o.has(nameField))
-                .map(o -> o.get(nameField).getAsString());
-    }
-
-    private static String stripPrefix(String s, String prefix) {
-        return s.startsWith(prefix) ? s.substring(prefix.length()) : s;
-    }
-
-    private static String stripTag(String s) {
-        int colon = s.indexOf(':');
-        return colon < 0 ? s : s.substring(0, colon);
     }
 }

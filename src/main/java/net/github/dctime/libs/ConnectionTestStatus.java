@@ -15,7 +15,10 @@ public class ConnectionTestStatus {
         RATE_LIMITED,
         /** Only reachable from a network failure (no HTTP response at all), never from fromHttpCode(). */
         CANNOT_CONNECT,
-        HTTP_ERROR
+        HTTP_ERROR,
+        /** Custom Provider only: the Base URL field was blank or failed to parse as a URI --
+         *  reachable before any HTTP call is even attempted, never from fromHttpCode(). */
+        INVALID_BASE_URL
     }
 
     public static Status fromHttpCode(int code) {

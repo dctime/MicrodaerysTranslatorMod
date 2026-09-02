@@ -1,6 +1,7 @@
 package net.github.dctime;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -12,6 +13,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
+import javax.annotation.Nullable;
+
 /**
  * Example config class for the translation mod.
  * 使用 NeoForge 的設定 API，集中管理模組設定。
@@ -19,10 +22,21 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 public class Config {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
+    // Appended-only: existing values keep their exact name and position (NeoForge's EnumValue
+    // persists by name() string in TOML, so appending is back-compat safe for existing player
+    // configs; renaming or reordering GOOGLE_AI_STUDIO/OLLAMA/MISTRAL would not be).
     public enum EndPoint {
         GOOGLE_AI_STUDIO,
         OLLAMA,
-        MISTRAL
+        MISTRAL,
+        NVIDIA_NIM,
+        GROQ,
+        OPENROUTER,
+        DEEPSEEK,
+        CEREBRAS,
+        ANTHROPIC,
+        OPENAI,
+        CUSTOM
     }
 
     public static final String ENDPOINT_CONFIG_PATH = "endpoint";
@@ -167,6 +181,90 @@ public class Config {
     // public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_STRINGS = BUILDER
     //         .comment("A list of items to log on common setup.")
     //         .defineListAllowEmpty("items", List.of("minecraft:iron_ingot"), () -> "", Config::validateItemName);
+
+    // === Per-provider settings (added for the 11-provider expansion) ===
+    //
+    // API_KEY/MODEL_NAME above are the LEGACY flat keys: one shared pair used by whichever
+    // provider was active, from back when this mod only supported Google/Mistral/Ollama. They are
+    // kept exactly as-is -- still defined, still readable, still writable -- purely so an existing
+    // player's TOML keeps parsing. They are never read again by new provider-selection logic except
+    // as a one-time migration fallback (see PendingTranslatorConfig.loadFromConfig()); the new code
+    // path always resolves settings through PROVIDER_KEYS below instead.
+    //
+    // Each provider (except Ollama, which needs no key, and Custom, which has a different shape)
+    // gets its own top-level TOML table holding an independent api_key + model pair, so switching
+    // providers never overwrites another provider's saved credentials -- this is the actual fix for
+    // the "switch Google -> Groq -> Google, Google's key is gone" bug this refactor exists to close.
+    public record ProviderConfigKeys(@Nullable ModConfigSpec.ConfigValue<String> apiKey,
+                                      ModConfigSpec.ConfigValue<String> model) {
+    }
+
+    private static ProviderConfigKeys defineProvider(String sectionKey, boolean withApiKey) {
+        BUILDER.push(sectionKey);
+        ModConfigSpec.ConfigValue<String> apiKey = withApiKey
+                ? BUILDER.comment("API key for this provider. Sent only to this provider's own endpoint, never logged.")
+                        .define("api_key", "")
+                : null;
+        ModConfigSpec.ConfigValue<String> model = BUILDER
+                .comment("Model id to use with this provider.")
+                .define("model", "");
+        BUILDER.pop();
+        return new ProviderConfigKeys(apiKey, model);
+    }
+
+    public static final ProviderConfigKeys PROVIDER_GOOGLE = defineProvider("google", true);
+    public static final ProviderConfigKeys PROVIDER_NVIDIA = defineProvider("nvidia", true);
+    public static final ProviderConfigKeys PROVIDER_GROQ = defineProvider("groq", true);
+    public static final ProviderConfigKeys PROVIDER_OPENROUTER = defineProvider("openrouter", true);
+    public static final ProviderConfigKeys PROVIDER_MISTRAL = defineProvider("mistral", true);
+    public static final ProviderConfigKeys PROVIDER_DEEPSEEK = defineProvider("deepseek", true);
+    public static final ProviderConfigKeys PROVIDER_CEREBRAS = defineProvider("cerebras", true);
+    public static final ProviderConfigKeys PROVIDER_ANTHROPIC = defineProvider("anthropic", true);
+    public static final ProviderConfigKeys PROVIDER_OPENAI = defineProvider("openai", true);
+    public static final ProviderConfigKeys PROVIDER_OLLAMA = defineProvider("ollama", false);
+
+    // Custom Provider has a different shape (base URL / auth mode / vision toggle instead of a
+    // curated model list), so it isn't built through defineProvider() / PROVIDER_KEYS.
+    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_NAME;
+    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_BASE_URL;
+    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_API_KEY;
+    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_MODEL;
+    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_AUTH_MODE;
+    public static final ModConfigSpec.BooleanValue CUSTOM_PROVIDER_SUPPORTS_VISION;
+
+    static {
+        BUILDER.push("custom");
+        CUSTOM_PROVIDER_NAME = BUILDER.comment("Display name for this custom provider.").define("name", "");
+        CUSTOM_PROVIDER_BASE_URL = BUILDER
+                .comment("OpenAI-compatible base URL, e.g. http://localhost:8000/v1 -- plain http:// is allowed " +
+                        "on purpose (local/LAN servers like vLLM or LM Studio commonly have no TLS).")
+                .define("base_url", "");
+        CUSTOM_PROVIDER_API_KEY = BUILDER
+                .comment("API key for this custom endpoint. Sent only to the base URL above, never logged.")
+                .define("api_key", "");
+        CUSTOM_PROVIDER_MODEL = BUILDER.comment("Model id for this custom endpoint.").define("model", "");
+        CUSTOM_PROVIDER_AUTH_MODE = BUILDER
+                .comment("BEARER (send \"Authorization: Bearer <api_key>\") or NONE (send no Authorization header).")
+                .define("auth_mode", "BEARER");
+        CUSTOM_PROVIDER_SUPPORTS_VISION = BUILDER
+                .comment("Whether this custom endpoint's model accepts image input.")
+                .define("supports_vision", false);
+        BUILDER.pop();
+    }
+
+    /** Every built-in provider except {@link EndPoint#CUSTOM} (different shape, see fields above). */
+    public static final Map<EndPoint, ProviderConfigKeys> PROVIDER_KEYS = Map.ofEntries(
+            Map.entry(EndPoint.GOOGLE_AI_STUDIO, PROVIDER_GOOGLE),
+            Map.entry(EndPoint.NVIDIA_NIM, PROVIDER_NVIDIA),
+            Map.entry(EndPoint.GROQ, PROVIDER_GROQ),
+            Map.entry(EndPoint.OPENROUTER, PROVIDER_OPENROUTER),
+            Map.entry(EndPoint.MISTRAL, PROVIDER_MISTRAL),
+            Map.entry(EndPoint.DEEPSEEK, PROVIDER_DEEPSEEK),
+            Map.entry(EndPoint.CEREBRAS, PROVIDER_CEREBRAS),
+            Map.entry(EndPoint.ANTHROPIC, PROVIDER_ANTHROPIC),
+            Map.entry(EndPoint.OPENAI, PROVIDER_OPENAI),
+            Map.entry(EndPoint.OLLAMA, PROVIDER_OLLAMA)
+    );
 
     static final ModConfigSpec SPEC = BUILDER.build();
 

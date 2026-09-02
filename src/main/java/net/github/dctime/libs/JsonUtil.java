@@ -84,11 +84,19 @@ public class JsonUtil {
         }
     }
 
-    public static String buildMistralJson(String prompt,
-                                           @Nullable String imageBase64,
-                                           String model) {
+    /**
+     * Shared OpenAI-compatible {@code /chat/completions} request body -- used by every provider
+     * whose API mirrors OpenAI's shape (NVIDIA NIM, Groq, OpenRouter, Mistral, DeepSeek, Cerebras,
+     * OpenAI itself, and Custom Provider). Was {@code buildMistralJson}; Mistral's shape was
+     * already this exact format, so this is a rename/generalization, not new duplication -- avoids
+     * a near-identical {@code buildGroqJson}/{@code buildDeepSeekJson}/... per provider.
+     */
+    public static String buildOpenAiCompatibleJson(String prompt,
+                                                     @Nullable String imageBase64,
+                                                     String model) {
 
         String safePrompt = escapeJson(prompt);
+        String safeModel = escapeJson(model);
 
         if (imageBase64 == null) {
             return """
@@ -101,7 +109,7 @@ public class JsonUtil {
             }
           ]
         }
-        """.formatted(model, safePrompt);
+        """.formatted(safeModel, safePrompt);
         } else {
             return """
         {
@@ -122,7 +130,63 @@ public class JsonUtil {
             }
           ]
         }
-        """.formatted(model, safePrompt, imageBase64);
+        """.formatted(safeModel, safePrompt, imageBase64);
+        }
+    }
+
+    /**
+     * Anthropic Messages API request body. Unlike the other three shapes, Anthropic REQUIRES
+     * {@code max_tokens} on every request -- there's no server-side default to omit it and fall
+     * back to. {@code maxTokens} is a fixed cap chosen by the caller (this mod's tooltips/prompts
+     * are short, so a modest cap is plenty and keeps a runaway response bounded).
+     */
+    public static String buildAnthropicJson(String prompt,
+                                             @Nullable String imageBase64,
+                                             String model,
+                                             int maxTokens) {
+
+        String safePrompt = escapeJson(prompt);
+        String safeModel = escapeJson(model);
+
+        if (imageBase64 == null) {
+            return """
+        {
+          "model": "%s",
+          "max_tokens": %d,
+          "messages": [
+            {
+              "role": "user",
+              "content": "%s"
+            }
+          ]
+        }
+        """.formatted(safeModel, maxTokens, safePrompt);
+        } else {
+            return """
+        {
+          "model": "%s",
+          "max_tokens": %d,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "%s"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "%s"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+        """.formatted(safeModel, maxTokens, safePrompt, imageBase64);
         }
     }
 }

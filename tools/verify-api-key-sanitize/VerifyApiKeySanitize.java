@@ -49,6 +49,16 @@ public class VerifyApiKeySanitize {
         assertTrue("empty input stays empty",
                 PendingTranslatorConfig.sanitizeApiKey("").equals(""));
 
+        // Added round 016 (mailbox point M3's related smaller note): confirmed empirically that
+        // HttpRequest.Builder.header() throws IllegalArgumentException on these too, the same
+        // crash class as a raw newline (E1) -- neither is a control character or Java \s
+        // whitespace, so the ORIGINAL [\p{Cntrl}\s] blocklist regex missed both. ApiKeyUtil now
+        // allowlists visible-ASCII-only instead of blocklisting specific bad characters.
+        assertTrue("a smart/curly quote (U+201C) is stripped",
+                PendingTranslatorConfig.sanitizeApiKey("AIza“Sy").equals("AIzaSy"));
+        assertTrue("a zero-width space (U+200B) is stripped",
+                PendingTranslatorConfig.sanitizeApiKey("AIza​Sy").equals("AIzaSy"));
+
         System.out.println("ALL CHECKS PASSED");
     }
 }
