@@ -183,6 +183,9 @@ dependencies {
     implementation "maven.modrinth:jade:${jade_version}"
 
     implementation "curse.maven:better-advancements-272515:5850587"
+
+    implementation "curse.maven:power-armor-renostalgized-1368563:7232488"
+    implementation "curse.maven:porting-dead-libs-1173919:7249956"
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.
