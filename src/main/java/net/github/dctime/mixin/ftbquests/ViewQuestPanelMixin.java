@@ -56,6 +56,15 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
     // -1 : standup, 0 : ready to resize, 1+: amount of translation left
     private int translationLeft = -1;
 
+    // Tracks the parent's size as of the last resizeUI() call -- resizeUI() only used to run right
+    // after translation finished, so toggling fullscreen (or any other window resize) later, while
+    // the quest window stays open with translation already done, left height/position frozen at the
+    // old screen size: a real gap between the modal's old bottom edge and the new, taller screen.
+    // onDraw runs every frame regardless of translation state, so it's used here to notice a parent
+    // resize and re-run resizeUI() to re-clamp/re-center for the new dimensions.
+    private int lastParentWidth = -1;
+    private int lastParentHeight = -1;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(ViewQuestPanel.class);
 
     private void resetQuest() {
@@ -181,8 +190,18 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
                 textField.setWidth(this.getWidth() - 6);
             }
         }
-//                this.setHeight(Math.min(this.panelContent.getContentHeight() + this.titleField.height + 12, this.parent.height - 10));
-//                panelText.getWidgets().get(panelText.getWidgets().size()-1).posY =
+        // Long translated text (e.g. a description that expands a lot in the target language) can
+        // make panelText far taller than the screen -- without this clamp the modal just grew past
+        // screen bounds with no scrollbar. Matches vanilla ViewQuestPanel#addWidgets' own clamp
+        // (this.parent.height - 10), just measured from panelText's actual bottom edge since this
+        // mixin's layout puts panelText directly under `this` rather than under panelContent.
+        // ModalPanel/Panel already support scrolling overflowed content (see the mouseScrolled
+        // override below), so clamping height here is what turns that into a working scrollbar.
+        int contentBottom = this.panelText.posY + this.panelText.height;
+        this.setHeight(Math.min(contentBottom, this.parent.height - 10));
+        this.setPos(this.posX, (this.parent.height - this.height) / 2);
+        this.lastParentWidth = this.parent.width;
+        this.lastParentHeight = this.parent.height;
         int iconSize = Math.min(16, this.titleField.height + 2);
         for (Widget viewWidget : this.getWidgets()) {
             if (viewWidget instanceof ICloseViewQuestButton) {
@@ -210,6 +229,16 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
         if (!Config.ENABLE_FTB_QUEST_TRANSLATION.get()) return;
         if (Translator.getDeletingTranslationKeyHold()) {
             resetQuest();
+        }
+
+        // The screen resizing (e.g. toggling fullscreen) while this modal is already open and fully
+        // translated doesn't fire any callback here on its own -- resizeUI() otherwise only runs as
+        // part of the translation-completion loop below. Re-run it once the parent's size actually
+        // changes so the modal's clamp/centering (see resizeUI()) catches up with the new screen
+        // size instead of leaving a stale gap where the screen grew.
+        if (isDescriptionTranslated != null
+                && (this.parent.width != lastParentWidth || this.parent.height != lastParentHeight)) {
+            resizeUI();
         }
 
         translateTitle();

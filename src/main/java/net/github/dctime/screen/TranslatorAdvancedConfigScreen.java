@@ -36,6 +36,7 @@ public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
 
     private final PendingTranslatorConfig pending;
     private Button clearCacheButtonRef;
+    private boolean rpmCustomMode = false;
 
     public TranslatorAdvancedConfigScreen(Screen parent, PendingTranslatorConfig pending) {
         super(parent, Minecraft.getInstance().options, Component.translatable(P + "advanced_settings"));
@@ -135,10 +136,18 @@ public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
         }
     }
 
+    /** {@code rpmCustomMode} latches "the click that just landed on the Custom slot" so a
+     *  {@link #refreshOptions()} rebuild doesn't immediately un-select it -- without the latch,
+     *  recomputing {@code selection} from {@link #pending}'s still-unchanged value snaps straight
+     *  back to whichever preset it already equals, so clicking past the top preset (120) looked
+     *  like the button was simply stuck there. Reset to false whenever a real preset is chosen, so
+     *  cycling still loops all the way back around (…60 -> 120 -> Custom -> 5 -> 10…) with no
+     *  Shift/right-click required. */
     private void addRpmRow() {
         List<Integer> choices = new ArrayList<>(RPM_PRESETS);
         choices.add(CUSTOM_INT);
-        int selection = RPM_PRESETS.contains(pending.maxRequestsPerMinute) ? pending.maxRequestsPerMinute : CUSTOM_INT;
+        boolean showCustom = rpmCustomMode || !RPM_PRESETS.contains(pending.maxRequestsPerMinute);
+        int selection = showCustom ? CUSTOM_INT : pending.maxRequestsPerMinute;
 
         CycleButton<Integer> rpmButton = CycleButton.<Integer>builder(v -> v.equals(CUSTOM_INT)
                         ? Component.translatable(P + "rpm.custom", pending.maxRequestsPerMinute)
@@ -148,12 +157,13 @@ public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
                 .displayOnlyValue()
                 .withTooltip(v -> Tooltip.create(Component.translatable(P + "rpm.tooltip")))
                 .create(Component.translatable(P + "rpm"), (btn, val) -> {
-                    if (!val.equals(CUSTOM_INT)) pending.maxRequestsPerMinute = val;
+                    rpmCustomMode = val.equals(CUSTOM_INT);
+                    if (!rpmCustomMode) pending.maxRequestsPerMinute = val;
                     refreshOptions();
                 });
         list.addSmall(label(P + "rpm"), rpmButton);
 
-        if (selection == CUSTOM_INT) {
+        if (showCustom) {
             EditBox rpmBox = new EditBox(font, 150, 20, Component.translatable(P + "rpm"));
             rpmBox.setMaxLength(9);
             rpmBox.setValue(String.valueOf(pending.maxRequestsPerMinute));

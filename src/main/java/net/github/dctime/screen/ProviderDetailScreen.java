@@ -69,6 +69,7 @@ public class ProviderDetailScreen extends OptionsSubScreen {
     private boolean testInFlight = false;
 
     private StringWidget liveStatusWidgetRef;
+    private boolean rpmCustomMode = false;
 
     public ProviderDetailScreen(Screen parent, PendingTranslatorConfig pending, Config.EndPoint endpoint) {
         super(parent, Minecraft.getInstance().options, Component.translatable(ProviderInfo.of(endpoint).displayNameKey()));
@@ -301,12 +302,21 @@ public class ProviderDetailScreen extends OptionsSubScreen {
     /** Same preset-CycleButton + Custom EditBox pattern as {@code
      *  TranslatorAdvancedConfigScreen#addRpmRow()} (that one edits the GLOBAL safety cap; this one
      *  edits THIS provider's own budget) -- deliberately not extracted into a shared helper this
-     *  round (two call sites, different backing fields; not worth a shared abstraction yet). */
+     *  round (two call sites, different backing fields; not worth a shared abstraction yet).
+     *  <p>
+     *  {@code rpmCustomMode} latches "the click that just landed on the Custom slot" so the
+     *  {@link #refreshOptions()} rebuild that follows every click doesn't immediately un-select it
+     *  -- without the latch, recomputing {@code selection} from {@code pending}'s still-unchanged
+     *  value snaps straight back to whichever preset it already equals, so clicking past the top
+     *  preset (120) looked like the button was simply stuck there instead of cycling. Reset to
+     *  false whenever a real preset is chosen, so plain clicking still loops all the way around
+     *  (…60 -> 120 -> Custom -> 5 -> 10…) with no Shift/right-click required. */
     private void addRpmRow() {
         List<Integer> choices = new ArrayList<>(RPM_PRESETS);
         choices.add(CUSTOM_INT);
         int current = pending.getProviderMaxRequestsPerMinute(endpoint);
-        int selection = RPM_PRESETS.contains(current) ? current : CUSTOM_INT;
+        boolean showCustom = rpmCustomMode || !RPM_PRESETS.contains(current);
+        int selection = showCustom ? CUSTOM_INT : current;
 
         CycleButton<Integer> rpmButton = CycleButton.<Integer>builder(v -> v.equals(CUSTOM_INT)
                         ? Component.translatable(P + "rpm.custom", pending.getProviderMaxRequestsPerMinute(endpoint))
@@ -316,12 +326,13 @@ public class ProviderDetailScreen extends OptionsSubScreen {
                 .displayOnlyValue()
                 .withTooltip(v -> Tooltip.create(Component.translatable(P + "provider.rpm.tooltip")))
                 .create(Component.translatable(P + "provider.rpm"), (btn, val) -> {
-                    if (!val.equals(CUSTOM_INT)) pending.setProviderMaxRequestsPerMinute(endpoint, val);
+                    rpmCustomMode = val.equals(CUSTOM_INT);
+                    if (!rpmCustomMode) pending.setProviderMaxRequestsPerMinute(endpoint, val);
                     refreshOptions();
                 });
         list.addSmall(new StringWidget(Component.translatable(P + "provider.rpm"), font).alignLeft(), rpmButton);
 
-        if (selection == CUSTOM_INT) {
+        if (showCustom) {
             EditBox rpmBox = new EditBox(font, 150, 20, Component.translatable(P + "provider.rpm"));
             rpmBox.setMaxLength(9);
             rpmBox.setValue(String.valueOf(current));

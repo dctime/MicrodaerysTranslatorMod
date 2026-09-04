@@ -90,9 +90,9 @@ public class LanguageProvider extends net.neoforged.neoforge.common.data.Languag
         add(p + "provider.configure", "Configure");
         add(p + "provider.enabled", "Enabled");
         add(p + "provider.priority", "Priority");
-        add(p + "provider.priority.tooltip", "Lower number = tried first in Priority mode, and a light tiebreaker in Automatic mode. 1 = highest. Most players never need to change this.");
+        add(p + "provider.priority.tooltip", "Lower number = tried first in Priority mode, and a light tiebreaker in Automatic mode. 1 = highest. Most players never need to change this. Click cycles up (wraps around); Shift+Click cycles back down.");
         add(p + "provider.rpm", "Requests per Minute (this provider)");
-        add(p + "provider.rpm.tooltip", "This mod's suggested starting point for this provider's free tier -- not an official quota guarantee. Set this to match your own account's actual rate limit.");
+        add(p + "provider.rpm.tooltip", "This mod's suggested starting point for this provider's free tier -- not an official quota guarantee. Set this to match your own account's actual rate limit. Click cycles up (wraps around); Shift+Click cycles back down.");
         add(p + "provider.status", "Status");
         add(p + "provider.status.ready", "Ready");
         add(p + "provider.status.rate_limited", "Rate limited (%ss)");
@@ -170,7 +170,7 @@ public class LanguageProvider extends net.neoforged.neoforge.common.data.Languag
         add(p + "timeout.seconds", "%s sec");
         add(p + "timeout.custom", "Custom: %s sec");
         add(p + "rpm", "Requests per Minute");
-        add(p + "rpm.tooltip", "Limits how many AI translation requests can be sent within 60 seconds. Lower this value if your provider returns HTTP 429.");
+        add(p + "rpm.tooltip", "Limits how many AI translation requests can be sent within 60 seconds. Lower this value if your provider returns HTTP 429. Click cycles up (wraps around); Shift+Click cycles back down.");
         add(p + "rpm.custom", "Custom: %s");
 
         add(p + "section.cache", "Cache");

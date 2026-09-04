@@ -74,9 +74,9 @@ public class LanguageProviderZhTw extends net.neoforged.neoforge.common.data.Lan
         add(p + "provider.configure", "設定");
         add(p + "provider.enabled", "啟用");
         add(p + "provider.priority", "優先順序");
-        add(p + "provider.priority.tooltip", "數字越小越優先：Priority 模式會先嘗試它，Automatic 模式會把它當作次要參考。1 為最高優先，大多數玩家不需要更動這個值。");
+        add(p + "provider.priority.tooltip", "數字越小越優先：Priority 模式會先嘗試它，Automatic 模式會把它當作次要參考。1 為最高優先，大多數玩家不需要更動這個值。點擊會往上循環（到底會繞回最小值）；按住 Shift 點擊可以往回調小。");
         add(p + "provider.rpm", "每分鐘請求數（此 provider）");
-        add(p + "provider.rpm.tooltip", "這是本模組建議的起始值，不是官方保證的額度 -- 請依照你自己帳號實際的速率限制調整。");
+        add(p + "provider.rpm.tooltip", "這是本模組建議的起始值，不是官方保證的額度 -- 請依照你自己帳號實際的速率限制調整。點擊會往上循環（到底會繞回最小值）；按住 Shift 點擊可以往回調小。");
         add(p + "provider.status", "狀態");
         add(p + "provider.status.ready", "就緒");
         add(p + "provider.status.rate_limited", "已達速率限制（%s 秒）");
@@ -154,7 +154,7 @@ public class LanguageProviderZhTw extends net.neoforged.neoforge.common.data.Lan
         add(p + "timeout.seconds", "%s 秒");
         add(p + "timeout.custom", "自訂：%s 秒");
         add(p + "rpm", "每分鐘請求數");
-        add(p + "rpm.tooltip", "限制 60 秒內最多能送出幾次 AI 翻譯請求。如果你的供應商回傳 HTTP 429，請調低這個數字。");
+        add(p + "rpm.tooltip", "限制 60 秒內最多能送出幾次 AI 翻譯請求。如果你的供應商回傳 HTTP 429，請調低這個數字。點擊會往上循環（到底會繞回最小值）；按住 Shift 點擊可以往回調小。");
         add(p + "rpm.custom", "自訂：%s");
 
         add(p + "section.cache", "快取");
