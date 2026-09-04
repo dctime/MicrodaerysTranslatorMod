@@ -36,22 +36,23 @@ public class TestTooltipCollectedCallback implements JadeTooltipCollectedCallbac
                 }
             }
 
-            if (!Translator.textInCache(lineMsg)) {
-                try {
-                    if (jadeIndex != 0) {
-                        Translator.requestTranslateToTraditionalChinese(lineMsg);
-                    } else {
-                        Translator.requestTranslateItemStackToTraditionalChinese(lineMsg, stack);
-                    }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                continue;
-            }
+            // same short-circuit chain as the vanilla inventory tooltip (RenderTooltipEvent) --
+            // see Translator#resolveOrRequestTranslation's javadoc for why this used to be
+            // missing here (#20): a plain "Minecraft"/"FTB Quests" mod-name line, or any vanilla
+            // item/enchantment/attribute-modifier line, was always sent to the AI when hovered
+            // via Jade even though the exact same line already skipped the AI when hovered from
+            // an inventory slot.
+            if (Translator.isModNameLine(stack, lineMsg)) continue;
 
-            iBoxElement.getTooltip().append(jadeIndex, new TextElement(Component.literal(" " + Translator.getTranslationFromCache(lineMsg)).withStyle(Translator.translatedStyle)));
+            String translated;
+            try {
+                translated = Translator.resolveOrRequestTranslation(stack, lineMsg, jadeIndex == 0);
+            } catch (IOException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            if (translated == null) continue; // nothing available this frame (AI request may be in flight)
+
+            iBoxElement.getTooltip().append(jadeIndex, new TextElement(Component.literal(" " + translated).withStyle(Translator.translatedStyle)));
         }
 
     }

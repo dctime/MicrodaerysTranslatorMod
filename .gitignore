@@ -24,3 +24,7 @@ runs
 run-data
 
 repo
+
+# NeoForge datagen's own hash cache -- internal incremental-build bookkeeping, not a game asset.
+# The actual generated resources (src/generated/resources/assets/) ARE meant to be committed.
+src/generated/resources/.cache/

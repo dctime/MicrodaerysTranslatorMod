@@ -86,6 +86,8 @@ public class ScreenShotSelectAreaScreen extends Screen implements GuiEventListen
     @Override
     public void onClose() {
         super.onClose();
+        Minecraft.getInstance().getTextureManager().release(tempImageResourceLocation);
+        tempImage.close();
         Minecraft.getInstance().setScreen(oldScreen);
     }
 
@@ -115,20 +117,25 @@ public class ScreenShotSelectAreaScreen extends Screen implements GuiEventListen
         int endX = (int) (Math.max(mouseX1, mouseX2)*scaledToWindowWidthRatio);
         int endY = (int) (Math.max(mouseY1, mouseY2)*scaledToWindowHeightRatio);
 
-        NativeImage cropTempImage = new NativeImage(NativeImage.Format.RGBA, endX-startX, endY-startY, false);
-        tempImage.copyRect(cropTempImage, startX, startY, 0, 0, endX-startX, endY-startY, false, false);
-        System.out.println("CropTempImage Size: w:" + cropTempImage.getWidth() + "h: " + cropTempImage.getHeight());
-        try {
+        if (endX <= startX || endY <= startY) {
+            if (Minecraft.getInstance().player != null) {
+                Minecraft.getInstance().player.sendSystemMessage(Component.literal("選取範圍太小，已取消截圖翻譯。").withStyle(ChatFormatting.YELLOW));
+            }
+            return;
+        }
+
+        try (NativeImage cropTempImage = new NativeImage(NativeImage.Format.RGBA, endX-startX, endY-startY, false)) {
+            tempImage.copyRect(cropTempImage, startX, startY, 0, 0, endX-startX, endY-startY, false, false);
+            System.out.println("CropTempImage Size: w:" + cropTempImage.getWidth() + "h: " + cropTempImage.getHeight());
             tempBase64Image = ScreenShotter.pixelsToBase64(cropTempImage.getPixelsRGBA(), cropTempImage.getWidth(), cropTempImage.getHeight());
         } catch (Exception e) {
             if (Minecraft.getInstance().player != null) {
                 Minecraft.getInstance().player.sendSystemMessage(Component.literal("螢幕截圖檔案無法翻成Base64" + e.getMessage()).withStyle(ChatFormatting.RED));
             }
-//            System.out.println("Error processing image: " + e.getMessage());
-//            tempBase64Image = null;
+            return;
         }
 
-        if (Translator.translating) {
+        if (Translator.screenshotTranslating) {
             if (Minecraft.getInstance().player != null) {
                 Minecraft.getInstance().player.sendSystemMessage(Component.literal("翻譯器正在忙碌中，請稍後再截圖。").withStyle(ChatFormatting.YELLOW));
                 ScreenEventRender.setRenderText("翻譯器正在忙碌中，請稍後再截圖。");
