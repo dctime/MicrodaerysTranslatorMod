@@ -29,25 +29,18 @@ public class RenderTooltipEvent {
             int finalI = i;
             e.ifLeft(text -> {
                 String original = text.getString();
+                if (Translator.isModNameLine(stack, original)) return; // "Minecraft"/"FTB Quests": leave untouched, don't waste an AI call on a brand name
                 String translated;
-                if (Translator.textInCache(original))
-                    translated = Translator.getTranslationFromCache(original);
-                else {
-                    try {
-                        if (finalI != 0) {
-                            Translator.requestTranslateToTraditionalChinese(original);
-                        } else {
-                            Translator.requestTranslateItemStackToTraditionalChinese(original, stack);
-                        }
-                    } catch (IOException ex) {
-                        LOGGER.warn("IO Exception while translating: " + ex.getMessage());
-                    } catch (InterruptedException ex) {
-                        LOGGER.warn("Interrupted Exception while translating: " + ex.getMessage());
-                    }
+                try {
+                    translated = Translator.resolveOrRequestTranslation(stack, original, finalI == 0);
+                } catch (IOException ex) {
+                    LOGGER.warn("IO Exception while translating: " + ex.getMessage());
                     return;
-//                    if (translated == null) return;
-//                    translationCache.put(original, translated);
+                } catch (InterruptedException ex) {
+                    LOGGER.warn("Interrupted Exception while translating: " + ex.getMessage());
+                    return;
                 }
+                if (translated == null) return; // nothing available this frame (AI request may be in flight)
                 Component replaced;
 
                 if (text instanceof Component textComponent)

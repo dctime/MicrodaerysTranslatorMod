@@ -1,9 +1,11 @@
 package net.github.dctime;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import net.github.dctime.libs.routing.ProviderMode;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -12,6 +14,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
+import javax.annotation.Nullable;
+
 /**
  * Example config class for the translation mod.
  * 使用 NeoForge 的設定 API，集中管理模組設定。
@@ -19,16 +23,48 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 public class Config {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
+    // Appended-only: existing values keep their exact name and position (NeoForge's EnumValue
+    // persists by name() string in TOML, so appending is back-compat safe for existing player
+    // configs; renaming or reordering GOOGLE_AI_STUDIO/OLLAMA/MISTRAL would not be).
     public enum EndPoint {
         GOOGLE_AI_STUDIO,
         OLLAMA,
-        MISTRAL
+        MISTRAL,
+        NVIDIA_NIM,
+        GROQ,
+        OPENROUTER,
+        DEEPSEEK,
+        CEREBRAS,
+        ANTHROPIC,
+        OPENAI,
+        CUSTOM
     }
 
+    // Default changed from MISTRAL to GOOGLE_AI_STUDIO (deliberate, per an explicit user request
+    // this round, not test residue) -- before touching this default again, re-check the commit
+    // 4df36bb downgrade-behavior table: it documents "endpoint resets to MISTRAL on downgrade" for
+    // the OLD jar's default, which this change doesn't invalidate (an old jar's own compiled-in
+    // default doesn't change), but any FUTURE default change here should get the same cross-check.
     public static final String ENDPOINT_CONFIG_PATH = "endpoint";
     public static final ModConfigSpec.EnumValue<EndPoint> ENDPOINT_CONFIG = BUILDER
-            .comment("[選哪個Endpoint] (預設 Google AI studio) Which Endpoint")
-            .defineEnum(ENDPOINT_CONFIG_PATH, EndPoint.MISTRAL);
+            .comment("[選哪個Endpoint] (預設 Google AI studio) Which Endpoint\n" +
+                    "只有 provider_mode = SINGLE 時才會被使用；其他模式看下面各 provider 自己的 enabled/priority。")
+            .defineEnum(ENDPOINT_CONFIG_PATH, EndPoint.GOOGLE_AI_STUDIO);
+
+    // Multi-Provider Router (added for the router refactor). SINGLE keeps the pre-router behavior
+    // byte-for-byte (exactly one provider, zero fallback) -- an existing player is migrated to
+    // SINGLE, never silently switched into a mode with different failure behavior (see
+    // MicrodaerysTranslatorClient's one-time migration, gated by a file marker, not a TOML key --
+    // see libs/ProviderMigrationMarker's javadoc for why). AUTOMATIC is the default for a genuinely
+    // fresh install only.
+    public static final String PROVIDER_MODE_PATH = "provider_mode";
+    public static final ModConfigSpec.EnumValue<ProviderMode> PROVIDER_MODE = BUILDER
+            .comment("[多 Provider 路由模式] (新安裝預設 AUTOMATIC，既有玩家升級後會被遷移成 SINGLE)\n" +
+                    "SINGLE: 完全比照舊版行為，只用 endpoint 指定的那個 provider，失敗不 fallback。\n" +
+                    "PRIORITY: 依照下面每個 provider 的 priority 由小到大嘗試，前面的失敗才會 fallback 到下一個。\n" +
+                    "ROUND_ROBIN: 在所有啟用且可用的 provider 之間輪流。\n" +
+                    "AUTOMATIC: 依照即時負載/失敗紀錄/延遲/priority 自動評分挑選，同時仍會在暫時性失敗時 fallback。")
+            .defineEnum(PROVIDER_MODE_PATH, ProviderMode.AUTOMATIC);
 
     // === Basic keys for Google AI Studio ===
     public static final String API_KEY_PATH = "api_key";
@@ -45,41 +81,47 @@ public class Config {
                     "4. 同意聲明：填入金鑰即代表您知悉上述資料流向，並同意提供者的服務條款。\n")
             .define(API_KEY_PATH, "");
 
+    // Default changed from "mistral-small-latest" to "gemini-3.5-flash-lite" alongside
+    // ENDPOINT_CONFIG's default above -- follow-on fix, not independent: ProviderConfigResolver's
+    // legacy-fallback applies this value to whichever provider ENDPOINT_CONFIG currently names, so
+    // leaving the old Mistral model id here would have shown "Custom..." with a Mistral model under
+    // a Google-default install. Same downgrade-table cross-check note as ENDPOINT_CONFIG above.
     public static final String MODEL_NAME_PATH = "model_name";
     public static final ModConfigSpec.ConfigValue<String> MODEL_NAME = BUILDER
             .comment("The model name to use for translation [使用的模型]\n" +
-                    "(Google 有 gemma-3-4b-it, Mistral 有 mistral-small-latest, ollama 要看你載什麼模型)")
-            .define(MODEL_NAME_PATH, "mistral-small-latest");
+                    "(Google 有 gemini-3.5-flash-lite, Mistral 有 mistral-small-latest, ollama 要看你載什麼模型)")
+            .define(MODEL_NAME_PATH, "gemini-3.5-flash-lite");
+
+    public static final String FOLLOW_GAME_LANGUAGE_PATH = "follow_game_language";
+    public static final ModConfigSpec.BooleanValue FOLLOW_GAME_LANGUAGE = BUILDER
+            .comment("[翻譯目標語言是否跟隨遊戲本身選擇的語言] (預設 true)\n" +
+                    "開啟時忽略 target_language，改用遊戲選項裡目前選擇的語言；關閉時才用下面 target_language 手動指定。")
+            .define(FOLLOW_GAME_LANGUAGE_PATH, true);
+
+    public static final String TARGET_LANGUAGE_PATH = "target_language";
+    public static final ModConfigSpec.ConfigValue<String> TARGET_LANGUAGE = BUILDER
+            .comment("[翻譯輸出的目標語言] (預設 zh_tw) Target language for translation output\n" +
+                    "只有 follow_game_language 關閉時才會用到這個值。\n" +
+                    "代碼格式跟遊戲語言選項一致(底線+地區碼): zh_tw(繁體中文), zh_cn(简体中文), ja_jp(日文), en_us(English)。\n" +
+                    "其他代碼一樣可以填，只是「原文已經是目標語言就跳過翻譯」這個偵測跟官方翻譯表都不會生效，Prompt 的語言名稱也會直接顯示代碼本身。")
+            .define(TARGET_LANGUAGE_PATH, "zh_tw");
 
     // === Prompt tailored for Minecraft/mod tone (ASCII-safe, no fancy quotes) ===
     public static final String PROMPT_PATH = "prompt";
     public static final ModConfigSpec.ConfigValue<String> PROMPT = BUILDER
             .comment("The prompt to use for translation [翻譯時使用的提示語]\n" +
-                    "貼近 Minecraft/模組語氣。保留佔位符與格式。不腦補。僅輸出翻譯文字。")
-            .define(PROMPT_PATH,
-                    "只回繁體中文的翻譯，不要多字、不要解釋。\n" +
-                    "遵守：\n" +
-                    "不翻譯：模組/方塊/物品 ID、路徑、Key、Tag、檔名、指令(/give 等)、進度代碼、顏色/格式碼(§ 或 &)\n" +
-                    "名詞遵循遊戲慣用：block=方塊、slab=半磚、stairs=樓梯、planks=木材、log=原木、ore=礦石、ingot=錠、nugget=金粒、dye=染料、bucket=桶、stack=堆疊、craft=合成、smelt=熔煉、furnace=熔爐、blast furnace=高爐、smoker=煙燻爐、enchant=附魔、anvil=鐵砧、loot=戰利品、biome=生態域\n" +
-                    "優先使用《Minecraft》繁中(zh_tw)官方譯名；無官方譯名則用台灣社群慣用語。\n" +
-                    "字面直譯、保持簡潔；不要加背景、不要腦補。\n" +
-                    "標點與大小寫盡量貼近原風格(專有名詞維持大小寫) 不要加句號。\n" +
-                    "待翻譯：\n"
-            );
+                    "留空(預設) = 依目標語言自動選擇內建的原生語言 prompt(每個語言各自一份，用該語言本身撰寫，不是同一份中文範本換語言名稱)。\n" +
+                    "填了任何內容 = 不論目標語言是什麼，一律使用這份自訂文字(%s 會換成目標語言名稱)，即向下相容舊版設定。\n" +
+                    "注意：NeoForge 的設定檔只有在這個 key 不存在時才會寫入新預設值；如果你在這次更新前就啟動過遊戲，這裡通常已經被寫入舊版的預設文字。" +
+                    "這個 mod 認得幾個已知的舊版預設值，會自動當成留空處理，不用手動清空；只有你真的自己改過、寫過自訂內容時，才需要手動把這個值清空才能改用新版內建 prompt。")
+            .define(PROMPT_PATH, "");
 
     public static final String PROMPT_SCREENSHOT_PATH = "prompt_screenshot";
     public static final ModConfigSpec.ConfigValue<String> PROMPT_SCREENSHOT = BUILDER
-            .comment("The prompt to use for translation screenshots [翻譯螢幕截圖時使用的提示語]\n")
-            .define(PROMPT_SCREENSHOT_PATH,
-                    """
-                    請在圖片上找到所有的英文(不包含沒有英文的數字)並且翻譯成繁體中文
-                    
-                    翻譯的格式為
-                    畫面簡介:xxx\\n
-                    xxx/xxx\\n(原文英文1/中文1)(括號裡不需要顯示)
-                    xxx/xxx\\n(原文英文2/中文2)(括號裡不需要顯示)
-                    """
-            );
+            .comment("The prompt to use for translation screenshots [翻譯螢幕截圖時使用的提示語]\n" +
+                    "留空(預設) = 依目標語言自動選擇內建的原生語言 prompt；填了內容 = 對所有語言套用這份自訂文字，同上一項 prompt 的規則。\n" +
+                    "已知的舊版預設值一樣會被自動辨識、當成留空處理，不用手動清空。")
+            .define(PROMPT_SCREENSHOT_PATH, "");
 //
 //    // (Optional) 更嚴格版本：要求只輸出純文字一行，避免代碼框/前後空白
 //    public static final ModConfigSpec.ConfigValue<String> PROMPT_STRICT = BUILDER
@@ -97,6 +139,24 @@ public class Config {
     public static final ModConfigSpec.ConfigValue<Integer> TIMEOUT_DURATION_CONFIG = BUILDER
             .comment("[timeout時間] (預設 30) Timeout Duration in seconds")
             .define(TIMEOUT_DURATION_CONFIG_PATH, 30);
+
+    // Repurposed for the router refactor (semantics preserved, layering changed): this used to be
+    // the ONLY per-minute throttle, applied per translated text against whichever single provider
+    // was active. Now that each provider also has its OWN max_requests_per_minute (see
+    // defineProvider below), this key is the GLOBAL safety ceiling sitting on top of all of them
+    // combined (see TranslationRouter's GLOBAL_RATE_LIMITER) -- it still means exactly "requests
+    // per rolling 60 seconds", just measured across every provider together now, not one provider
+    // alone. A skipped request is still dropped, not queued, exactly as before.
+    public static final String MAX_REQUESTS_PER_MINUTE_PATH = "max_requests_per_minute";
+    public static final ModConfigSpec.IntValue MAX_REQUESTS_PER_MINUTE = BUILDER
+            .comment("[全域每分鐘最多送出幾次翻譯請求，跨所有 provider 加總] (預設 10) Global max translation requests " +
+                    "sent per rolling 60 seconds, summed across every provider combined.\n" +
+                    "只限制「同時併發數」(見原始碼裡的 Semaphore) 擋不住免費 API tier 常見的每分鐘總次數限制(RPM)——" +
+                    "開一個很多沒快取物品的容器，併發數補滿又補滿，短時間內一樣會超過。這裡是真正的每分鐘節流器，" +
+                    "超過額度的請求會被跳過、等下一次(下一幀/下一次 hover/容器還開著的下一個 tick)自然重試，不會排隊等待。\n" +
+                    "這是一個安全上限，疊加在每個 provider 各自的 max_requests_per_minute 之上——多開幾家 provider " +
+                    "不代表全域總量可以無限往上疊，請依你實際的整體使用量調整這個數字。")
+            .defineInRange(MAX_REQUESTS_PER_MINUTE_PATH, 10, 1, Integer.MAX_VALUE);
 
     public static final String FEATURE_TOGGLE_PATH = "feature_toggle";
 
@@ -141,6 +201,12 @@ public class Config {
             .comment("[翻譯中是否在遊戲畫面顯示動畫] (預設 true) Whether to show animation on GUI when translating")
             .define(ENABLE_TRANSLATING_ANIMATION_CONFIG_PATH, true);
 
+    public static final String ENABLE_PRETRANSLATE_CONTAINERS_PATH = "enable_pretranslate_containers";
+    public static final ModConfigSpec.BooleanValue ENABLE_PRETRANSLATE_CONTAINERS = BUILDER
+            .comment("[開啟儲物箱/合成桌等容器畫面時是否預先翻譯裡面的物品] (預設 true)\n" +
+                    "Whether to proactively translate items inside an open container screen (chest, crafting table, etc.) instead of only translating on hover.")
+            .define(ENABLE_PRETRANSLATE_CONTAINERS_PATH, true);
+
 
     static {
         BUILDER.pop();
@@ -152,7 +218,143 @@ public class Config {
     //         .comment("A list of items to log on common setup.")
     //         .defineListAllowEmpty("items", List.of("minecraft:iron_ingot"), () -> "", Config::validateItemName);
 
+    // === Per-provider settings (added for the 11-provider expansion) ===
+    //
+    // API_KEY/MODEL_NAME above are the LEGACY flat keys: one shared pair used by whichever
+    // provider was active, from back when this mod only supported Google/Mistral/Ollama. They are
+    // kept exactly as-is -- still defined, still readable, still writable -- purely so an existing
+    // player's TOML keeps parsing. They are never read again by new provider-selection logic except
+    // as a one-time migration fallback (see PendingTranslatorConfig.loadFromConfig()); the new code
+    // path always resolves settings through PROVIDER_KEYS below instead.
+    //
+    // Each provider (except Ollama, which needs no key, and Custom, which has a different shape)
+    // gets its own top-level TOML table holding an independent api_key + model pair, so switching
+    // providers never overwrites another provider's saved credentials -- this is the actual fix for
+    // the "switch Google -> Groq -> Google, Google's key is gone" bug this refactor exists to close.
+    // enabled/priority/max_requests_per_minute added for the router refactor. All three are
+    // ordinary persisted TOML values (NOT runtime state -- see ProviderRuntimeState's javadoc for
+    // why in-flight/cooldown/failure counts deliberately live only in memory, never here).
+    // max_requests_per_minute's default is this mod's OWN suggested starting point, not a claimed
+    // official quota -- providers change their free-tier limits over time and vary by account tier;
+    // each field's comment says so explicitly so a player knows to match it to their own account.
+    public record ProviderConfigKeys(@Nullable ModConfigSpec.ConfigValue<String> apiKey,
+                                      ModConfigSpec.ConfigValue<String> model,
+                                      ModConfigSpec.BooleanValue enabled,
+                                      ModConfigSpec.IntValue priority,
+                                      ModConfigSpec.IntValue maxRequestsPerMinute) {
+    }
+
+    private static ProviderConfigKeys defineProvider(String sectionKey, boolean withApiKey,
+                                                       boolean defaultEnabled, int defaultPriority,
+                                                       int defaultRpm) {
+        BUILDER.push(sectionKey);
+        ModConfigSpec.ConfigValue<String> apiKey = withApiKey
+                ? BUILDER.comment("API key for this provider. Sent only to this provider's own endpoint, never logged.")
+                        .define("api_key", "")
+                : null;
+        ModConfigSpec.ConfigValue<String> model = BUILDER
+                .comment("Model id to use with this provider.")
+                .define("model", "");
+        ModConfigSpec.BooleanValue enabled = BUILDER
+                .comment("Whether this provider participates in routing (ignored in SINGLE mode, which only " +
+                        "ever uses the endpoint above). A provider with no API key saved is never actually " +
+                        "attempted even if this is true.")
+                .define("enabled", defaultEnabled);
+        ModConfigSpec.IntValue priority = BUILDER
+                .comment("Lower number = tried first in PRIORITY mode, and a small bias (not a hard rule) in " +
+                        "AUTOMATIC mode. 1 = highest. Most players never need to change this.")
+                .defineInRange("priority", defaultPriority, 1, 11);
+        ModConfigSpec.IntValue maxRequestsPerMinute = BUILDER
+                .comment("This mod's suggested starting point for this provider's free tier -- not an official " +
+                        "quota guarantee. Set this to match your own account's actual rate limit.")
+                .defineInRange("max_requests_per_minute", defaultRpm, 1, Integer.MAX_VALUE);
+        BUILDER.pop();
+        return new ProviderConfigKeys(apiKey, model, enabled, priority, maxRequestsPerMinute);
+    }
+
+    // Default-enabled table and RPM suggestions per the router spec: Google/NVIDIA/Groq/OpenRouter
+    // start enabled (a reasonable free-tier-friendly default pool for a brand new install), the
+    // rest start disabled so a fresh install doesn't silently start sending requests to providers
+    // the player never configured. Priority defaults match ProviderInfo.ALL's existing order.
+    public static final ProviderConfigKeys PROVIDER_GOOGLE = defineProvider("google", true, true, 1, 10);
+    public static final ProviderConfigKeys PROVIDER_NVIDIA = defineProvider("nvidia", true, true, 2, 30);
+    public static final ProviderConfigKeys PROVIDER_GROQ = defineProvider("groq", true, true, 3, 30);
+    public static final ProviderConfigKeys PROVIDER_OPENROUTER = defineProvider("openrouter", true, true, 4, 20);
+    public static final ProviderConfigKeys PROVIDER_MISTRAL = defineProvider("mistral", true, false, 5, 10);
+    public static final ProviderConfigKeys PROVIDER_DEEPSEEK = defineProvider("deepseek", true, false, 6, 10);
+    public static final ProviderConfigKeys PROVIDER_CEREBRAS = defineProvider("cerebras", true, false, 7, 20);
+    public static final ProviderConfigKeys PROVIDER_ANTHROPIC = defineProvider("anthropic", true, false, 8, 10);
+    public static final ProviderConfigKeys PROVIDER_OPENAI = defineProvider("openai", true, false, 9, 10);
+    public static final ProviderConfigKeys PROVIDER_OLLAMA = defineProvider("ollama", false, false, 10, 60);
+
+    // Custom Provider has a different shape (base URL / auth mode / vision toggle instead of a
+    // curated model list), so it isn't built through defineProvider() / PROVIDER_KEYS.
+    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_NAME;
+    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_BASE_URL;
+    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_API_KEY;
+    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_MODEL;
+    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_AUTH_MODE;
+    public static final ModConfigSpec.BooleanValue CUSTOM_PROVIDER_SUPPORTS_VISION;
+    public static final ModConfigSpec.BooleanValue CUSTOM_PROVIDER_ENABLED;
+    public static final ModConfigSpec.IntValue CUSTOM_PROVIDER_PRIORITY;
+    public static final ModConfigSpec.IntValue CUSTOM_PROVIDER_MAX_REQUESTS_PER_MINUTE;
+
+    static {
+        BUILDER.push("custom");
+        CUSTOM_PROVIDER_NAME = BUILDER.comment("Display name for this custom provider.").define("name", "");
+        CUSTOM_PROVIDER_BASE_URL = BUILDER
+                .comment("OpenAI-compatible base URL, e.g. http://localhost:8000/v1 -- plain http:// is allowed " +
+                        "on purpose (local/LAN servers like vLLM or LM Studio commonly have no TLS).")
+                .define("base_url", "");
+        CUSTOM_PROVIDER_API_KEY = BUILDER
+                .comment("API key for this custom endpoint. Sent only to the base URL above, never logged.")
+                .define("api_key", "");
+        CUSTOM_PROVIDER_MODEL = BUILDER.comment("Model id for this custom endpoint.").define("model", "");
+        CUSTOM_PROVIDER_AUTH_MODE = BUILDER
+                .comment("BEARER (send \"Authorization: Bearer <api_key>\") or NONE (send no Authorization header).")
+                .define("auth_mode", "BEARER");
+        CUSTOM_PROVIDER_SUPPORTS_VISION = BUILDER
+                .comment("Whether this custom endpoint's model accepts image input.")
+                .define("supports_vision", false);
+        CUSTOM_PROVIDER_ENABLED = BUILDER
+                .comment("Whether this custom provider participates in routing (ignored in SINGLE mode). " +
+                        "Never actually attempted if base_url is blank, even if this is true.")
+                .define("enabled", false);
+        CUSTOM_PROVIDER_PRIORITY = BUILDER
+                .comment("Lower number = tried first in PRIORITY mode, and a small bias in AUTOMATIC mode.")
+                .defineInRange("priority", 11, 1, 11);
+        CUSTOM_PROVIDER_MAX_REQUESTS_PER_MINUTE = BUILDER
+                .comment("This mod's suggested starting point -- set this to match your own server's actual limit.")
+                .defineInRange("max_requests_per_minute", 10, 1, Integer.MAX_VALUE);
+        BUILDER.pop();
+    }
+
+    /** Every built-in provider except {@link EndPoint#CUSTOM} (different shape, see fields above). */
+    public static final Map<EndPoint, ProviderConfigKeys> PROVIDER_KEYS = Map.ofEntries(
+            Map.entry(EndPoint.GOOGLE_AI_STUDIO, PROVIDER_GOOGLE),
+            Map.entry(EndPoint.NVIDIA_NIM, PROVIDER_NVIDIA),
+            Map.entry(EndPoint.GROQ, PROVIDER_GROQ),
+            Map.entry(EndPoint.OPENROUTER, PROVIDER_OPENROUTER),
+            Map.entry(EndPoint.MISTRAL, PROVIDER_MISTRAL),
+            Map.entry(EndPoint.DEEPSEEK, PROVIDER_DEEPSEEK),
+            Map.entry(EndPoint.CEREBRAS, PROVIDER_CEREBRAS),
+            Map.entry(EndPoint.ANTHROPIC, PROVIDER_ANTHROPIC),
+            Map.entry(EndPoint.OPENAI, PROVIDER_OPENAI),
+            Map.entry(EndPoint.OLLAMA, PROVIDER_OLLAMA)
+    );
+
     static final ModConfigSpec SPEC = BUILDER.build();
+
+    /**
+     * Persists the current in-memory values to the client TOML file. {@code SPEC} itself is
+     * package-private (only {@link MicrodaerysTranslatorClient} needs it, to register the config),
+     * so screen/UI code in other packages needs this instead of reaching for {@code SPEC.save()}
+     * directly. Mirrors what NeoForge's own ConfigurationScreen does on close
+     * (ConfigurationSectionScreen#onClose -> context.modSpec.save()).
+     */
+    public static void save() {
+        SPEC.save();
+    }
 
     private static boolean validateItemName(final Object obj) {
         return obj instanceof String itemName && BuiltInRegistries.ITEM.containsKey(ResourceLocation.parse(itemName));

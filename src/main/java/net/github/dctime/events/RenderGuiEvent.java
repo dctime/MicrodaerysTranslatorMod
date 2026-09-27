@@ -55,7 +55,7 @@ public class RenderGuiEvent {
     @SubscribeEvent
     public static void onRenderGui(net.neoforged.neoforge.client.event.RenderGuiEvent.Post event) {
         if (!Config.ENABLE_TRANSLATING_ANIMATION_CONFIG.get()) return;
-        if (Translator.translating)
+        if (Translator.isTranslating())
             thinkingAnimation(event);
     }
 }

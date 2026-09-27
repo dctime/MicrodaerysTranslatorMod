@@ -85,25 +85,29 @@ public class ScreenShotter {
     public static String getItemStackImage(ItemStack stack) {
         TextureTarget target = new TextureTarget(64, 64, false, ON_OSX);
 
-        target.bindWrite(true);
-
-        RenderSystem.setProjectionMatrix(
-                new Matrix4f().setOrtho(0, 16, 16, 0, -1000, 1000),
-                VertexSorting.ORTHOGRAPHIC_Z
-        );
-
-        renderItem(stack, 0, 0);
-
-        NativeImage image = Screenshot.takeScreenshot(target);
-        Minecraft.getInstance().getMainRenderTarget().bindWrite(true);
-        convertBGRAtoRGBA(image);
         try {
-            String stringImage = ScreenShotter.pixelsToBase64(image.getPixelsRGBA(), image.getWidth(), image.getHeight());
-            return stringImage;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+            target.bindWrite(true);
 
+            RenderSystem.setProjectionMatrix(
+                    new Matrix4f().setOrtho(0, 16, 16, 0, -1000, 1000),
+                    VertexSorting.ORTHOGRAPHIC_Z
+            );
+
+            renderItem(stack, 0, 0);
+
+            NativeImage image = Screenshot.takeScreenshot(target);
+            Minecraft.getInstance().getMainRenderTarget().bindWrite(true);
+            convertBGRAtoRGBA(image);
+            try {
+                return ScreenShotter.pixelsToBase64(image.getPixelsRGBA(), image.getWidth(), image.getHeight());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            } finally {
+                image.close();
+            }
+        } finally {
+            target.destroyBuffers();
+        }
     }
 
     public static void convertBGRAtoRGBA(NativeImage img) {
