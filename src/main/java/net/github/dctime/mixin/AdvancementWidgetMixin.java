@@ -105,7 +105,9 @@ public abstract class AdvancementWidgetMixin {
         AtomicReference<String> titleOriginalText = new AtomicReference<>("");
         title.accept((var1, var2, var3) -> {
 //            System.out.println("var1: " + var1 + ", var2: " + var2 + ", var3: " + var3);
-            if (var3 == '"') titleOriginalText.set(titleOriginalText.get() + '\\');
+            // no manual '\\' before '"' any more: every request builder already runs the prompt
+            // through JsonUtil.escapeJson, so the extra backslash was double-escaped into the AI
+            // input and the cache key (and diverged from BetterAdvancementWidgetMixin's raw-title key).
             titleOriginalText.set(titleOriginalText.get() + (char) var3);
             return true;
         });
