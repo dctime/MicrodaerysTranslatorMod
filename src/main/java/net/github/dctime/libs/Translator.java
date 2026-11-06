@@ -524,7 +524,11 @@ public class Translator {
     }
 
     public static void requestTranslateItemStackToTraditionalChinese(String textInEnglish, ItemStack stack) throws IOException, InterruptedException {
-        if (stack != null && !IN_FLIGHT.contains(keyFor(textInEnglish)) && Config.ENABLE_ICON_CONFIG.get()) {
+        // !isEmpty(): GuiGraphics.renderComponentTooltip(Font, List<Component>, x, y) fires
+        // GatherComponents with ItemStack.EMPTY (e.g. vanilla's SHOW_ENTITY chat hover on a death
+        // message's killer name), and line 0 lands here -- that used to render an empty stack into
+        // a fully transparent 64x64 PNG and send it to a vision provider as the "item icon".
+        if (stack != null && !stack.isEmpty() && !IN_FLIGHT.contains(keyFor(textInEnglish)) && Config.ENABLE_ICON_CONFIG.get()) {
             if (!TranslationRouter.hasGlobalCapacityNow()) return; // E3: don't render an icon for a job the router will drop
             RenderSystem.recordRenderCall(() -> {
                 String image = getItemStackImage(stack);
