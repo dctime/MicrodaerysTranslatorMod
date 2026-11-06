@@ -334,12 +334,14 @@ public class PendingTranslatorConfig {
     }
 
     private static String credentialsOf(Config.EndPoint ep) {
+        // model included (R4): a 403 can mean "this key has no access to this model" (Anthropic
+        // permission_error, OpenAI project scopes), which switching model alone fixes.
         if (ep == Config.EndPoint.CUSTOM) {
             return Config.CUSTOM_PROVIDER_API_KEY.get() + "\n" + Config.CUSTOM_PROVIDER_BASE_URL.get()
-                    + "\n" + Config.CUSTOM_PROVIDER_AUTH_MODE.get();
+                    + "\n" + Config.CUSTOM_PROVIDER_AUTH_MODE.get() + "\n" + Config.CUSTOM_PROVIDER_MODEL.get();
         }
         Config.ProviderConfigKeys keys = Config.PROVIDER_KEYS.get(ep);
-        return keys.apiKey() == null ? "" : keys.apiKey().get();
+        return (keys.apiKey() == null ? "" : keys.apiKey().get()) + "\n" + keys.model().get();
     }
 
     public void saveToConfig() {
