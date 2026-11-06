@@ -76,9 +76,10 @@ public abstract class BetterAdvancementWidgetMixin {
     private String translatedTitle;
     private int tempMaxWidth;
 
+    // Better Advancements for 1.16.5/1.18.2 already returns visual-order lines here (no separate
+    // LanguageMap.getVisualOrder step needed), unlike the List<FormattedText> of later versions.
     @Shadow(remap = false)
     protected abstract List<IReorderingProcessor> findOptimalLines(ITextComponent line, int width);
-//    protected abstract List<FormattedText> findOptimalLines(Component line, int width);
 
     @Inject(method = "drawHover", at = @At(value = "FIELD", target = "width", ordinal = 0), remap = false)
     public void onDrawHover(MatrixStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci) {
@@ -114,12 +115,12 @@ public abstract class BetterAdvancementWidgetMixin {
     }
 
     private void translateTitle() throws IOException, InterruptedException {
-        if (!Translator.translationCache.containsKey(this.title)) {
+        if (!Translator.textInCache(this.title)) {
             Translator.requestTranslateToTraditionalChinese(this.title);
             return;
         }
 
-        this.translatedTitle = " " + Translator.translationCache.get(this.title);
+        this.translatedTitle = " " + Translator.getTranslationFromCache(this.title);
         this.title = this.title + this.translatedTitle;
 
         // resize UI
@@ -141,12 +142,12 @@ public abstract class BetterAdvancementWidgetMixin {
     }
     private void translateDesc() throws IOException, InterruptedException {
         String originalDesc = this.displayInfo.getDescription().getString();
-        if (!Translator.translationCache.containsKey(originalDesc)) {
+        if (!Translator.textInCache(originalDesc)) {
             Translator.requestTranslateToTraditionalChinese(originalDesc);
             return;
         }
 
-        String translatedDesc = Translator.translationCache.get(originalDesc);
+        String translatedDesc = Translator.getTranslationFromCache(originalDesc);
 //        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(this.displayInfo.getDescription().copy().append(new TextComponent("\n"+translatedDesc).withStyle(Translator.translatedStyle)), Style.EMPTY.withColor(this.displayInfo.getFrame().getChatColor())), tempMaxWidth));
         this.description = this.findOptimalLines(TextComponentUtils.mergeStyles(this.displayInfo.getDescription().copy().append(new StringTextComponent("\n"+translatedDesc).withStyle(Translator.translatedStyle)), Style.EMPTY.withColor(this.displayInfo.getFrame().getChatColor())), tempMaxWidth);
 
@@ -154,7 +155,7 @@ public abstract class BetterAdvancementWidgetMixin {
             tempMaxWidth = Math.max(tempMaxWidth, Minecraft.getInstance().font.width(line));
         }
     }
-    @Inject(method = "drawHover", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/FontRenderer;drawShadow(Lcom/mojang/blaze3d/matrix/MatrixStack;Ljava/lang/String;FFI)I", ordinal = 0), remap = false)
+    @Inject(method = "drawHover", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/FontRenderer;drawShadow(Lcom/mojang/blaze3d/matrix/MatrixStack;Ljava/lang/String;FFI)I", ordinal = 0, remap = true), remap = false)
     public void drawHoverLeftNoS(MatrixStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci, @Local(name = "drawX") int drawX) {
         // guiGraphics.drawString(this.minecraft.font, this.translatedTitle, drawX + 5 + this.minecraft.font.width(this.title), scrollY + this.y + 9, Translator.translatedStyle.getColor().getValue());
         this.minecraft.font.drawShadow(poseStack, this.translatedTitle, (float)(drawX + 5 + this.minecraft.font.width(this.title)), (float)(scrollY + this.y + 9), Translator.translatedStyle.getColor().getValue());
@@ -167,7 +168,7 @@ public abstract class BetterAdvancementWidgetMixin {
 //        System.out.println("drawString 1 called");
 //    }
 
-    @Inject(method = "drawHover", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/FontRenderer;drawShadow(Lcom/mojang/blaze3d/matrix/MatrixStack;Ljava/lang/String;FFI)I", ordinal = 2), remap = false)
+    @Inject(method = "drawHover", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/FontRenderer;drawShadow(Lcom/mojang/blaze3d/matrix/MatrixStack;Ljava/lang/String;FFI)I", ordinal = 2, remap = true), remap = false)
     public void drawHoverRightNoS(MatrixStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci) {
         // guiGraphics.drawString(this.minecraft.font, this.translatedTitle, scrollX + this.x + 32 + this.minecraft.font.width(this.title), scrollY + this.y + 9, Translator.translatedStyle.getColor().getValue());
         this.minecraft.font.drawShadow(poseStack, this.translatedTitle, (float)(scrollX + this.x + 32 + this.minecraft.font.width(this.title)), (float)(scrollY + this.y + 9), Translator.translatedStyle.getColor().getValue());

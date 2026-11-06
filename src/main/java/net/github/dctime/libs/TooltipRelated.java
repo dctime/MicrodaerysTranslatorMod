@@ -9,13 +9,18 @@ import net.minecraftforge.fml.loading.LoadingModList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
-import static net.github.dctime.libs.Translator.translationCache;
 
+/**
+ * Reads a Jade 2.x (1.16.5) tooltip line's text. Jade's own RenderableTextComponent (item icons,
+ * health bars) and TaggedTextComponent placeholders serialize to opaque strings through
+ * getString(), so only plain string/translatable parts (and their siblings) are collected; section
+ * sign codes are stripped. Used by {@code TestJadeRenderEvent}; the vanilla inventory tooltip path
+ * uses ITextComponent.getString() directly.
+ */
 public class TooltipRelated {
     private static final Logger LOGGER = LogManager.getLogger();
 
@@ -48,50 +53,5 @@ public class TooltipRelated {
         }
 
         return resultString;
-    }
-
-    public static void translateListOfText(List<? extends ITextProperties> elements, ItemStack stack) {
-        for (int i = 0; i < elements.size(); i++) {
-            ITextProperties e = elements.get(i);
-            if (!(elements.get(i) instanceof TextComponent)) {
-                return;
-            }
-
-            TextComponent component = (TextComponent) elements.get(i);
-            String original = TooltipRelated.getStringFromComponent(component);
-
-//            System.out.println(original);
-
-            String translated;
-            if (translationCache.containsKey(original))
-                translated = translationCache.get(original);
-            else {
-                try {
-                    if (i != 0) {
-                        Translator.requestTranslateToTraditionalChinese(original);
-                    } else {
-                        Translator.requestTranslateItemStackToTraditionalChinese(original, stack);
-                    }
-                } catch (IOException ex) {
-                    LOGGER.warn("IO Exception while translating: " + ex.getMessage());
-                } catch (InterruptedException ex) {
-                    LOGGER.warn("Interrupted Exception while translating: " + ex.getMessage());
-                }
-                return;
-            }
-
-            if (translated == null) return;
-            translationCache.put(original, translated);
-
-            if (!org.apache.commons.lang3.StringUtils.isBlank(translated))
-                component.getSiblings().add(new StringTextComponent(" " + translated).setStyle(Translator.translatedStyle));
-//            System.out.println(success);
-//            if (text instanceof Component textComponent)
-//                replaced = textComponent.copy().append(new TextComponent(" " + translated).setStyle(Translator.translatedStyle));
-//            else
-//            // Example transformation: prepend and uppercase
-//                replaced = new TextComponent(text.getString()).append(new TextComponent(" " + translated).setStyle(Translator.translatedStyle));
-//            elements.set(finalI, Either.left(replaced));
-        }
     }
 }

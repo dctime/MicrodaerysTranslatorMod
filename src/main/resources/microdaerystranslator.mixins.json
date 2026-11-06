@@ -1,8 +1,9 @@
 {
   "plugin": "net.github.dctime.compability.LoadMixinPlugin",
   "required": true,
+  "minVersion": "0.8",
   "package": "net.github.dctime.mixin",
-  "refmap": "mixins.googleaistudiotranslator.refmap.json",
+  "refmap": "mixins.microdaerystranslator.refmap.json",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
 
@@ -10,6 +11,7 @@
   "client": [
     "AdvancementWidgetMixin",
     "BetterAdvancementWidgetMixin",
+    "ScreenTooltipMixin",
     "ftbquests.QuestPanelMixin",
     "ftbquests.TextFieldMixin",
     "ftbquests.ViewQuestPanelMixin",

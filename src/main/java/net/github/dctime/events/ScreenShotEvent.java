@@ -1,8 +1,7 @@
 package net.github.dctime.events;
 
 import net.github.dctime.Config;
-import net.github.dctime.GoogleAIStudioTranslatorClient;
-import net.github.dctime.libs.Translator;
+import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.screen.ScreenShotSelectAreaScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.NativeImage;
@@ -19,7 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Base64;
 
-@Mod.EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class ScreenShotEvent {
     @SubscribeEvent
     public static void onScreenShot(ScreenshotEvent event) {

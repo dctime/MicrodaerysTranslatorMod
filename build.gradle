@@ -265,8 +265,8 @@ dependencies {
 }
 
 mixin {
-    config 'googleaistudiotranslator.mixins.json'
-    add sourceSets.main, 'mixins.googleaistudiotranslator.refmap.json'
+    config 'microdaerystranslator.mixins.json'
+    add sourceSets.main, 'mixins.microdaerystranslator.refmap.json'
 }
 
 //sourceSets {
