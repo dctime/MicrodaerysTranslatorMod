@@ -12,6 +12,7 @@ import net.github.dctime.libs.ftbquests.IPinViewQuestButton;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
+import net.minecraft.util.Mth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,7 +20,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -195,8 +195,8 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
         // screen bounds with no scrollbar. Matches vanilla ViewQuestPanel#addWidgets' own clamp
         // (this.parent.height - 10), just measured from panelText's actual bottom edge since this
         // mixin's layout puts panelText directly under `this` rather than under panelContent.
-        // ModalPanel/Panel already support scrolling overflowed content (see the mouseScrolled
-        // override below), so clamping height here is what turns that into a working scrollbar.
+        // ModalPanel/Panel already support scrolling overflowed content (Panel.movePanelScroll),
+        // so clamping height here is what turns that into a working scrollbar.
         int contentBottom = this.panelText.posY + this.panelText.height;
         this.setHeight(Math.min(contentBottom, this.parent.height - 10));
         this.setPos(this.posX, (this.parent.height - this.height) / 2);
@@ -213,15 +213,14 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
                 viewWidget.setPosAndSize(this.getWidth() - 13, this.panelContent.posY + 2, 13, 13);
             }
         }
-    }
-
-    // for v2101.1.29+ FTBQuests
-    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
-    public void mouseScrolled(double mouseX, double mouseY, double xDelta, double yDelta, CallbackInfoReturnable<Boolean> cir) {
-        if (translationLeft > 0) {
-//            System.out.println("Not translated yet. Tasks left: " + translationLeft + ", cannot scroll.");
-            cir.cancel();
-        }
+        // E2: scrolling used to be locked (mouseScrolled cancelled + setScrollY(0) every
+        // frame) until every paragraph was translated -- with RPM exhausted, a provider in
+        // cooldown or no network that was "forever", so a long quest's lower half could
+        // never be read, not even in English. Scrolling now stays enabled; the only thing
+        // the lock protected against is a translation landing (or a parent resize) and changing the content
+        // height under the current scroll offset, so re-clamp it here (Panel.setScrollY
+        // itself doesn't clamp; movePanelScroll does the same clamp on each wheel tick).
+        setScrollY(Mth.clamp(getScrollY(), 0, Math.max(0, getContentHeight() - height)));
     }
 
     @Inject(method = "draw", at = @At("HEAD"))
@@ -277,8 +276,6 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
 
         if (translationLeft == 0) {
             translationLeft = -1;
-        } else {
-            setScrollY(0);
         }
     }
 
