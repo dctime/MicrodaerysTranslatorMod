@@ -10,6 +10,7 @@ import net.github.dctime.libs.provider.AuthMode;
 import net.github.dctime.libs.provider.ProviderConfigResolver;
 import net.github.dctime.libs.provider.ProviderInfo;
 import net.github.dctime.libs.routing.ProviderMode;
+import net.github.dctime.libs.routing.ProviderRuntimeRegistry;
 
 import java.util.EnumMap;
 import java.util.List;
@@ -332,6 +333,15 @@ public class PendingTranslatorConfig {
         return state.modelSelection.equals(CUSTOM_MODEL) ? state.customModel : state.modelSelection;
     }
 
+    private static String credentialsOf(Config.EndPoint ep) {
+        if (ep == Config.EndPoint.CUSTOM) {
+            return Config.CUSTOM_PROVIDER_API_KEY.get() + "\n" + Config.CUSTOM_PROVIDER_BASE_URL.get()
+                    + "\n" + Config.CUSTOM_PROVIDER_AUTH_MODE.get();
+        }
+        Config.ProviderConfigKeys keys = Config.PROVIDER_KEYS.get(ep);
+        return keys.apiKey() == null ? "" : keys.apiKey().get();
+    }
+
     public void saveToConfig() {
         Config.ENDPOINT_CONFIG.set(endpoint);
         Config.PROVIDER_MODE.set(providerMode);
@@ -339,6 +349,12 @@ public class PendingTranslatorConfig {
         for (Map.Entry<Config.EndPoint, ProviderPendingState> entry : perProvider.entrySet()) {
             Config.EndPoint ep = entry.getKey();
             ProviderPendingState state = entry.getValue();
+            // E1: a 401/403 latches ProviderRuntimeState.authError with no timer, and the router's
+            // hardFilter then skips that provider (SINGLE mode included) for the rest of the
+            // session. Before this, only a successful Test Connection cleared it, so fixing the
+            // key and pressing Done left translation silently dead until a restart. Snapshot the
+            // credentials before writing, clear the latch only if they actually changed.
+            String credentialsBefore = credentialsOf(ep);
             if (ep == Config.EndPoint.CUSTOM) {
                 Config.CUSTOM_PROVIDER_NAME.set(state.customProviderName);
                 Config.CUSTOM_PROVIDER_BASE_URL.set(BaseUrlUtil.normalize(state.customProviderBaseUrl));
@@ -356,6 +372,9 @@ public class PendingTranslatorConfig {
                 keys.enabled().set(state.enabled);
                 keys.priority().set(state.priority);
                 keys.maxRequestsPerMinute().set(state.maxRequestsPerMinute);
+            }
+            if (!credentialsBefore.equals(credentialsOf(ep))) {
+                ProviderRuntimeRegistry.forEndpoint(ep).clearAuthAndCooldown();
             }
         }
 
