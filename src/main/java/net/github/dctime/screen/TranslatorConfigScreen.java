@@ -14,10 +14,8 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 
@@ -50,7 +48,7 @@ import java.util.function.Consumer;
  * (Screen/OptionsSubScreen/CycleButton/EditBox/...), which can't be constructed or rendered
  * without a running game -- verified by compiling and by manual in-game testing only.
  */
-public class TranslatorConfigScreen extends OptionsSubScreen {
+public class TranslatorConfigScreen extends CompatOptionsSubScreen {
 
     private static final String P = MicrodaerysTranslatorClient.MODID + ".config.";
 
@@ -59,7 +57,7 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
     private CycleButton<Boolean> followLanguageButtonRef;
     private CycleButton<String> targetLanguageButtonRef;
 
-    /** Entry point used by {@code IConfigScreenFactory} -- the ONE place a fresh
+    /** Entry point used by Forge's {@code ConfigScreenHandler.ConfigScreenFactory} -- the ONE place a fresh
      *  {@link PendingTranslatorConfig} is created (see its lifecycle contract). */
     public TranslatorConfigScreen(Screen parent) {
         this(parent, PendingTranslatorConfig.loadFromConfig());
@@ -94,6 +92,8 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
      * every previous scroll/selection state's text stays rendered UNDER the new state, so clicking
      * anything leaves overlapping ghost text on screen permanently. Clearing and reusing the
      * existing {@code list} avoids ever creating a second {@code OptionsList} in the first place.
+     * (1.20.1: the list is a {@link WidgetRowList} owned by {@link CompatOptionsSubScreen}; the
+     * same clear-and-refill keeps the scroll position across rebuilds.)
      */
     private void refreshOptions() {
         // The currently-focused widget (e.g. the API Key EditBox, mid-edit) is about to be
@@ -114,7 +114,7 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
                 .withInitialValue(pending.providerMode)
                 .displayOnlyValue()
                 .withTooltip(v -> Tooltip.create(Component.translatable(P + "provider_mode." + v.name().toLowerCase() + ".tooltip")))
-                .create(Component.translatable(P + "provider_mode"), (btn, val) -> pending.providerMode = val);
+                .create(0, 0, 150, 20, Component.translatable(P + "provider_mode"), (btn, val) -> pending.providerMode = val);
         list.addSmall(new StringWidget(Component.translatable(P + "provider_mode"), font).alignLeft(), providerModeButton);
 
         Button manageProvidersButton = Button.builder(Component.translatable(P + "manage_providers"),
@@ -127,7 +127,7 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
         followLanguageButtonRef = CycleButton.onOffBuilder(pending.followGameLanguage)
                 .displayOnlyValue() // this row already has its own StringWidget label to the left; without this the button ALSO prints "label: value" and the two overlap
                 .withTooltip(v -> Tooltip.create(Component.translatable(P + "follow_game_language.tooltip")))
-                .create(Component.translatable(P + "follow_game_language"), (btn, val) -> {
+                .create(0, 0, 150, 20, Component.translatable(P + "follow_game_language"), (btn, val) -> {
                     pending.followGameLanguage = val;
                     targetLanguageButtonRef.active = !val;
                 });
@@ -156,7 +156,7 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
                 .withValues(choices)
                 .withInitialValue(pending.targetLanguage)
                 .displayOnlyValue()
-                .create(Component.translatable(P + "target_language"), (btn, val) -> pending.targetLanguage = val);
+                .create(0, 0, 150, 20, Component.translatable(P + "target_language"), (btn, val) -> pending.targetLanguage = val);
     }
 
     /**
@@ -192,14 +192,14 @@ public class TranslatorConfigScreen extends OptionsSubScreen {
 
     private CycleButton<Boolean> featureToggle(String labelKey, boolean initial, Consumer<Boolean> setter) {
         return CycleButton.onOffBuilder(initial)
-                .create(Component.translatable(labelKey), (btn, val) -> setter.accept(val));
+                .create(0, 0, 150, 20, Component.translatable(labelKey), (btn, val) -> setter.accept(val));
     }
 
     @Override
-    protected void addFooter() {
-        LinearLayout row = layout.addToFooter(LinearLayout.horizontal().spacing(8));
-        row.addChild(Button.builder(CommonComponents.GUI_CANCEL, b -> onClose()).width(Button.SMALL_WIDTH).build());
-        row.addChild(Button.builder(CommonComponents.GUI_DONE, b -> handleDone()).width(Button.SMALL_WIDTH).build());
+    protected List<Button> createFooterButtons() {
+        return List.of(
+                Button.builder(CommonComponents.GUI_CANCEL, b -> onClose()).width(Button.SMALL_WIDTH).build(),
+                Button.builder(CommonComponents.GUI_DONE, b -> handleDone()).width(Button.SMALL_WIDTH).build());
     }
 
     /** Cancel/ESC: never touches {@link Config}. {@link PendingTranslatorConfig} is simply discarded. */

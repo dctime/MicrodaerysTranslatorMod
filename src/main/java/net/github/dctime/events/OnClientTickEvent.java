@@ -13,8 +13,6 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-//import net.neoforged.fml.common.EventBusSubscriber;
-//import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 @Mod.EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT)
 public class OnClientTickEvent {
@@ -24,6 +22,10 @@ public class OnClientTickEvent {
 
     @SubscribeEvent // on the game event bus only on the physical client
     public static void onClientTick(TickEvent.ClientTickEvent event) {
+        // Forge 1.20.1 fires ClientTickEvent twice per tick (START + END); NeoForge's
+        // ClientTickEvent.Post is END only. Without this filter FLUSH_CHECK_INTERVAL_TICKS would
+        // silently halve and container pre-translation would run twice per tick.
+        if (event.phase != TickEvent.Phase.END) return;
         while (KeyMapping.DELETE_TRANSLATION_CACHE.get().consumeClick()) {
             Translator.clearCache();
         }

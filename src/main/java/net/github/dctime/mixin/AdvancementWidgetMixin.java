@@ -3,6 +3,7 @@ package net.github.dctime.mixin;
 import com.google.common.collect.ImmutableList;
 import net.github.dctime.Config;
 import net.github.dctime.libs.Translator;
+import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.DisplayInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -45,12 +46,22 @@ public abstract class AdvancementWidgetMixin {
 
     private int tempWidth;
 
+    // 1.20.1 has no AdvancementWidget.getMaxProgressWidth(); the same "  N/N" width is computed
+    // from the advancement's requirement count in maxProgressWidth(), mirroring the 1.20.1
+    // AdvancementWidget constructor.
     @Shadow
-    protected abstract int getMaxProgressWidth();
+    @Final
+    private Advancement advancement;
 
     @Shadow
     protected abstract List<FormattedText> findOptimalLines(Component component, int maxWidth);
 
+    private int maxProgressWidth() {
+        int requirements = advancement.getRequirements().length;
+        if (requirements <= 1) return 0;
+        int digits = String.valueOf(requirements).length();
+        return Minecraft.getInstance().font.width("  ") + Minecraft.getInstance().font.width("0") * digits * 2 + Minecraft.getInstance().font.width("/");
+    }
 
     @Inject(method = "drawHover", at = @At(value = "HEAD"))
     public void onDrawHover(GuiGraphics guiGraphics, int x, int y, float fade, int width, int height, CallbackInfo ci) {
@@ -67,9 +78,13 @@ public abstract class AdvancementWidgetMixin {
         }
 
         // some var define
-
-        int i = getMaxProgressWidth();
-        int j = 29 + Minecraft.getInstance().font.width(this.title) + i;
+        int j = 29 + Minecraft.getInstance().font.width(this.title) + maxProgressWidth();
+        // 1.20.1's constructor widens j to the longest wrapped description line before the box
+        // width is fixed -- mirror that so the translated description wraps to the same width.
+        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor())), j));
+        for(FormattedCharSequence formattedcharsequence : this.description) {
+            j = Math.max(j, Minecraft.getInstance().font.width(formattedcharsequence));
+        }
 
         // replace orignal description
 
@@ -93,9 +108,8 @@ public abstract class AdvancementWidgetMixin {
     @Inject(method="drawHover", at = @At(value = "RETURN"))
     public void endDrawHover(GuiGraphics guiGraphics, int x, int y, float fade, int width, int height, CallbackInfo ci) {
         this.title = Language.getInstance().getVisualOrder(Minecraft.getInstance().font.substrByWidth(display.getTitle(), 163));
-        int i = getMaxProgressWidth();
-        int j = 29 + Minecraft.getInstance().font.width(this.title) + i;
-        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getType().getChatColor())), j));
+        int j = 29 + Minecraft.getInstance().font.width(this.title) + maxProgressWidth();
+        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor())), j));
         this.width = tempWidth;
     }
 
@@ -141,7 +155,7 @@ public abstract class AdvancementWidgetMixin {
         }
 
         String translated = Translator.getTranslationFromCache(descText);
-        MutableComponent original = ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getType().getChatColor()));
+        MutableComponent original = ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor()));
         this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(original.append(Component.literal("\n"+translated).withStyle(Translator.translatedStyle)), j));
     }
 }

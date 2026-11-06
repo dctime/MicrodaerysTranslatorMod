@@ -7,12 +7,12 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.options.OptionsScreen;
+import net.minecraft.client.gui.screens.OptionsScreen;
 import net.minecraft.network.chat.Component;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.client.event.ScreenEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +81,7 @@ import java.util.List;
  * any window size is "the shortcut button doesn't appear (or briefly disappears while resizing)",
  * never a crash, and Mods -> Config keeps working regardless.
  */
-@EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT)
 public class OptionsScreenButtonInjector {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OptionsScreenButtonInjector.class);
@@ -215,23 +215,49 @@ public class OptionsScreenButtonInjector {
                 bounds.add(new int[]{widget.getY(), widget.getY() + widget.getHeight()});
             }
         }
-        if (bounds.isEmpty()) return null;
+        if (bounds.size() < 2) return null; // not the shape we expect, bail out
 
-        // The bottom-most widget on a vanilla OptionsScreen is the Done button, alone in the
-        // footer -- everything else (FOV/Online row, the 2-column grid of category buttons) sits
-        // above it. Compute the gap between "everything else" and Done from actual widget
-        // positions, not assumed layout constants, so this stays correct across GUI scales and
-        // whatever other mods already added by the time this runs.
-        int overallBottom = bounds.stream().mapToInt(b -> b[1]).max().orElseThrow();
-        int footerTop = bounds.stream().filter(b -> b[1] == overallBottom).mapToInt(b -> b[0]).min().orElseThrow();
-        int restBottom = bounds.stream().filter(b -> b[1] != overallBottom).mapToInt(b -> b[1]).max().orElse(-1);
-        if (restBottom < 0) return null; // only one widget on the whole screen -- not the shape we expect, bail out
+        // 1.20.1 port: 1.21's OptionsScreen puts Done alone in a HeaderAndFooterLayout footer with a
+        // big empty band above it, which is where the 1.21 version of this method always looked.
+        // 1.20.1's OptionsScreen is one GridLayout instead -- Done sits only ~10px below the
+        // category grid (never enough room), but the grid has its own 26px SpacerElement between
+        // the FOV/Online row and the category buttons. So instead of assuming WHERE the gap is,
+        // merge every widget's vertical extent into occupied bands and use the empty horizontal
+        // bands BETWEEN them. A band between two merged extents has no widget anywhere across the
+        // whole width, so the button can never overlap another mod's widget there -- the same
+        // cross-mod safety argument as before, just not tied to one specific layout. The band
+        // directly above the bottom-most widget (the 1.21 position) is still preferred when it
+        // fits; otherwise the largest fitting band is used. The area above the first widget is
+        // never used: the screen title is drawn there and isn't a widget.
+        bounds.sort((a, b) -> Integer.compare(a[0], b[0]));
+        List<int[]> merged = new ArrayList<>();
+        for (int[] b : bounds) {
+            int[] last = merged.isEmpty() ? null : merged.get(merged.size() - 1);
+            if (last != null && b[0] <= last[1]) {
+                last[1] = Math.max(last[1], b[1]);
+            } else {
+                merged.add(new int[]{b[0], b[1]});
+            }
+        }
+        if (merged.size() < 2) return null;
 
-        int gapSize = footerTop - restBottom;
         int neededGap = BUTTON_HEIGHT + MIN_MARGIN * 2;
-        if (gapSize < neededGap) return null;
+        int[] best = null;
+        int lastGapIndex = merged.size() - 2; // gap right above the bottom-most band
+        int[] lastGap = {merged.get(lastGapIndex)[1], merged.get(lastGapIndex + 1)[0]};
+        if (lastGap[1] - lastGap[0] >= neededGap) {
+            best = lastGap;
+        } else {
+            for (int i = 0; i < merged.size() - 1; i++) {
+                int top = merged.get(i)[1];
+                int bottom = merged.get(i + 1)[0];
+                if (bottom - top < neededGap) continue;
+                if (best == null || bottom - top > best[1] - best[0]) best = new int[]{top, bottom};
+            }
+        }
+        if (best == null) return null;
 
-        int y = restBottom + (gapSize - BUTTON_HEIGHT) / 2;
+        int y = best[0] + (best[1] - best[0] - BUTTON_HEIGHT) / 2;
         int x = screenWidth / 2 - BUTTON_WIDTH / 2;
         return new Gap(x, y);
     }

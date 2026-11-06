@@ -5,7 +5,7 @@ import net.github.dctime.MicrodaerysTranslatorClient;
 import net.minecraft.data.PackOutput;
 
 /** French (fr_fr) strings -- see {@link LanguageProvider}'s javadoc for the per-locale-file rationale. */
-public class LanguageProviderFrFr extends net.neoforged.neoforge.common.data.LanguageProvider {
+public class LanguageProviderFrFr extends net.minecraftforge.common.data.LanguageProvider {
 
     public LanguageProviderFrFr(PackOutput output) {
         super(output, MicrodaerysTranslatorClient.MODID, "fr_fr");

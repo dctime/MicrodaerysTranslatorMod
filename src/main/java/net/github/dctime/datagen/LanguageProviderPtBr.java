@@ -5,7 +5,7 @@ import net.github.dctime.MicrodaerysTranslatorClient;
 import net.minecraft.data.PackOutput;
 
 /** Portuguese (Brazil, pt_br) strings -- see {@link LanguageProvider}'s javadoc for the per-locale-file rationale. */
-public class LanguageProviderPtBr extends net.neoforged.neoforge.common.data.LanguageProvider {
+public class LanguageProviderPtBr extends net.minecraftforge.common.data.LanguageProvider {
 
     public LanguageProviderPtBr(PackOutput output) {
         super(output, MicrodaerysTranslatorClient.MODID, "pt_br");

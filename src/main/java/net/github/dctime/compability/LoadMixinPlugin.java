@@ -1,6 +1,6 @@
 package net.github.dctime.compability;
 
-import net.neoforged.fml.loading.LoadingModList;
+import net.minecraftforge.fml.loading.LoadingModList;
 import org.objectweb.asm.tree.ClassNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 
 public class LoadMixinPlugin implements IMixinConfigPlugin {
+    private static boolean jadeLoaded = false;
     private static boolean ftbquestsLoaded = false;
     private static boolean betteradvancementsLoaded = false;
     private static final Logger LOGGER = LoggerFactory.getLogger(LoadMixinPlugin.class);
@@ -26,6 +27,11 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if (LoadingModList.get().getModFileById("jade") != null && !jadeLoaded) {
+            jadeLoaded = true;
+            LOGGER.info("Jade is loaded, applying mixins for Jade compatibility.");
+        }
+
         if (LoadingModList.get().getModFileById("ftbquests") != null && !ftbquestsLoaded) {
             ftbquestsLoaded = true;
             LOGGER.info("FTB Quests is loaded, applying mixins for FTB Quests compatibility.");
@@ -51,6 +57,7 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.endsWith(".AdvancementWidgetMixin")) return true;
         if (mixinClassName.endsWith("BetterAdvancementWidgetMixin")) return betteradvancementsLoaded;
         if (mixinClassName.endsWith("GuiGraphicsTooltipMixin")) return true; // vanilla target, always present (#5)
+        if (mixinClassName.endsWith("ItemStackElementMixin")) return jadeLoaded; // 1.20.1-only Jade accessor mixin
         return false;
     }
 

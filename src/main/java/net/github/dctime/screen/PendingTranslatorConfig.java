@@ -385,11 +385,11 @@ public class PendingTranslatorConfig {
         // 020, point Q2's explicit request to document this). They are the ONLY thing that keeps
         // a downgrade to a pre-11-provider build usable for a player whose active provider at the
         // time was one of the original three (Google/Ollama/Mistral): NeoForge's
-        // ModConfigSpec.correct() resets Config.ENDPOINT_CONFIG to its default (MISTRAL) on
+        // ForgeConfigSpec.correct() resets Config.ENDPOINT_CONFIG to its default (MISTRAL) on
         // downgrade whenever the saved value is one of the 8 new EndPoint constants the old code's
         // enum doesn't have (confirmed against NeoForge 21.1.4's own decompiled source, not
         // assumed), and separately deletes every per-provider providers.* TOML section outright
-        // (same method, the unspecified-key removal step) since the old ModConfigSpec doesn't
+        // (same method, the unspecified-key removal step) since the old ForgeConfigSpec doesn't
         // define them. These two flat legacy keys are the one place still written that the OLD
         // code's spec also still defines, so they survive both of those. Without them, EVERY
         // downgrade -- not just a downgrade away from one of the 8 new providers -- would strand

@@ -8,7 +8,7 @@ import java.nio.file.Path;
 
 /**
  * Records that the one-time legacy-provider-pool migration has already run, WITHOUT using a TOML
- * key. {@code ModConfigSpec.correct()} unconditionally deletes any key the running code no longer
+ * key. {@code ForgeConfigSpec.correct()} unconditionally deletes any key the running code no longer
  * defines (confirmed by reading neoforge-21.1.4-sources.jar) -- a downgrade would delete a TOML-based
  * "already migrated" flag right alongside the provider-pool settings it's supposed to guard, so a
  * later re-upgrade would silently re-run the migration and overwrite whatever the player had

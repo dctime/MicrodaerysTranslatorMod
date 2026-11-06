@@ -5,7 +5,7 @@ import net.github.dctime.MicrodaerysTranslatorClient;
 import net.minecraft.data.PackOutput;
 
 /** Russian (ru_ru) strings -- see {@link LanguageProvider}'s javadoc for the per-locale-file rationale. */
-public class LanguageProviderRuRu extends net.neoforged.neoforge.common.data.LanguageProvider {
+public class LanguageProviderRuRu extends net.minecraftforge.common.data.LanguageProvider {
 
     public LanguageProviderRuRu(PackOutput output) {
         super(output, MicrodaerysTranslatorClient.MODID, "ru_ru");

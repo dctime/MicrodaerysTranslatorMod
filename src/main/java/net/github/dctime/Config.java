@@ -9,10 +9,10 @@ import net.github.dctime.libs.routing.ProviderMode;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.event.config.ModConfigEvent;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 import javax.annotation.Nullable;
 
@@ -21,7 +21,7 @@ import javax.annotation.Nullable;
  * 使用 NeoForge 的設定 API，集中管理模組設定。
  */
 public class Config {
-    private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
+    private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
     // Appended-only: existing values keep their exact name and position (NeoForge's EnumValue
     // persists by name() string in TOML, so appending is back-compat safe for existing player
@@ -46,7 +46,7 @@ public class Config {
     // the OLD jar's default, which this change doesn't invalidate (an old jar's own compiled-in
     // default doesn't change), but any FUTURE default change here should get the same cross-check.
     public static final String ENDPOINT_CONFIG_PATH = "endpoint";
-    public static final ModConfigSpec.EnumValue<EndPoint> ENDPOINT_CONFIG = BUILDER
+    public static final ForgeConfigSpec.EnumValue<EndPoint> ENDPOINT_CONFIG = BUILDER
             .comment("[選哪個Endpoint] (預設 Google AI studio) Which Endpoint\n" +
                     "只有 provider_mode = SINGLE 時才會被使用；其他模式看下面各 provider 自己的 enabled/priority。")
             .defineEnum(ENDPOINT_CONFIG_PATH, EndPoint.GOOGLE_AI_STUDIO);
@@ -58,7 +58,7 @@ public class Config {
     // see libs/ProviderMigrationMarker's javadoc for why). AUTOMATIC is the default for a genuinely
     // fresh install only.
     public static final String PROVIDER_MODE_PATH = "provider_mode";
-    public static final ModConfigSpec.EnumValue<ProviderMode> PROVIDER_MODE = BUILDER
+    public static final ForgeConfigSpec.EnumValue<ProviderMode> PROVIDER_MODE = BUILDER
             .comment("[多 Provider 路由模式] (新安裝預設 AUTOMATIC，既有玩家升級後會被遷移成 SINGLE)\n" +
                     "SINGLE: 完全比照舊版行為，只用 endpoint 指定的那個 provider，失敗不 fallback。\n" +
                     "PRIORITY: 依照下面每個 provider 的 priority 由小到大嘗試，前面的失敗才會 fallback 到下一個。\n" +
@@ -68,7 +68,7 @@ public class Config {
 
     // === Basic keys for Google AI Studio ===
     public static final String API_KEY_PATH = "api_key";
-    public static final ModConfigSpec.ConfigValue<String> API_KEY = BUILDER
+    public static final ForgeConfigSpec.ConfigValue<String> API_KEY = BUILDER
             .comment("The API KEY from Google AI Studio/Mistral AI [Google AI Studio/Mistral 的 API KEY]\n" +
                     "1. DIRECT CONNECTION: Data is sent ONLY to Google AI Studio / Mistral AI.\n" +
                     "2. NO DATA COLLECTION: This mod DOES NOT collect, log, or forward your API Key or prompts to any other servers.\n" +
@@ -87,19 +87,19 @@ public class Config {
     // leaving the old Mistral model id here would have shown "Custom..." with a Mistral model under
     // a Google-default install. Same downgrade-table cross-check note as ENDPOINT_CONFIG above.
     public static final String MODEL_NAME_PATH = "model_name";
-    public static final ModConfigSpec.ConfigValue<String> MODEL_NAME = BUILDER
+    public static final ForgeConfigSpec.ConfigValue<String> MODEL_NAME = BUILDER
             .comment("The model name to use for translation [使用的模型]\n" +
                     "(Google 有 gemini-3.5-flash-lite, Mistral 有 mistral-small-latest, ollama 要看你載什麼模型)")
             .define(MODEL_NAME_PATH, "gemini-3.5-flash-lite");
 
     public static final String FOLLOW_GAME_LANGUAGE_PATH = "follow_game_language";
-    public static final ModConfigSpec.BooleanValue FOLLOW_GAME_LANGUAGE = BUILDER
+    public static final ForgeConfigSpec.BooleanValue FOLLOW_GAME_LANGUAGE = BUILDER
             .comment("[翻譯目標語言是否跟隨遊戲本身選擇的語言] (預設 true)\n" +
                     "開啟時忽略 target_language，改用遊戲選項裡目前選擇的語言；關閉時才用下面 target_language 手動指定。")
             .define(FOLLOW_GAME_LANGUAGE_PATH, true);
 
     public static final String TARGET_LANGUAGE_PATH = "target_language";
-    public static final ModConfigSpec.ConfigValue<String> TARGET_LANGUAGE = BUILDER
+    public static final ForgeConfigSpec.ConfigValue<String> TARGET_LANGUAGE = BUILDER
             .comment("[翻譯輸出的目標語言] (預設 zh_tw) Target language for translation output\n" +
                     "只有 follow_game_language 關閉時才會用到這個值。\n" +
                     "代碼格式跟遊戲語言選項一致(底線+地區碼): zh_tw(繁體中文), zh_cn(简体中文), ja_jp(日文), en_us(English)。\n" +
@@ -108,23 +108,23 @@ public class Config {
 
     // === Prompt tailored for Minecraft/mod tone (ASCII-safe, no fancy quotes) ===
     public static final String PROMPT_PATH = "prompt";
-    public static final ModConfigSpec.ConfigValue<String> PROMPT = BUILDER
+    public static final ForgeConfigSpec.ConfigValue<String> PROMPT = BUILDER
             .comment("The prompt to use for translation [翻譯時使用的提示語]\n" +
                     "留空(預設) = 依目標語言自動選擇內建的原生語言 prompt(每個語言各自一份，用該語言本身撰寫，不是同一份中文範本換語言名稱)。\n" +
                     "填了任何內容 = 不論目標語言是什麼，一律使用這份自訂文字(%s 會換成目標語言名稱)，即向下相容舊版設定。\n" +
-                    "注意：NeoForge 的設定檔只有在這個 key 不存在時才會寫入新預設值；如果你在這次更新前就啟動過遊戲，這裡通常已經被寫入舊版的預設文字。" +
+                    "注意：Forge 的設定檔只有在這個 key 不存在時才會寫入新預設值；如果你在這次更新前就啟動過遊戲，這裡通常已經被寫入舊版的預設文字。" +
                     "這個 mod 認得幾個已知的舊版預設值，會自動當成留空處理，不用手動清空；只有你真的自己改過、寫過自訂內容時，才需要手動把這個值清空才能改用新版內建 prompt。")
             .define(PROMPT_PATH, "");
 
     public static final String PROMPT_SCREENSHOT_PATH = "prompt_screenshot";
-    public static final ModConfigSpec.ConfigValue<String> PROMPT_SCREENSHOT = BUILDER
+    public static final ForgeConfigSpec.ConfigValue<String> PROMPT_SCREENSHOT = BUILDER
             .comment("The prompt to use for translation screenshots [翻譯螢幕截圖時使用的提示語]\n" +
                     "留空(預設) = 依目標語言自動選擇內建的原生語言 prompt；填了內容 = 對所有語言套用這份自訂文字，同上一項 prompt 的規則。\n" +
                     "已知的舊版預設值一樣會被自動辨識、當成留空處理，不用手動清空。")
             .define(PROMPT_SCREENSHOT_PATH, "");
 //
 //    // (Optional) 更嚴格版本：要求只輸出純文字一行，避免代碼框/前後空白
-//    public static final ModConfigSpec.ConfigValue<String> PROMPT_STRICT = BUILDER
+//    public static final ForgeConfigSpec.ConfigValue<String> PROMPT_STRICT = BUILDER
 //            .comment("Strict prompt: force plain text output without code fences or extra whitespace.")
 //            .define("Prompt Strict",
 //                    "只回繁體中文翻譯本體(純文字，不要代碼區塊、不要前後空白、不要額外說明)。\n" +
@@ -136,7 +136,7 @@ public class Config {
 
 
     public static final String TIMEOUT_DURATION_CONFIG_PATH = "timeout_duration";
-    public static final ModConfigSpec.ConfigValue<Integer> TIMEOUT_DURATION_CONFIG = BUILDER
+    public static final ForgeConfigSpec.ConfigValue<Integer> TIMEOUT_DURATION_CONFIG = BUILDER
             .comment("[timeout時間] (預設 30) Timeout Duration in seconds")
             .define(TIMEOUT_DURATION_CONFIG_PATH, 30);
 
@@ -148,7 +148,7 @@ public class Config {
     // per rolling 60 seconds", just measured across every provider together now, not one provider
     // alone. A skipped request is still dropped, not queued, exactly as before.
     public static final String MAX_REQUESTS_PER_MINUTE_PATH = "max_requests_per_minute";
-    public static final ModConfigSpec.IntValue MAX_REQUESTS_PER_MINUTE = BUILDER
+    public static final ForgeConfigSpec.IntValue MAX_REQUESTS_PER_MINUTE = BUILDER
             .comment("[全域每分鐘最多送出幾次翻譯請求，跨所有 provider 加總] (預設 10) Global max translation requests " +
                     "sent per rolling 60 seconds, summed across every provider combined.\n" +
                     "只限制「同時併發數」(見原始碼裡的 Semaphore) 擋不住免費 API tier 常見的每分鐘總次數限制(RPM)——" +
@@ -166,43 +166,43 @@ public class Config {
 
     // === Feature toggles ===
     public static final String ENABLE_TOOLTIP_TRANSLATION_PATH = "enable_tooltip_translation";
-    public static final ModConfigSpec.BooleanValue ENABLE_TOOLTIP_TRANSLATION = BUILDER
+    public static final ForgeConfigSpec.BooleanValue ENABLE_TOOLTIP_TRANSLATION = BUILDER
             .comment("[滑鼠指向物品時是否啟用翻譯] (預設 true) Whether to enable tooltip translation")
             .define(ENABLE_TOOLTIP_TRANSLATION_PATH, true);
 
 
     public static final String ENABLE_FTB_QUEST_TRANSLATION_PATH = "enable_ftbquests_translation";
-    public static final ModConfigSpec.BooleanValue ENABLE_FTB_QUEST_TRANSLATION = BUILDER
+    public static final ForgeConfigSpec.BooleanValue ENABLE_FTB_QUEST_TRANSLATION = BUILDER
             .comment("[是否啟用 FTB Quests 翻譯] (預設 true) Whether to enable FTB Quests translation")
             .define(ENABLE_FTB_QUEST_TRANSLATION_PATH, true);
 
     public static final String ENABLE_JADE_CONFIG_PATH = "enable_jade_translation";
-    public static final ModConfigSpec.BooleanValue ENABLE_JADE_CONFIG = BUILDER
+    public static final ForgeConfigSpec.BooleanValue ENABLE_JADE_CONFIG = BUILDER
             .comment("[是否啟用 Jade 翻譯] (預設 true) Whether to enable Jade translation")
             .define(ENABLE_JADE_CONFIG_PATH, true);
 
     public static final String ENABLE_ADVANCEMENTS_CONFIG_PATH = "enable_advancements_translation";
-    public static final ModConfigSpec.BooleanValue ENABLE_ADVANCEMENTS_CONFIG = BUILDER
+    public static final ForgeConfigSpec.BooleanValue ENABLE_ADVANCEMENTS_CONFIG = BUILDER
             .comment("[是否啟用成就翻譯] (預設 true) Whether to enable Advancements translation")
             .define(ENABLE_ADVANCEMENTS_CONFIG_PATH, true);
 
     public static final String ENABLE_SCREENSHOT_CONFIG_PATH = "enable_screenshot_translation";
-    public static final ModConfigSpec.BooleanValue ENABLE_SCREENSHOT_CONFIG = BUILDER
+    public static final ForgeConfigSpec.BooleanValue ENABLE_SCREENSHOT_CONFIG = BUILDER
             .comment("[是否啟用螢幕截圖翻譯] (預設 true) Whether to enable Screenshot translation")
             .define(ENABLE_SCREENSHOT_CONFIG_PATH, true);
 
     public static final String ENABLE_ICON_CONFIG_PATH = "enable_icon_translation";
-    public static final ModConfigSpec.BooleanValue ENABLE_ICON_CONFIG = BUILDER
+    public static final ForgeConfigSpec.BooleanValue ENABLE_ICON_CONFIG = BUILDER
             .comment("[是否Jade跟Tooltip第一行多傳物品圖案] (預設 true) Whether to enable translation with icon for Jade and Tooltip (only first line)")
             .define(ENABLE_ICON_CONFIG_PATH, true);
 
     public static final String ENABLE_TRANSLATING_ANIMATION_CONFIG_PATH = "enable_translating_animation";
-    public static final ModConfigSpec.BooleanValue ENABLE_TRANSLATING_ANIMATION_CONFIG = BUILDER
+    public static final ForgeConfigSpec.BooleanValue ENABLE_TRANSLATING_ANIMATION_CONFIG = BUILDER
             .comment("[翻譯中是否在遊戲畫面顯示動畫] (預設 true) Whether to show animation on GUI when translating")
             .define(ENABLE_TRANSLATING_ANIMATION_CONFIG_PATH, true);
 
     public static final String ENABLE_PRETRANSLATE_CONTAINERS_PATH = "enable_pretranslate_containers";
-    public static final ModConfigSpec.BooleanValue ENABLE_PRETRANSLATE_CONTAINERS = BUILDER
+    public static final ForgeConfigSpec.BooleanValue ENABLE_PRETRANSLATE_CONTAINERS = BUILDER
             .comment("[開啟儲物箱/合成桌等容器畫面時是否預先翻譯裡面的物品] (預設 true)\n" +
                     "Whether to proactively translate items inside an open container screen (chest, crafting table, etc.) instead of only translating on hover.")
             .define(ENABLE_PRETRANSLATE_CONTAINERS_PATH, true);
@@ -214,7 +214,7 @@ public class Config {
 
 
     // // Example of item list config (kept as reference):
-    // public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_STRINGS = BUILDER
+    // public static final ForgeConfigSpec.ConfigValue<List<? extends String>> ITEM_STRINGS = BUILDER
     //         .comment("A list of items to log on common setup.")
     //         .defineListAllowEmpty("items", List.of("minecraft:iron_ingot"), () -> "", Config::validateItemName);
 
@@ -237,34 +237,34 @@ public class Config {
     // max_requests_per_minute's default is this mod's OWN suggested starting point, not a claimed
     // official quota -- providers change their free-tier limits over time and vary by account tier;
     // each field's comment says so explicitly so a player knows to match it to their own account.
-    public record ProviderConfigKeys(@Nullable ModConfigSpec.ConfigValue<String> apiKey,
-                                      ModConfigSpec.ConfigValue<String> model,
-                                      ModConfigSpec.BooleanValue enabled,
-                                      ModConfigSpec.IntValue priority,
-                                      ModConfigSpec.IntValue maxRequestsPerMinute) {
+    public record ProviderConfigKeys(@Nullable ForgeConfigSpec.ConfigValue<String> apiKey,
+                                      ForgeConfigSpec.ConfigValue<String> model,
+                                      ForgeConfigSpec.BooleanValue enabled,
+                                      ForgeConfigSpec.IntValue priority,
+                                      ForgeConfigSpec.IntValue maxRequestsPerMinute) {
     }
 
     private static ProviderConfigKeys defineProvider(String sectionKey, boolean withApiKey,
                                                        boolean defaultEnabled, int defaultPriority,
                                                        int defaultRpm) {
         BUILDER.push(sectionKey);
-        ModConfigSpec.ConfigValue<String> apiKey = withApiKey
+        ForgeConfigSpec.ConfigValue<String> apiKey = withApiKey
                 ? BUILDER.comment("API key for this provider. Sent only to this provider's own endpoint, never logged.")
                         .define("api_key", "")
                 : null;
-        ModConfigSpec.ConfigValue<String> model = BUILDER
+        ForgeConfigSpec.ConfigValue<String> model = BUILDER
                 .comment("Model id to use with this provider.")
                 .define("model", "");
-        ModConfigSpec.BooleanValue enabled = BUILDER
+        ForgeConfigSpec.BooleanValue enabled = BUILDER
                 .comment("Whether this provider participates in routing (ignored in SINGLE mode, which only " +
                         "ever uses the endpoint above). A provider with no API key saved is never actually " +
                         "attempted even if this is true.")
                 .define("enabled", defaultEnabled);
-        ModConfigSpec.IntValue priority = BUILDER
+        ForgeConfigSpec.IntValue priority = BUILDER
                 .comment("Lower number = tried first in PRIORITY mode, and a small bias (not a hard rule) in " +
                         "AUTOMATIC mode. 1 = highest. Most players never need to change this.")
                 .defineInRange("priority", defaultPriority, 1, 11);
-        ModConfigSpec.IntValue maxRequestsPerMinute = BUILDER
+        ForgeConfigSpec.IntValue maxRequestsPerMinute = BUILDER
                 .comment("This mod's suggested starting point for this provider's free tier -- not an official " +
                         "quota guarantee. Set this to match your own account's actual rate limit.")
                 .defineInRange("max_requests_per_minute", defaultRpm, 1, Integer.MAX_VALUE);
@@ -289,15 +289,15 @@ public class Config {
 
     // Custom Provider has a different shape (base URL / auth mode / vision toggle instead of a
     // curated model list), so it isn't built through defineProvider() / PROVIDER_KEYS.
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_NAME;
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_BASE_URL;
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_API_KEY;
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_MODEL;
-    public static final ModConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_AUTH_MODE;
-    public static final ModConfigSpec.BooleanValue CUSTOM_PROVIDER_SUPPORTS_VISION;
-    public static final ModConfigSpec.BooleanValue CUSTOM_PROVIDER_ENABLED;
-    public static final ModConfigSpec.IntValue CUSTOM_PROVIDER_PRIORITY;
-    public static final ModConfigSpec.IntValue CUSTOM_PROVIDER_MAX_REQUESTS_PER_MINUTE;
+    public static final ForgeConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_NAME;
+    public static final ForgeConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_BASE_URL;
+    public static final ForgeConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_API_KEY;
+    public static final ForgeConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_MODEL;
+    public static final ForgeConfigSpec.ConfigValue<String> CUSTOM_PROVIDER_AUTH_MODE;
+    public static final ForgeConfigSpec.BooleanValue CUSTOM_PROVIDER_SUPPORTS_VISION;
+    public static final ForgeConfigSpec.BooleanValue CUSTOM_PROVIDER_ENABLED;
+    public static final ForgeConfigSpec.IntValue CUSTOM_PROVIDER_PRIORITY;
+    public static final ForgeConfigSpec.IntValue CUSTOM_PROVIDER_MAX_REQUESTS_PER_MINUTE;
 
     static {
         BUILDER.push("custom");
@@ -343,7 +343,7 @@ public class Config {
             Map.entry(EndPoint.OLLAMA, PROVIDER_OLLAMA)
     );
 
-    static final ModConfigSpec SPEC = BUILDER.build();
+    static final ForgeConfigSpec SPEC = BUILDER.build();
 
     /**
      * Persists the current in-memory values to the client TOML file. {@code SPEC} itself is
@@ -357,6 +357,9 @@ public class Config {
     }
 
     private static boolean validateItemName(final Object obj) {
-        return obj instanceof String itemName && BuiltInRegistries.ITEM.containsKey(ResourceLocation.parse(itemName));
+        // 1.20.1 has no ResourceLocation.parse(); tryParse returns null instead of throwing.
+        if (!(obj instanceof String itemName)) return false;
+        ResourceLocation id = ResourceLocation.tryParse(itemName);
+        return id != null && BuiltInRegistries.ITEM.containsKey(id);
     }
 }

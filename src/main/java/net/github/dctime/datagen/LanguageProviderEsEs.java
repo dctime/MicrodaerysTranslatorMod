@@ -5,7 +5,7 @@ import net.github.dctime.MicrodaerysTranslatorClient;
 import net.minecraft.data.PackOutput;
 
 /** Spanish (es_es) strings -- see {@link LanguageProvider}'s javadoc for the per-locale-file rationale. */
-public class LanguageProviderEsEs extends net.neoforged.neoforge.common.data.LanguageProvider {
+public class LanguageProviderEsEs extends net.minecraftforge.common.data.LanguageProvider {
 
     public LanguageProviderEsEs(PackOutput output) {
         super(output, MicrodaerysTranslatorClient.MODID, "es_es");

@@ -5,7 +5,7 @@ import net.github.dctime.MicrodaerysTranslatorClient;
 import net.minecraft.data.PackOutput;
 
 /** Korean (ko_kr) strings -- see {@link LanguageProvider}'s javadoc for the per-locale-file rationale. */
-public class LanguageProviderKoKr extends net.neoforged.neoforge.common.data.LanguageProvider {
+public class LanguageProviderKoKr extends net.minecraftforge.common.data.LanguageProvider {
 
     public LanguageProviderKoKr(PackOutput output) {
         super(output, MicrodaerysTranslatorClient.MODID, "ko_kr");

@@ -5,7 +5,7 @@ import net.github.dctime.MicrodaerysTranslatorClient;
 import net.minecraft.data.PackOutput;
 
 /** Japanese (ja_jp) strings -- see {@link LanguageProvider}'s javadoc for the per-locale-file rationale. */
-public class LanguageProviderJaJp extends net.neoforged.neoforge.common.data.LanguageProvider {
+public class LanguageProviderJaJp extends net.minecraftforge.common.data.LanguageProvider {
 
     public LanguageProviderJaJp(PackOutput output) {
         super(output, MicrodaerysTranslatorClient.MODID, "ja_jp");

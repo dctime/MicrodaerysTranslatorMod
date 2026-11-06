@@ -11,7 +11,6 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -27,7 +26,7 @@ import java.util.List;
  * <p>
  * NOT covered by any headless test -- see {@link TranslatorConfigScreen}'s javadoc for why.
  */
-public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
+public class TranslatorAdvancedConfigScreen extends CompatOptionsSubScreen {
 
     private static final String P = MicrodaerysTranslatorClient.MODID + ".config.";
     private static final Integer CUSTOM_INT = Integer.MIN_VALUE;
@@ -116,7 +115,7 @@ public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
                 .withValues(choices)
                 .withInitialValue(selection)
                 .displayOnlyValue()
-                .create(Component.translatable(P + "timeout"), (btn, val) -> {
+                .create(0, 0, 150, 20, Component.translatable(P + "timeout"), (btn, val) -> {
                     timeoutCustomMode = val.equals(CUSTOM_INT);
                     if (!timeoutCustomMode) pending.timeoutDuration = val;
                     refreshOptions();
@@ -124,7 +123,7 @@ public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
         list.addSmall(label(P + "timeout"), timeoutButton);
 
         if (selection == CUSTOM_INT) {
-            EditBox timeoutBox = new EditBox(font, 150, 20, Component.translatable(P + "timeout"));
+            EditBox timeoutBox = new EditBox(font, 0, 0, 150, 20, Component.translatable(P + "timeout"));
             timeoutBox.setMaxLength(9);
             timeoutBox.setValue(String.valueOf(pending.timeoutDuration));
             timeoutBox.setFilter(s -> s.isEmpty() || s.matches("\\d{1,9}"));
@@ -160,7 +159,7 @@ public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
                 .withInitialValue(selection)
                 .displayOnlyValue()
                 .withTooltip(v -> Tooltip.create(Component.translatable(P + "rpm.tooltip")))
-                .create(Component.translatable(P + "rpm"), (btn, val) -> {
+                .create(0, 0, 150, 20, Component.translatable(P + "rpm"), (btn, val) -> {
                     rpmCustomMode = val.equals(CUSTOM_INT);
                     if (!rpmCustomMode) pending.maxRequestsPerMinute = val;
                     refreshOptions();
@@ -168,7 +167,7 @@ public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
         list.addSmall(label(P + "rpm"), rpmButton);
 
         if (showCustom) {
-            EditBox rpmBox = new EditBox(font, 150, 20, Component.translatable(P + "rpm"));
+            EditBox rpmBox = new EditBox(font, 0, 0, 150, 20, Component.translatable(P + "rpm"));
             rpmBox.setMaxLength(9);
             rpmBox.setValue(String.valueOf(pending.maxRequestsPerMinute));
             rpmBox.setFilter(s -> s.isEmpty() || s.matches("\\d{1,9}"));
@@ -176,7 +175,7 @@ public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
                 try {
                     int v = Integer.parseInt(s);
                     // Config.MAX_REQUESTS_PER_MINUTE.defineInRange(1, Integer.MAX_VALUE) -- must
-                    // stay >= 1, or saveToConfig()'s ModConfigSpec.IntValue.set() would reject it.
+                    // stay >= 1, or saveToConfig()'s ForgeConfigSpec.IntValue.set() would reject it.
                     if (v >= 1) pending.maxRequestsPerMinute = v;
                 } catch (NumberFormatException ignored) {
                     // partial/empty input while typing
@@ -200,6 +199,6 @@ public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
         return CycleButton.onOffBuilder(initial)
                 .displayOnlyValue() // paired with a separate label() StringWidget in every call site -- without this the button ALSO prints "label: value" and the two overlap
                 .withTooltip(v -> Tooltip.create(Component.translatable(tooltipKey + ".tooltip")))
-                .create(Component.translatable(tooltipKey), (btn, val) -> setter.accept(val));
+                .create(0, 0, 150, 20, Component.translatable(tooltipKey), (btn, val) -> setter.accept(val));
     }
 }

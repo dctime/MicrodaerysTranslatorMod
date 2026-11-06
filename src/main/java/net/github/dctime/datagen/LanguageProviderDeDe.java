@@ -5,7 +5,7 @@ import net.github.dctime.MicrodaerysTranslatorClient;
 import net.minecraft.data.PackOutput;
 
 /** German (de_de) strings -- see {@link LanguageProvider}'s javadoc for the per-locale-file rationale. */
-public class LanguageProviderDeDe extends net.neoforged.neoforge.common.data.LanguageProvider {
+public class LanguageProviderDeDe extends net.minecraftforge.common.data.LanguageProvider {
 
     public LanguageProviderDeDe(PackOutput output) {
         super(output, MicrodaerysTranslatorClient.MODID, "de_de");

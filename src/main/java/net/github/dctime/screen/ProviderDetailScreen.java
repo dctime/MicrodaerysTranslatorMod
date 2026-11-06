@@ -17,7 +17,6 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
@@ -49,7 +48,7 @@ import java.util.List;
  * <p>
  * NOT covered by any headless test -- see {@link TranslatorConfigScreen}'s javadoc for why.
  */
-public class ProviderDetailScreen extends OptionsSubScreen {
+public class ProviderDetailScreen extends CompatOptionsSubScreen {
 
     private static final String P = MicrodaerysTranslatorClient.MODID + ".config.";
     private static final int SECTION_WIDTH = 310;
@@ -90,7 +89,7 @@ public class ProviderDetailScreen extends OptionsSubScreen {
 
         CycleButton<Boolean> enabledButton = CycleButton.onOffBuilder(pending.isProviderEnabled(endpoint))
                 .displayOnlyValue()
-                .create(Component.translatable(P + "provider.enabled"),
+                .create(0, 0, 150, 20, Component.translatable(P + "provider.enabled"),
                         (btn, val) -> pending.setProviderEnabled(endpoint, val));
         list.addSmall(new StringWidget(Component.translatable(P + "provider.enabled"), font).alignLeft(), enabledButton);
 
@@ -104,14 +103,14 @@ public class ProviderDetailScreen extends OptionsSubScreen {
                     .withValues(modelChoices)
                     .withInitialValue(pending.getProviderModelSelection(endpoint))
                     .displayOnlyValue()
-                    .create(Component.translatable(P + "model"), (btn, val) -> {
+                    .create(0, 0, 150, 20, Component.translatable(P + "model"), (btn, val) -> {
                         pending.setProviderModelSelection(endpoint, val);
                         refreshOptions();
                     });
             list.addSmall(new StringWidget(Component.translatable(P + "model"), font).alignLeft(), modelButton);
 
             if (pending.getProviderModelSelection(endpoint).equals(PendingTranslatorConfig.CUSTOM_MODEL)) {
-                EditBox customModelBox = new EditBox(font, 150, 20, Component.translatable(P + "model.custom_id"));
+                EditBox customModelBox = new EditBox(font, 0, 0, 150, 20, Component.translatable(P + "model.custom_id"));
                 customModelBox.setMaxLength(256);
                 customModelBox.setValue(pending.getProviderCustomModel(endpoint));
                 customModelBox.setResponder(v -> pending.setProviderCustomModel(endpoint, v));
@@ -209,7 +208,7 @@ public class ProviderDetailScreen extends OptionsSubScreen {
      *  THIS screen's specific {@link #endpoint} via {@link PendingTranslatorConfig}'s explicit-
      *  endpoint accessors instead of the old "active provider" live view. */
     private void addApiKeyFields() {
-        EditBox apiKeyBox = new EditBox(font, 150, 20, Component.translatable(P + "api_key"));
+        EditBox apiKeyBox = new EditBox(font, 0, 0, 150, 20, Component.translatable(P + "api_key"));
         apiKeyBox.setMaxLength(512);
         apiKeyBox.setValue(pending.getProviderApiKey(endpoint));
         // Sanitize on EVERY change -- see PendingTranslatorConfig.sanitizeApiKey()'s javadoc for
@@ -237,13 +236,13 @@ public class ProviderDetailScreen extends OptionsSubScreen {
     /** Same fields {@code TranslatorConfigScreen} used to show inline for Custom Provider -- see
      *  that screen's former {@code addCustomProviderFields()} (removed there, moved here). */
     private void addCustomProviderFields() {
-        EditBox nameBox = new EditBox(font, 150, 20, Component.translatable(P + "custom_provider.name"));
+        EditBox nameBox = new EditBox(font, 0, 0, 150, 20, Component.translatable(P + "custom_provider.name"));
         nameBox.setMaxLength(64);
         nameBox.setValue(pending.getCustomProviderName(endpoint));
         nameBox.setResponder(v -> pending.setCustomProviderName(endpoint, v));
         list.addSmall(new StringWidget(Component.translatable(P + "custom_provider.name"), font).alignLeft(), nameBox);
 
-        EditBox baseUrlBox = new EditBox(font, 150, 20, Component.translatable(P + "custom_provider.base_url"));
+        EditBox baseUrlBox = new EditBox(font, 0, 0, 150, 20, Component.translatable(P + "custom_provider.base_url"));
         baseUrlBox.setMaxLength(512);
         baseUrlBox.setValue(pending.getCustomProviderBaseUrl(endpoint));
         baseUrlBox.setResponder(v -> pending.setCustomProviderBaseUrl(endpoint, v));
@@ -259,13 +258,13 @@ public class ProviderDetailScreen extends OptionsSubScreen {
                 .withValues(AuthMode.BEARER, AuthMode.NONE)
                 .withInitialValue(pending.getCustomProviderAuthMode(endpoint))
                 .displayOnlyValue()
-                .create(Component.translatable(P + "custom_provider.authentication"),
+                .create(0, 0, 150, 20, Component.translatable(P + "custom_provider.authentication"),
                         (btn, val) -> pending.setCustomProviderAuthMode(endpoint, val));
         list.addSmall(new StringWidget(Component.translatable(P + "custom_provider.authentication"), font).alignLeft(), authButton);
 
         addApiKeyFields();
 
-        EditBox modelBox = new EditBox(font, 150, 20, Component.translatable(P + "model.custom_id"));
+        EditBox modelBox = new EditBox(font, 0, 0, 150, 20, Component.translatable(P + "model.custom_id"));
         modelBox.setMaxLength(256);
         modelBox.setValue(pending.getProviderCustomModel(endpoint));
         modelBox.setResponder(v -> pending.setProviderCustomModel(endpoint, v));
@@ -278,7 +277,7 @@ public class ProviderDetailScreen extends OptionsSubScreen {
 
         CycleButton<Boolean> visionButton = CycleButton.onOffBuilder(pending.getCustomProviderSupportsVision(endpoint))
                 .displayOnlyValue()
-                .create(Component.translatable(P + "custom_provider.supports_images"),
+                .create(0, 0, 150, 20, Component.translatable(P + "custom_provider.supports_images"),
                         (btn, val) -> pending.setCustomProviderSupportsVision(endpoint, val));
         list.addSmall(new StringWidget(Component.translatable(P + "custom_provider.supports_images"), font).alignLeft(), visionButton);
 
@@ -294,7 +293,7 @@ public class ProviderDetailScreen extends OptionsSubScreen {
                 .withInitialValue(pending.getProviderPriority(endpoint))
                 .displayOnlyValue()
                 .withTooltip(v -> Tooltip.create(Component.translatable(P + "provider.priority.tooltip")))
-                .create(Component.translatable(P + "provider.priority"),
+                .create(0, 0, 150, 20, Component.translatable(P + "provider.priority"),
                         (btn, val) -> pending.setProviderPriority(endpoint, val));
         list.addSmall(new StringWidget(Component.translatable(P + "provider.priority"), font).alignLeft(), priorityButton);
     }
@@ -325,7 +324,7 @@ public class ProviderDetailScreen extends OptionsSubScreen {
                 .withInitialValue(selection)
                 .displayOnlyValue()
                 .withTooltip(v -> Tooltip.create(Component.translatable(P + "provider.rpm.tooltip")))
-                .create(Component.translatable(P + "provider.rpm"), (btn, val) -> {
+                .create(0, 0, 150, 20, Component.translatable(P + "provider.rpm"), (btn, val) -> {
                     rpmCustomMode = val.equals(CUSTOM_INT);
                     if (!rpmCustomMode) pending.setProviderMaxRequestsPerMinute(endpoint, val);
                     refreshOptions();
@@ -333,7 +332,7 @@ public class ProviderDetailScreen extends OptionsSubScreen {
         list.addSmall(new StringWidget(Component.translatable(P + "provider.rpm"), font).alignLeft(), rpmButton);
 
         if (showCustom) {
-            EditBox rpmBox = new EditBox(font, 150, 20, Component.translatable(P + "provider.rpm"));
+            EditBox rpmBox = new EditBox(font, 0, 0, 150, 20, Component.translatable(P + "provider.rpm"));
             rpmBox.setMaxLength(9);
             rpmBox.setValue(String.valueOf(current));
             rpmBox.setFilter(s -> s.isEmpty() || s.matches("\\d{1,9}"));

@@ -2,25 +2,23 @@ package net.github.dctime.libs;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.language.ClientLanguage;
-import net.minecraft.core.Holder;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.contents.TranslatableContents;
+import com.google.common.collect.Multimap;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.MobType;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import java.util.UUID;
 
 /**
  * Looks up official (mod/vanilla-shipped) translations for a translation key in an arbitrary
@@ -111,16 +109,17 @@ public class OfficialTranslationLookup {
         ClientLanguage current = forLanguage(currentGameLanguageCode);
         ClientLanguage target = forLanguage(targetLanguageCode);
 
-        // getTagEnchantments() (not the deprecated getEnchantments(), which is the exact same
-        // behavior minus the @Deprecated marker): vanilla's own tooltip rendering
-        // (ItemEnchantments.addToTooltip) reads the raw stored level, never
-        // GetEnchantmentLevelEvent-hooked values -- we need the same raw values it does, or a
-        // mod hooking that event could make our reconstructed text never match what's rendered.
-        for (Object2IntMap.Entry<Holder<Enchantment>> entry : stack.getTagEnchantments().entrySet()) {
-            Enchantment enchantment = entry.getKey().value();
-            int level = entry.getIntValue();
-            String nameKey = translationKeyOf(enchantment.description());
-            if (nameKey == null) continue; // description isn't a plain translatable component, can't match by key
+        // 1.20.1: deserialize the raw "Enchantments" NBT list, exactly what vanilla's own tooltip
+        // rendering (ItemStack.appendEnchantmentNames) reads -- never Forge's
+        // getAllEnchantments()/GetEnchantmentLevelEvent-hooked values, or a mod hooking that event
+        // could make our reconstructed text never match what's rendered. (1.21 equivalent:
+        // getTagEnchantments().) Like 1.21, an enchanted book's STORED enchantments live in a
+        // different tag and aren't covered here -- those lines just fall through to the AI.
+        for (Map.Entry<Enchantment, Integer> entry : EnchantmentHelper.deserializeEnchantments(stack.getEnchantmentTags()).entrySet()) {
+            Enchantment enchantment = entry.getKey();
+            int level = entry.getValue();
+            // 1.20.1's Enchantment.getFullname() builds the name from exactly this key.
+            String nameKey = enchantment.getDescriptionId();
 
             boolean needsLevel = level != 1 || enchantment.getMaxLevel() != 1;
             String levelKey = needsLevel ? "enchantment.level." + level : null;
@@ -136,11 +135,6 @@ public class OfficialTranslationLookup {
             if (result != null) return result;
         }
         return null;
-    }
-
-    @Nullable
-    private static String translationKeyOf(Component component) {
-        return component.getContents() instanceof TranslatableContents translatable ? translatable.getKey() : null;
     }
 
     /**
@@ -188,36 +182,45 @@ public class OfficialTranslationLookup {
         ClientLanguage current = forLanguage(currentGameLanguageCode);
         ClientLanguage target = forLanguage(targetLanguageCode);
 
-        for (EquipmentSlotGroup group : EquipmentSlotGroup.values()) {
-            List<Map.Entry<Holder<Attribute>, AttributeModifier>> pairs = new ArrayList<>();
-            stack.forEachModifier(group, (attribute, modifier) -> pairs.add(Map.entry(attribute, modifier)));
+        // 1.20.1: per EquipmentSlot (1.21 iterates EquipmentSlotGroup), mirroring
+        // ItemStack.getTooltipLines()'s own loop.
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            Multimap<Attribute, AttributeModifier> modifiers = stack.getAttributeModifiers(slot);
+            List<Map.Entry<Attribute, AttributeModifier>> pairs = new ArrayList<>(modifiers.entries());
 
-            for (Map.Entry<Holder<Attribute>, AttributeModifier> pair : pairs) {
-                String result = decideAttributeModifierLine(pair.getKey(), pair.getValue(), player, current, target, currentlyRenderedText);
+            for (Map.Entry<Attribute, AttributeModifier> pair : pairs) {
+                String result = decideAttributeModifierLine(stack, pair.getKey(), pair.getValue(), player, current, target, currentlyRenderedText);
                 if (result != null) return result;
             }
         }
         return null;
     }
 
+    // Item.BASE_ATTACK_DAMAGE_UUID / BASE_ATTACK_SPEED_UUID are `protected` in 1.20.1 (1.21 turned
+    // them into public ResourceLocation ids), so the vanilla constants are mirrored here verbatim.
+    private static final UUID BASE_ATTACK_DAMAGE_UUID = UUID.fromString("CB3F55D3-645C-4F38-A497-9C13A33DB5CF");
+    private static final UUID BASE_ATTACK_SPEED_UUID = UUID.fromString("FA233E1C-4180-4865-B01B-BCCE9785ACA3");
+
     @Nullable
-    private static String decideAttributeModifierLine(Holder<Attribute> attributeHolder, AttributeModifier modifier, @Nullable LivingEntity player,
+    private static String decideAttributeModifierLine(ItemStack stack, Attribute attribute, AttributeModifier modifier, @Nullable LivingEntity player,
                                                         ClientLanguage current, ClientLanguage target, String currentlyRenderedText) {
-        Attribute attribute = attributeHolder.value();
-        double amount = modifier.amount();
+        double amount = modifier.getAmount();
         boolean isBaseAttackStat = false;
         if (player != null) {
-            if (modifier.is(Item.BASE_ATTACK_DAMAGE_ID)) {
+            if (BASE_ATTACK_DAMAGE_UUID.equals(modifier.getId())) {
                 amount += player.getAttributeBaseValue(Attributes.ATTACK_DAMAGE);
+                // 1.20.1-only: vanilla also folds the Sharpness-style damage bonus into this line
+                // (dropped in 1.21), so the reconstruction has to add it too to match.
+                amount += EnchantmentHelper.getDamageBonus(stack, MobType.UNDEFINED);
                 isBaseAttackStat = true;
-            } else if (modifier.is(Item.BASE_ATTACK_SPEED_ID)) {
+            } else if (BASE_ATTACK_SPEED_UUID.equals(modifier.getId())) {
                 amount += player.getAttributeBaseValue(Attributes.ATTACK_SPEED);
                 isBaseAttackStat = true;
             }
         }
 
-        double displayValue = (modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_BASE
-                || modifier.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL)
+        double displayValue = (modifier.getOperation() == AttributeModifier.Operation.MULTIPLY_BASE
+                || modifier.getOperation() == AttributeModifier.Operation.MULTIPLY_TOTAL)
                 ? amount * 100.0
                 : amount;
 
@@ -236,8 +239,8 @@ public class OfficialTranslationLookup {
             return null; // amount == 0: vanilla doesn't render a line for this modifier at all
         }
 
-        String templateKey = templateKeyPrefix + modifier.operation().id();
-        String formattedNumber = ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(valueToFormat);
+        String templateKey = templateKeyPrefix + modifier.getOperation().toValue();
+        String formattedNumber = ItemStack.ATTRIBUTE_MODIFIER_FORMAT.format(valueToFormat);
         String attributeNameKey = attribute.getDescriptionId();
 
         if (!current.has(templateKey) || !current.has(attributeNameKey)) return null;

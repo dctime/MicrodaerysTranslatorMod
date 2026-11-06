@@ -5,7 +5,7 @@ import net.github.dctime.MicrodaerysTranslatorClient;
 import net.minecraft.data.PackOutput;
 
 /** Simplified Chinese (zh_cn) strings -- see {@link LanguageProvider}'s javadoc for the per-locale-file rationale. */
-public class LanguageProviderZhCn extends net.neoforged.neoforge.common.data.LanguageProvider {
+public class LanguageProviderZhCn extends net.minecraftforge.common.data.LanguageProvider {
 
     public LanguageProviderZhCn(PackOutput output) {
         super(output, MicrodaerysTranslatorClient.MODID, "zh_cn");

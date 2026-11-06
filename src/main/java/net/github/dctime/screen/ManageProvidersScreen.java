@@ -8,7 +8,6 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -27,7 +26,7 @@ import net.minecraft.network.chat.Component;
  * <p>
  * NOT covered by any headless test -- see {@link TranslatorConfigScreen}'s javadoc for why.
  */
-public class ManageProvidersScreen extends OptionsSubScreen {
+public class ManageProvidersScreen extends CompatOptionsSubScreen {
 
     private static final String P = MicrodaerysTranslatorClient.MODID + ".config.";
     private static final int SECTION_WIDTH = 310;
@@ -46,7 +45,7 @@ public class ManageProvidersScreen extends OptionsSubScreen {
 
             CycleButton<Boolean> enabledButton = CycleButton.onOffBuilder(pending.isProviderEnabled(endpoint))
                     .displayOnlyValue()
-                    .create(Component.translatable(info.displayNameKey()), (btn, val) -> pending.setProviderEnabled(endpoint, val));
+                    .create(0, 0, 150, 20, Component.translatable(info.displayNameKey()), (btn, val) -> pending.setProviderEnabled(endpoint, val));
 
             Button configureButton = Button.builder(Component.translatable(P + "provider.configure"),
                     b -> minecraft.setScreen(new ProviderDetailScreen(this, pending, endpoint))).build();

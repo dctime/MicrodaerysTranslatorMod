@@ -11,7 +11,7 @@ import net.minecraft.data.PackOutput;
  * for a player on a locale that's neither zh_tw nor en_us), but not every en_us key needs an entry
  * here -- Minecraft falls back to en_us automatically for anything unlisted.
  */
-public class LanguageProviderZhTw extends net.neoforged.neoforge.common.data.LanguageProvider {
+public class LanguageProviderZhTw extends net.minecraftforge.common.data.LanguageProvider {
 
     public LanguageProviderZhTw(PackOutput output) {
         super(output, MicrodaerysTranslatorClient.MODID, "zh_tw");

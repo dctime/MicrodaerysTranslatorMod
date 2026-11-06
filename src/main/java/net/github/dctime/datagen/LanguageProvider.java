@@ -18,7 +18,7 @@ import net.minecraft.data.PackOutput;
  * system already resolves {@code Component.translatable(key)} against whatever locale the player
  * has selected -- that's what per-locale files are for.
  */
-public class LanguageProvider extends net.neoforged.neoforge.common.data.LanguageProvider {
+public class LanguageProvider extends net.minecraftforge.common.data.LanguageProvider {
 
     public LanguageProvider(PackOutput output) {
         super(output, MicrodaerysTranslatorClient.MODID, "en_us");

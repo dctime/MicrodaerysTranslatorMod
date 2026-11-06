@@ -1,5 +1,6 @@
 package net.github.dctime.mixin.ftbquests;
 
+import com.llamalad7.mixinextras.sugar.Local;
 import dev.ftb.mods.ftblibrary.ui.*;
 import dev.ftb.mods.ftblibrary.ui.misc.CompactGridLayout;
 import dev.ftb.mods.ftbquests.client.gui.quests.*;
@@ -29,23 +30,25 @@ import java.util.Objects;
 @Mixin(ViewQuestPanel.class)
 public abstract class ViewQuestPanelMixin extends ModalPanel {
 
-    @Shadow
+    @Shadow(remap = false)
     private TextField titleField;
-    @Shadow
+    @Shadow(remap = false)
     private BlankPanel panelText;
-    @Shadow
+    @Shadow(remap = false)
     private BlankPanel panelTasks;
-    @Shadow
+
     private BlankPanel panelRewards;
-    @Shadow
+
+
+    @Shadow(remap = false)
     private final QuestScreen questScreen;
-    @Shadow
+    @Shadow(remap = false)
     private Quest quest;
-    @Shadow
+    @Shadow(remap = false)
     private BlankPanel panelContent;
 
 
-    @Shadow
+    @Shadow(remap = false)
     private long lastScrollTime;
 
     @Shadow
@@ -80,6 +83,8 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
         super(panel);
         this.questScreen = questScreen;
     }
+
+
 
     private void resizeUI() {
         // Translation successful, do some ui adjustment
@@ -223,7 +228,7 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
         setScrollY(Mth.clamp(getScrollY(), 0, Math.max(0, getContentHeight() - height)));
     }
 
-    @Inject(method = "draw", at = @At("HEAD"))
+    @Inject(method = "draw", at = @At("HEAD"), remap = false)
     public void onDraw(GuiGraphics graphics, Theme theme, int x, int y, int w, int h, CallbackInfo ci) {
         if (!Config.ENABLE_FTB_QUEST_TRANSLATION.get()) return;
         if (Translator.getDeletingTranslationKeyHold()) {
@@ -279,12 +284,26 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
         }
     }
 
-    @Inject(method = "onClosed", at = @At("HEAD"))
+    @Inject(method = "onClosed", at = @At("HEAD"), remap = false)
     public void onClosed(CallbackInfo ci) {
         LOGGER.debug("Warning OnClosed called, resetting translation state.");
         isViewQuestPanelTranslated = false;
         isDescriptionTranslated = null;
         translationLeft = -1;
+    }
+
+    @Inject(method = "setCurrentPage", at = @At("RETURN"), remap = false)
+    public void onSetCurrentPage(int page, CallbackInfo ci) {
+        LOGGER.debug("Warning SetCurrentPage called, resetting translation state.");
+        // Reset translation state when changing pages
+        isViewQuestPanelTranslated = false;
+        isDescriptionTranslated = null;
+        translationLeft = -1;
+    }
+
+    @Inject(method = "addWidgets", at = @At("RETURN"), remap = false)
+    public void onAddWidgets(CallbackInfo ci, @Local(name = "panelRewards", ordinal = 0) BlankPanel panelRewards) {
+        this.panelRewards = panelRewards;
     }
 
     @Override
@@ -294,15 +313,6 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
         isDescriptionTranslated = null;
         translationLeft = -1;
         LOGGER.debug("Warning refreshWidgets called, resetting translation state.");
-    }
-
-    @Inject(method = "setCurrentPage", at = @At("RETURN"))
-    public void onSetCurrentPage(int page, CallbackInfo ci) {
-        LOGGER.debug("Warning SetCurrentPage called, resetting translation state.");
-        // Reset translation state when changing pages
-        isViewQuestPanelTranslated = false;
-        isDescriptionTranslated = null;
-        translationLeft = -1;
     }
 
     private boolean translateFormattedText(FormattedTextGetterSetter formattedTextGetter) {

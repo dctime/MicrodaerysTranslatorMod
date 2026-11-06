@@ -1,11 +1,11 @@
 package net.github.dctime;
 
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.client.ConfigScreenHandler;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.config.ModConfig;
 import net.github.dctime.libs.OfficialTranslationLookup;
 import net.github.dctime.libs.ProviderMigrationMarker;
 import net.github.dctime.libs.Translator;
@@ -14,10 +14,9 @@ import net.github.dctime.libs.provider.ProviderConfigResolver;
 import net.github.dctime.libs.provider.ProviderInfo;
 import net.github.dctime.libs.routing.ProviderMode;
 import net.github.dctime.screen.TranslatorConfigScreen;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.fml.loading.FMLPaths;
-import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
-import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,20 +24,23 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 // This class will not load on dedicated servers. Accessing client side code from here is safe.
-@Mod(value = MicrodaerysTranslatorClient.MODID, dist = Dist.CLIENT)
+// Forge 1.20.1 has no @Mod(dist = ...) -- same as every earlier 1.20.1 release of this mod, which
+// is only ever installed on the client.
+@Mod(value = MicrodaerysTranslatorClient.MODID)
 // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
-@EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+@Mod.EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class MicrodaerysTranslatorClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(MicrodaerysTranslatorClient.class);
     public static final String MODID = "microdaerystranslator";
-    public MicrodaerysTranslatorClient(ModContainer container) {
+    public MicrodaerysTranslatorClient() {
         // Custom config screen (TranslatorConfigScreen) instead of NeoForge's generic
         // ConfigurationScreen -- see mailbox #002: the auto-generated screen exposes raw config
         // keys and free-text fields (endpoint/model_name/target_language/...) that aren't usable
         // for a player who doesn't know what an API endpoint or a language code is.
         // The config screen is accessed by going to the Mods screen > clicking on your mod > clicking on config.
-        container.registerExtensionPoint(IConfigScreenFactory.class, (c, parent) -> new TranslatorConfigScreen(parent));
-        container.registerConfig(ModConfig.Type.CLIENT, Config.SPEC);
+        ModLoadingContext.get().registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class,
+                () -> new ConfigScreenHandler.ConfigScreenFactory((mc, parent) -> new TranslatorConfigScreen(parent)));
+        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, Config.SPEC);
     }
 
     @SubscribeEvent
@@ -94,7 +96,7 @@ public class MicrodaerysTranslatorClient {
 
     /**
      * One-time migration for the Multi-Provider Router refactor (mailbox review rounds 023-028).
-     * Gated by a plain FILE marker, not a TOML key -- {@code ModConfigSpec.correct()} unconditionally
+     * Gated by a plain FILE marker, not a TOML key -- {@code ForgeConfigSpec.correct()} unconditionally
      * deletes any key the running code no longer defines, so a TOML-based "already migrated" flag
      * would itself vanish on a downgrade, silently letting this migration re-run (and overwrite
      * whatever the player had since deliberately configured in Manage Providers) on the next
