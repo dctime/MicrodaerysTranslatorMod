@@ -511,6 +511,7 @@ public class Translator {
 
     public static void requestTranslateItemStackToTraditionalChinese(String textInEnglish, ItemStack stack) throws IOException, InterruptedException {
         if (stack != null && !IN_FLIGHT.contains(keyFor(textInEnglish)) && Config.ENABLE_ICON_CONFIG.get()) {
+            if (!TranslationRouter.hasGlobalCapacityNow()) return; // E3: don't render an icon for a job the router will drop
             RenderSystem.recordRenderCall(() -> {
                 String image = getItemStackImage(stack);
                 try {
@@ -553,6 +554,10 @@ public class Translator {
             if (screenshotTranslating) return;
         } else {
             if (IN_FLIGHT.contains(jobKey)) return;
+            // E3: same peek as requestTranslateItemStackToTraditionalChinese -- also keeps the
+            // [DIAG] line below to requests that can actually be sent, instead of one per dropped
+            // retry per tick (that line is unchanged, only no longer spammed by doomed attempts).
+            if (!TranslationRouter.hasGlobalCapacityNow()) return;
             // The old text-keyed 429 backoff check (RETRY_AFTER/RETRY_ATTEMPTS) that used to live
             // here is gone, not merely moved -- TranslationRouter's hard filter now checks each
             // CANDIDATE provider's own ProviderRuntimeState cooldown before ever selecting it, which

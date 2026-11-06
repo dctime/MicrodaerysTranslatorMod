@@ -393,6 +393,16 @@ public final class TranslationRouter {
         return candidate.supportsVision() ? job.imageBase64() : null;
     }
 
+    /** E3: non-consuming peek of the two GLOBAL gates attemptCandidate checks first. When either is
+     *  exhausted every job is dropped synchronously anyway, so Translator checks this BEFORE doing
+     *  per-request work the router would throw away -- otherwise a container full of uncached items
+     *  re-rendered every item icon (64x64 FBO + PNG + base64) and printed a [DIAG] line per item,
+     *  every tick, for as long as the RPM window stayed full. Provider-level budgets are not peeked
+     *  here (the job may still fall back to another provider). */
+    public static boolean hasGlobalCapacityNow() {
+        return GLOBAL_CONCURRENCY.availablePermits() > 0 && hasGlobalRateBudget(System.currentTimeMillis());
+    }
+
     /** Synchronized for the same reason {@link ProviderRuntimeState}'s rate-limiter accessors are:
      *  {@link RateLimiter} isn't thread-safe by itself, and this global instance is now touched from
      *  HTTP completion callback threads via the fallback loop, not just one caller at a time. */
