@@ -2,7 +2,7 @@ package net.github.dctime.events;
 
 import com.mojang.datafixers.util.Either;
 import net.github.dctime.Config;
-import net.github.dctime.GoogleAIStudioTranslatorClient;
+import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.libs.Translator;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-@Mod.EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT)
 public class RenderTooltipEvent {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderTooltipEvent.class);
@@ -31,25 +31,18 @@ public class RenderTooltipEvent {
             int finalI = i;
             e.ifLeft(text -> {
                 String original = text.getString();
+                if (Translator.isModNameLine(stack, original)) return; // "Minecraft"/"FTB Quests": leave untouched, don't waste an AI call on a brand name
                 String translated;
-                if (Translator.translationCache.containsKey(original))
-                    translated = Translator.translationCache.get(original);
-                else {
-                    try {
-                        if (finalI != 0) {
-                            Translator.requestTranslateToTraditionalChinese(original);
-                        } else {
-                            Translator.requestTranslateItemStackToTraditionalChinese(original, stack);
-                        }
-                    } catch (IOException ex) {
-                        LOGGER.warn("IO Exception while translating: " + ex.getMessage());
-                    } catch (InterruptedException ex) {
-                        LOGGER.warn("Interrupted Exception while translating: " + ex.getMessage());
-                    }
+                try {
+                    translated = Translator.resolveOrRequestTranslation(stack, original, finalI == 0);
+                } catch (IOException ex) {
+                    LOGGER.warn("IO Exception while translating: " + ex.getMessage());
                     return;
-//                    if (translated == null) return;
-//                    translationCache.put(original, translated);
+                } catch (InterruptedException ex) {
+                    LOGGER.warn("Interrupted Exception while translating: " + ex.getMessage());
+                    return;
                 }
+                if (translated == null) return; // nothing available this frame (AI request may be in flight)
                 Component replaced;
 
                 if (text instanceof Component textComponent)

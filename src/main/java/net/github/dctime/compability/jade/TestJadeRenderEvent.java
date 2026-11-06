@@ -1,73 +1,61 @@
 package net.github.dctime.compability.jade;
 
-import mcp.mobius.waila.api.Accessor;
 import mcp.mobius.waila.api.ITooltip;
-import mcp.mobius.waila.api.event.WailaRenderEvent;
 import mcp.mobius.waila.api.ui.IElement;
-import mcp.mobius.waila.impl.BlockAccessorImpl;
-import mcp.mobius.waila.impl.EntityAccessorImpl;
 import mcp.mobius.waila.impl.ui.TextElement;
 import net.github.dctime.Config;
-import net.github.dctime.GoogleAIStudioTranslatorClient;
+import net.minecraft.ChatFormatting;
 import net.github.dctime.libs.Translator;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.TextComponent;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.List;
 
-//@Mod.EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
+/**
+ * Jade 5 (1.18.2) has no {@code JadeTooltipCollectedCallback} -- {@code mixin/jade/OverlayRendererMixin}
+ * calls {@link #onTooltipCollected} at the head of every overlay render instead (and strips the
+ * appended translation elements again at the tail, so they never pile up frame after frame), and
+ * pulls the ItemStack from the overlay's icon element rather than from an accessor.
+ */
 public class TestJadeRenderEvent {
-//    @SubscribeEvent
-//    public static void onJadeRender(WailaRenderEvent.Pre event) {
-//        ITooltip tooltip = event.getTooltip();
-//        Accessor<?> accessor = event.getAccessor();
-////        onTooltipCollected(tooltip, accessor);
-//    }
 
-    public static void onTooltipCollected(ITooltip iTooltip, Accessor<?> accessor){
-        ItemStack stack = null;
-        if ((accessor instanceof BlockAccessorImpl blockAccessor)) {
-            stack = blockAccessor.getBlock().asItem().getDefaultInstance();
-        }
-
-        if ((accessor instanceof EntityAccessorImpl entityAccessor) && (entityAccessor.getEntity() instanceof ItemEntity itemEntity)) {
-            stack = itemEntity.getItem();
-        }
-
+    public static void onTooltipCollected(ITooltip iTooltip, @Nullable ItemStack stack) {
         if (!Config.ENABLE_JADE_CONFIG.get()) return;
         for (int jadeIndex = 0; jadeIndex < iTooltip.size(); jadeIndex++) {
             String lineMsg = "";
             List<IElement> elements = iTooltip.get(jadeIndex, IElement.Align.LEFT);
             for (IElement element : elements) {
-                if (element instanceof TextElement textElement && textElement.getMessage() != null && textElement.getMessage() instanceof TextComponent textComponent) {
-                    lineMsg += textComponent.plainCopy().getString();
+                if (element instanceof TextElement textElement && textElement.getMessage() != null) {
+                    lineMsg += textElement.getMessage().getString();
                 }
             }
+            // Jade 5 still builds its title/mod-name lines from legacy format strings (e.g. the
+            // mod name is "§9§o%s"), so the raw text carries section-sign codes that newer
+            // Jade versions express as Style instead. Strip them, or isModNameLine never matches
+            // ("§9§oMinecraft" != "Minecraft") and every mod-name line goes to the AI, and
+            // the codes would leak into the cache key and the prompt.
+            lineMsg = ChatFormatting.stripFormatting(lineMsg);
+            if (lineMsg == null || lineMsg.isBlank()) continue;
 
-            if (!Translator.translationCache.containsKey(lineMsg)) {
-                try {
-                    if (jadeIndex != 0) {
-                        Translator.requestTranslateToTraditionalChinese(lineMsg);
-                    } else {
-                        Translator.requestTranslateItemStackToTraditionalChinese(lineMsg, stack);
-                    }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                continue;
+            // same short-circuit chain as the vanilla inventory tooltip (RenderTooltipEvent) --
+            // see Translator#resolveOrRequestTranslation's javadoc for why this used to be
+            // missing here (#20): a plain "Minecraft"/"FTB Quests" mod-name line, or any vanilla
+            // item/enchantment/attribute-modifier line, was always sent to the AI when hovered
+            // via Jade even though the exact same line already skipped the AI when hovered from
+            // an inventory slot.
+            if (Translator.isModNameLine(stack, lineMsg)) continue;
+
+            String translated;
+            try {
+                translated = Translator.resolveOrRequestTranslation(stack, lineMsg, jadeIndex == 0);
+            } catch (IOException | InterruptedException e) {
+                throw new RuntimeException(e);
             }
+            if (translated == null) continue; // nothing available this frame (AI request may be in flight)
 
-            iTooltip.append(jadeIndex, new TextElement(new TextComponent(" " + Translator.translationCache.get(lineMsg)).withStyle(Translator.translatedStyle)));
+            iTooltip.append(jadeIndex, new TextElement(new TextComponent(" " + translated).withStyle(Translator.translatedStyle)));
         }
-
     }
 }

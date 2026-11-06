@@ -1,25 +1,18 @@
 package net.github.dctime.mixin.jade;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import mcp.mobius.waila.api.ITooltip;
 import mcp.mobius.waila.api.ui.IElement;
-import mcp.mobius.waila.impl.ui.ItemStackElement;
-import mcp.mobius.waila.impl.ui.TextElement;
 import mcp.mobius.waila.overlay.OverlayRenderer;
 import mcp.mobius.waila.overlay.TooltipRenderer;
-import net.github.dctime.Config;
-import net.github.dctime.libs.Translator;
+import net.github.dctime.compability.jade.TestJadeRenderEvent;
 import net.github.dctime.libs.jade.IGetIcon;
 import net.github.dctime.libs.jade.IGetItem;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,49 +45,14 @@ public class OverlayRendererMixin {
     }
 
     private static void onTooltipCollected(TooltipRenderer renderer){
+        // Jade 5 has no accessor-carrying callback here; the looked-at thing's ItemStack comes from
+        // the overlay's icon element (TooltipRendererMixin exposes it, ItemStackElementMixin
+        // exposes its stack). Translation logic itself lives in TestJadeRenderEvent so it stays
+        // on the same Translator.resolveOrRequestTranslation chain as inventory tooltips (#20).
         ItemStack stack = null;
         if (renderer instanceof IGetIcon iconGetter && iconGetter.getIcon() instanceof IGetItem iGetItem) {
             stack = iGetItem.getItem();
         }
-//        if ((accessor instanceof BlockAccessorImpl blockAccessor)) {
-//            stack = blockAccessor.getBlock().asItem().getDefaultInstance();
-//        }
-//
-//        if ((accessor instanceof EntityAccessorImpl entityAccessor) && (entityAccessor.getEntity() instanceof ItemEntity itemEntity)) {
-//            stack = itemEntity.getItem();
-//        }
-
-        if (!Config.ENABLE_JADE_CONFIG.get()) return;
-        for (int jadeIndex = 0; jadeIndex < renderer.getTooltip().size(); jadeIndex++) {
-            String lineMsg = "";
-            List<IElement> elements = renderer.getTooltip().get(jadeIndex, IElement.Align.LEFT);
-            for (IElement element : elements) {
-                if (element instanceof TextElement textElement && textElement.getMessage() != null && textElement.getMessage() instanceof TextComponent textComponent) {
-                    lineMsg += textComponent.plainCopy().getString();
-                }
-
-                if (element instanceof TextElement textElement && textElement.getMessage() != null && textElement.getMessage() instanceof TranslatableComponent translatableComponent) {
-                    lineMsg += translatableComponent.getString();
-                }
-            }
-
-            if (!Translator.translationCache.containsKey(lineMsg)) {
-                try {
-                    if (jadeIndex != 0) {
-                        Translator.requestTranslateToTraditionalChinese(lineMsg);
-                    } else {
-                        Translator.requestTranslateItemStackToTraditionalChinese(lineMsg, stack);
-                    }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                continue;
-            }
-
-            renderer.getTooltip().append(jadeIndex, new TextElement(new TextComponent(" " + Translator.translationCache.get(lineMsg)).withStyle(Translator.translatedStyle)));
-        }
-
+        TestJadeRenderEvent.onTooltipCollected(renderer.getTooltip(), stack);
     }
 }

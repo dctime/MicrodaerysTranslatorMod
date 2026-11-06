@@ -1,5 +1,6 @@
 package net.github.dctime.mixin;
 
+import net.minecraft.network.chat.TextComponent;
 import betteradvancements.gui.BetterAdvancementTab;
 import betteradvancements.gui.BetterAdvancementWidget;
 import betteradvancements.gui.BetterAdvancementsScreen;
@@ -14,7 +15,10 @@ import net.minecraft.advancements.DisplayInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.locale.Language;
-import net.minecraft.network.chat.*;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentUtils;
+import net.minecraft.network.chat.FormattedText;
+import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -73,9 +77,10 @@ public abstract class BetterAdvancementWidgetMixin {
     private String translatedTitle;
     private int tempMaxWidth;
 
+    // Better Advancements 0.1.x for 1.18.2 already returns visual-order lines here (no separate
+    // Language.getVisualOrder step needed), unlike the List<FormattedText> of later versions.
     @Shadow(remap = false)
     protected abstract List<FormattedCharSequence> findOptimalLines(Component line, int width);
-//    protected abstract List<FormattedText> findOptimalLines(Component line, int width);
 
     @Inject(method = "Lbetteradvancements/gui/BetterAdvancementWidget;drawHover(Lcom/mojang/blaze3d/vertex/PoseStack;IIFII)V", at = @At(value = "FIELD", target = "width", ordinal = 0), remap = false)
     public void onDrawHover(PoseStack poseStack, int scrollX, int scrollY, float fade, int left, int top, CallbackInfo ci) {
@@ -111,12 +116,12 @@ public abstract class BetterAdvancementWidgetMixin {
     }
 
     private void translateTitle() throws IOException, InterruptedException {
-        if (!Translator.translationCache.containsKey(this.title)) {
+        if (!Translator.textInCache(this.title)) {
             Translator.requestTranslateToTraditionalChinese(this.title);
             return;
         }
 
-        this.translatedTitle = " " + Translator.translationCache.get(this.title);
+        this.translatedTitle = " " + Translator.getTranslationFromCache(this.title);
         this.title = this.title + this.translatedTitle;
 
         // resize UI
@@ -138,13 +143,12 @@ public abstract class BetterAdvancementWidgetMixin {
     }
     private void translateDesc() throws IOException, InterruptedException {
         String originalDesc = this.displayInfo.getDescription().getString();
-        if (!Translator.translationCache.containsKey(originalDesc)) {
+        if (!Translator.textInCache(originalDesc)) {
             Translator.requestTranslateToTraditionalChinese(originalDesc);
             return;
         }
 
-        String translatedDesc = Translator.translationCache.get(originalDesc);
-//        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(this.displayInfo.getDescription().copy().append(new TextComponent("\n"+translatedDesc).withStyle(Translator.translatedStyle)), Style.EMPTY.withColor(this.displayInfo.getFrame().getChatColor())), tempMaxWidth));
+        String translatedDesc = Translator.getTranslationFromCache(originalDesc);
         this.description = this.findOptimalLines(ComponentUtils.mergeStyles(this.displayInfo.getDescription().copy().append(new TextComponent("\n"+translatedDesc).withStyle(Translator.translatedStyle)), Style.EMPTY.withColor(this.displayInfo.getFrame().getChatColor())), tempMaxWidth);
 
         for(FormattedCharSequence line : this.description) {
