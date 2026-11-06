@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 
 import static net.github.dctime.libs.ScreenShotter.getItemStackImage;
@@ -268,7 +269,14 @@ public class Translator {
      * mid-task on exit. Blocking here is cheap: by this point clear() has already emptied the map,
      * so the write is a handful of bytes, not O(cache size).
      */
+    // E9: bumped by every clearCache(). A job snapshots it when it starts and only writes its result
+    // back if no clear happened in between -- otherwise a job still in flight when the player
+    // changed the prompt and confirmed "clear cache" landed afterwards and re-inserted (and
+    // flushed to disk) a translation made with the old prompt the player had just discarded.
+    private static final AtomicInteger cacheGeneration = new AtomicInteger();
+
     public static void clearCache(boolean showMessage) {
+        cacheGeneration.incrementAndGet();
         if (Translator.translationCache.isEmpty()) return;
         Translator.translationCache.clear();
         cacheDirty = true; // otherwise a quit before the flush below leaves the stale cache on disk
@@ -608,6 +616,7 @@ public class Translator {
         VisionRequirement visionRequirement = isScreenShot ? VisionRequirement.REQUIRED
                 : (image != null ? VisionRequirement.OPTIONAL : VisionRequirement.NONE);
         TranslationJob job = new TranslationJob(jobKey, prompt, image, isScreenShot, visionRequirement);
+        int generation = cacheGeneration.get();
 
         if (isScreenShot) screenshotTranslating = true; else IN_FLIGHT.add(jobKey);
 
@@ -632,6 +641,8 @@ public class Translator {
             String translatedText = cleanText(result.translatedText());
             if (isScreenShot) {
                 showScreenShotResult(translatedText);
+            } else if (generation != cacheGeneration.get()) {
+                LOGGER.debug("Discarding translation started before the cache was cleared: " + fixedText);
             } else {
                 // Same jobKey as IN_FLIGHT.add() above, not a re-resolved keyFor(fixedText) -- if
                 // Config.TARGET_LANGUAGE changed mid-flight (possible now that a job can span
