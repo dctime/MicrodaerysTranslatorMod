@@ -40,6 +40,10 @@ public class LanguageProviderZhTw extends net.neoforged.neoforge.common.data.Lan
 
         add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
                 "翻譯失敗！目前選擇的模型不支援圖片輸入 -- 請到設定畫面換一個模型試試。");
+        // R1/#5: shown once on world join when follow_game_language resolves to en_us (see
+        // Translator.warnIfTargetFollowsEnglishGameLanguage).
+        add(MicrodaerysTranslatorClient.MODID + ".translator.follow_language_is_english",
+                "翻譯目標語言目前跟隨 Minecraft 語言（英文），所以英文內容不會被翻譯。若要翻譯，請到本模組設定關閉「跟隨 Minecraft 語言」並選擇「目標語言」。");
 
         // === Custom config GUI (TranslatorConfigScreen / TranslatorAdvancedConfigScreen) ===
         String p = MicrodaerysTranslatorClient.MODID + ".config.";

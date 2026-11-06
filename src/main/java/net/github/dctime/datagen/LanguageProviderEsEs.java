@@ -34,6 +34,10 @@ public class LanguageProviderEsEs extends net.neoforged.neoforge.common.data.Lan
 
         add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
                 "¡Traducción fallida! El modelo seleccionado no admite entrada de imágenes -- prueba con otro modelo en la pantalla de configuración.");
+        // R1/#5: shown once on world join when follow_game_language resolves to en_us (see
+        // Translator.warnIfTargetFollowsEnglishGameLanguage).
+        add(MicrodaerysTranslatorClient.MODID + ".translator.follow_language_is_english",
+                "El idioma de destino sigue el idioma de Minecraft (inglés), así que el texto en inglés no se traducirá. Desactiva \"Seguir el idioma de Minecraft\" en la configuración de este mod y elige un idioma de destino.");
 
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");

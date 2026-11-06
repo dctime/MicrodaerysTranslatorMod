@@ -124,5 +124,6 @@
   "microdaerystranslator.configuration.prompt": "Prompt",
   "microdaerystranslator.configuration.prompt_screenshot": "Prompt for Screenshot Translation",
   "microdaerystranslator.configuration.timeout_duration": "Timeout Duration",
+  "microdaerystranslator.translator.follow_language_is_english": "The translation target is following your Minecraft language (English), so English text will not be translated. To translate it, turn off \"Follow Minecraft Language\" in this mod's config and choose a Target Language.",
   "microdaerystranslator.translator.vision_unsupported": "Translation failed! The selected model does not support image input -- try a different model in the config screen."
 }

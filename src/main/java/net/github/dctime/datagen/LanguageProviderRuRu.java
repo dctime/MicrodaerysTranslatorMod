@@ -34,6 +34,10 @@ public class LanguageProviderRuRu extends net.neoforged.neoforge.common.data.Lan
 
         add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
                 "Не удалось перевести! Выбранная модель не поддерживает ввод изображений -- попробуйте выбрать другую модель в настройках.");
+        // R1/#5: shown once on world join when follow_game_language resolves to en_us (see
+        // Translator.warnIfTargetFollowsEnglishGameLanguage).
+        add(MicrodaerysTranslatorClient.MODID + ".translator.follow_language_is_english",
+                "Целевой язык следует языку Minecraft (английский), поэтому английский текст не будет переведён. Отключите \"Следовать языку Minecraft\" в настройках этого мода и выберите целевой язык.");
 
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");

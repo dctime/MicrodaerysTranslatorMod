@@ -124,5 +124,6 @@
   "microdaerystranslator.configuration.prompt": "提示词",
   "microdaerystranslator.configuration.prompt_screenshot": "翻译截图的提示词",
   "microdaerystranslator.configuration.timeout_duration": "超时时间(秒)",
+  "microdaerystranslator.translator.follow_language_is_english": "翻译目标语言目前跟随 Minecraft 语言（英文），所以英文内容不会被翻译。若要翻译，请到本模组设置关闭「跟随 Minecraft 语言」并选择「目标语言」。",
   "microdaerystranslator.translator.vision_unsupported": "翻译失败！目前选择的模型不支持图片输入 -- 请到设置画面换一个模型试试。"
 }

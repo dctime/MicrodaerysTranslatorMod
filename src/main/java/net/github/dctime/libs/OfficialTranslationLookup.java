@@ -44,6 +44,12 @@ public class OfficialTranslationLookup {
                 code -> ClientLanguage.loadFrom(Minecraft.getInstance().getResourceManager(), List.of(code), false));
     }
 
+    /** A key's value in one specific language's lang files, regardless of the game's current UI
+     *  language -- for messages that must show the same key in two languages side by side. */
+    public static String valueIn(String languageCode, String translationKey) {
+        return forLanguage(languageCode).getOrDefault(translationKey, translationKey);
+    }
+
     /**
      * Drops all cached ClientLanguage snapshots so the next lookup() re-reads from the resource
      * manager. Must be called whenever resource packs are added/removed/reordered (e.g. a

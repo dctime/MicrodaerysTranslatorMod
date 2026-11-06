@@ -34,6 +34,10 @@ public class LanguageProviderKoKr extends net.neoforged.neoforge.common.data.Lan
 
         add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
                 "번역 실패! 선택한 모델은 이미지 입력을 지원하지 않습니다 -- 설정 화면에서 다른 모델을 선택해 보세요.");
+        // R1/#5: shown once on world join when follow_game_language resolves to en_us (see
+        // Translator.warnIfTargetFollowsEnglishGameLanguage).
+        add(MicrodaerysTranslatorClient.MODID + ".translator.follow_language_is_english",
+                "번역 대상 언어가 Minecraft 언어(영어)를 따르고 있어 영어 텍스트는 번역되지 않습니다. 번역하려면 이 모드 설정에서 \"Minecraft 언어 따르기\"를 끄고 \"번역 대상 언어\"를 선택하세요.");
 
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");

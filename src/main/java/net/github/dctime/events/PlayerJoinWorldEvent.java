@@ -29,6 +29,7 @@ public class PlayerJoinWorldEvent {
             }
             Minecraft.getInstance().player.sendSystemMessage(Component.literal(WelcomeMessageTemplates.clickHereFor(currentGameLanguage))
                     .withStyle(s -> s.withColor(net.minecraft.ChatFormatting.GREEN).withUnderlined(true).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://github.com/dctime/MicrodaerysTranslatorMod/issues"))));
+            Translator.warnIfTargetFollowsEnglishGameLanguage();
         }
     }
 

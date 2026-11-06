@@ -769,6 +769,22 @@ public class Translator {
         hasShowConnectionError = false;
     }
 
+    /**
+     * R1 / #5: with follow_game_language=true (the default) and an English game UI, the target
+     * resolves to en_us, so isAlreadyInTargetLanguage() caches "" for every ASCII line and the mod
+     * shows nothing but English everywhere -- no error, no chat message, only a [DIAG] log line.
+     * Called once per world join (PlayerJoinWorldEvent). follow=false with en_us chosen by hand is
+     * a legitimate setup (e.g. translating a Chinese UI into English) and is left alone. Both lines
+     * read from the en_us/zh_tw lang files explicitly, matching showMessage's English + Chinese
+     * convention, rather than resolving the key in the (English) UI language twice.
+     */
+    public static void warnIfTargetFollowsEnglishGameLanguage() {
+        if (!TargetLanguage.isInheritedEnglishTarget(Config.FOLLOW_GAME_LANGUAGE.get(), resolveTargetLanguage())) return;
+        String key = MicrodaerysTranslatorClient.MODID + ".translator.follow_language_is_english";
+        showMessage(OfficialTranslationLookup.valueIn("en_us", key), OfficialTranslationLookup.valueIn("zh_tw", key),
+                ChatFormatting.YELLOW, () -> false, () -> {});
+    }
+
     /** Call whenever the provider pool configuration actually changes (e.g. {@code
      *  PendingTranslatorConfig.saveToConfig()}) -- the only event that can change whether {@code
      *  NO_ELIGIBLE_PROVIDER} still holds, unlike the other error flags which reset on the next

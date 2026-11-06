@@ -124,5 +124,6 @@
   "microdaerystranslator.configuration.prompt": "Instrucción (prompt)",
   "microdaerystranslator.configuration.prompt_screenshot": "Instrucción para traducir capturas de pantalla",
   "microdaerystranslator.configuration.timeout_duration": "Tiempo de espera",
+  "microdaerystranslator.translator.follow_language_is_english": "El idioma de destino sigue el idioma de Minecraft (inglés), así que el texto en inglés no se traducirá. Desactiva \"Seguir el idioma de Minecraft\" en la configuración de este mod y elige un idioma de destino.",
   "microdaerystranslator.translator.vision_unsupported": "¡Traducción fallida! El modelo seleccionado no admite entrada de imágenes -- prueba con otro modelo en la pantalla de configuración."
 }

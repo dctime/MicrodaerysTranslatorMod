@@ -55,6 +55,10 @@ public class LanguageProvider extends net.neoforged.neoforge.common.data.Languag
         // key instead of adding a third bilingual message to the pile.
         add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
                 "Translation failed! The selected model does not support image input -- try a different model in the config screen.");
+        // R1/#5: shown once on world join when follow_game_language resolves to en_us (see
+        // Translator.warnIfTargetFollowsEnglishGameLanguage).
+        add(MicrodaerysTranslatorClient.MODID + ".translator.follow_language_is_english",
+                "The translation target is following your Minecraft language (English), so English text will not be translated. To translate it, turn off \"Follow Minecraft Language\" in this mod's config and choose a Target Language.");
 
         // === Custom config GUI (TranslatorConfigScreen / TranslatorAdvancedConfigScreen) ===
         String p = MicrodaerysTranslatorClient.MODID + ".config.";

@@ -83,6 +83,13 @@ public class TargetLanguage {
         return info.alreadyTranslatedPattern().matcher(text).find();
     }
 
+    /** R1 / #5: true when the target was NOT chosen by hand but inherited from an English game UI --
+     *  then every ASCII line counts as "already translated" and the mod silently does nothing.
+     *  A hand-picked en_us (followGameLanguage=false) is a deliberate setup and returns false. */
+    public static boolean isInheritedEnglishTarget(boolean followGameLanguage, String resolvedTargetLanguage) {
+        return followGameLanguage && "en_us".equals(normalize(resolvedTargetLanguage));
+    }
+
     private static String normalize(String languageCode) {
         return languageCode == null ? "" : languageCode.trim().toLowerCase();
     }
