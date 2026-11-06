@@ -28,11 +28,17 @@ public class GuiGraphicsTooltipMixin {
             at = @At("HEAD"), argsOnly = true)
     private Component microdaerystranslator$appendTranslation(Component text) {
         if (!Config.ENABLE_TOOLTIP_TRANSLATION.get()) return text;
+        String raw = text.getString();
+        // R3: this overload is also used for live-value tooltips ("1234 / 10000", "75%") whose
+        // text changes every frame -- each value would be a new AI request and a permanent cache
+        // entry. Text with no letter at all has nothing to translate; skip it before it reaches the
+        // cache. (Values with any letter, e.g. "1234 / 10000 FE", still go through -- see RESULT.md.)
+        if (raw.codePoints().noneMatch(Character::isLetter)) return text;
         String translated;
         try {
             // no ItemStack is available on this overload: isFirstLine=false keeps it off the
             // item-icon path (it would render an empty stack into a blank image).
-            translated = Translator.resolveOrRequestTranslation(ItemStack.EMPTY, text.getString(), false);
+            translated = Translator.resolveOrRequestTranslation(ItemStack.EMPTY, raw, false);
         } catch (IOException | InterruptedException e) {
             return text;
         }
