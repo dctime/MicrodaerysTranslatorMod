@@ -23,3 +23,8 @@ run
 
 # Files from Forge MDK
 forge*changelog.txt
+run-data
+
+# Datagen hash cache -- internal incremental-build bookkeeping, not a game asset.
+# The actual generated resources (src/generated/resources/assets/) ARE meant to be committed.
+src/generated/resources/.cache/

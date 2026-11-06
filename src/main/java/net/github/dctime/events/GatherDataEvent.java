@@ -1,8 +1,17 @@
 package net.github.dctime.events;
 
 
-import net.github.dctime.GoogleAIStudioTranslatorClient;
+import net.github.dctime.MicrodaerysTranslatorClient;
 import net.github.dctime.datagen.LanguageProvider;
+import net.github.dctime.datagen.LanguageProviderDeDe;
+import net.github.dctime.datagen.LanguageProviderEsEs;
+import net.github.dctime.datagen.LanguageProviderFrFr;
+import net.github.dctime.datagen.LanguageProviderJaJp;
+import net.github.dctime.datagen.LanguageProviderKoKr;
+import net.github.dctime.datagen.LanguageProviderPtBr;
+import net.github.dctime.datagen.LanguageProviderRuRu;
+import net.github.dctime.datagen.LanguageProviderZhCn;
+import net.github.dctime.datagen.LanguageProviderZhTw;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.data.DataGenerator;
 import net.minecraftforge.api.distmarker.Dist;
@@ -12,14 +21,15 @@ import net.minecraftforge.fml.common.Mod;
 
 import java.util.concurrent.CompletableFuture;
 
-@Mod.EventBusSubscriber(modid = GoogleAIStudioTranslatorClient.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
+@Mod.EventBusSubscriber(modid = MicrodaerysTranslatorClient.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class GatherDataEvent {
     @SubscribeEvent
     public static void onGatherData(net.minecraftforge.data.event.GatherDataEvent event) {
         DataGenerator generator = event.getGenerator();
         ExistingFileHelper existingFileHelper = event.getExistingFileHelper();
 
-        // Register the provider.
+        // Register the providers -- one per locale (en_us is also Minecraft's fallback locale for
+        // any key a non-en_us file doesn't have; see LanguageProvider's javadoc).
         generator.addProvider(
                 // A boolean that determines whether the data should actually be generated.
                 // The event provides methods that determine this:
@@ -30,5 +40,14 @@ public class GatherDataEvent {
                 // Our provider.
                 new LanguageProvider(generator)
         );
+        generator.addProvider(event.includeClient(), new LanguageProviderZhTw(generator));
+        generator.addProvider(event.includeClient(), new LanguageProviderZhCn(generator));
+        generator.addProvider(event.includeClient(), new LanguageProviderJaJp(generator));
+        generator.addProvider(event.includeClient(), new LanguageProviderEsEs(generator));
+        generator.addProvider(event.includeClient(), new LanguageProviderFrFr(generator));
+        generator.addProvider(event.includeClient(), new LanguageProviderKoKr(generator));
+        generator.addProvider(event.includeClient(), new LanguageProviderRuRu(generator));
+        generator.addProvider(event.includeClient(), new LanguageProviderDeDe(generator));
+        generator.addProvider(event.includeClient(), new LanguageProviderPtBr(generator));
     }
 }

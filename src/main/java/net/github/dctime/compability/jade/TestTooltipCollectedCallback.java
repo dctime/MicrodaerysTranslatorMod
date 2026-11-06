@@ -4,12 +4,10 @@ import net.github.dctime.Config;
 import net.github.dctime.libs.Translator;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import snownee.jade.api.Accessor;
 import snownee.jade.api.ITooltip;
 import snownee.jade.api.callback.JadeTooltipCollectedCallback;
-import snownee.jade.api.ui.IBoxElement;
 import snownee.jade.api.ui.IElement;
 import snownee.jade.impl.BlockAccessorImpl;
 import snownee.jade.impl.EntityAccessorImpl;
@@ -21,10 +19,13 @@ import java.util.Objects;
 
 public class TestTooltipCollectedCallback implements JadeTooltipCollectedCallback {
 
+    // Jade 11 (1.20.1) and Jade 8 (1.19.2) pass the ITooltip directly instead of 1.21's IBoxElement, and its box has
+    // no icon element to pull the ItemStack from -- so the stack comes from the accessor instead
+    // (looked-at block's item form, or a dropped item entity's stack), same as 1.20.1-1.7.x did.
     @Override
-    public void onTooltipCollected(ITooltip iTooltip, Accessor<?> accessor){
+    public void onTooltipCollected(ITooltip iTooltip, Accessor<?> accessor) {
         ItemStack stack = null;
-        if ((accessor instanceof BlockAccessorImpl blockAccessor)) {
+        if (accessor instanceof BlockAccessorImpl blockAccessor) {
             stack = blockAccessor.getBlock().asItem().getDefaultInstance();
         }
 
@@ -42,22 +43,23 @@ public class TestTooltipCollectedCallback implements JadeTooltipCollectedCallbac
                 }
             }
 
-            if (!Translator.translationCache.containsKey(lineMsg)) {
-                try {
-                    if (jadeIndex != 0) {
-                        Translator.requestTranslateToTraditionalChinese(lineMsg);
-                    } else {
-                        Translator.requestTranslateItemStackToTraditionalChinese(lineMsg, stack);
-                    }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                continue;
-            }
+            // same short-circuit chain as the vanilla inventory tooltip (RenderTooltipEvent) --
+            // see Translator#resolveOrRequestTranslation's javadoc for why this used to be
+            // missing here (#20): a plain "Minecraft"/"FTB Quests" mod-name line, or any vanilla
+            // item/enchantment/attribute-modifier line, was always sent to the AI when hovered
+            // via Jade even though the exact same line already skipped the AI when hovered from
+            // an inventory slot.
+            if (Translator.isModNameLine(stack, lineMsg)) continue;
 
-            iTooltip.append(jadeIndex, new TextElement(Component.literal(" " + Translator.translationCache.get(lineMsg)).withStyle(Translator.translatedStyle)));
+            String translated;
+            try {
+                translated = Translator.resolveOrRequestTranslation(stack, lineMsg, jadeIndex == 0);
+            } catch (IOException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            if (translated == null) continue; // nothing available this frame (AI request may be in flight)
+
+            iTooltip.append(jadeIndex, new TextElement(Component.literal(" " + translated).withStyle(Translator.translatedStyle)));
         }
 
     }
