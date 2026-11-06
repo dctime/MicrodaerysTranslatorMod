@@ -27,9 +27,11 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        // 1.20.4 only: Jade 13.x's ItemStackElement has no public item getter, so
+        // jade.ItemStackElementMixin exposes it via IGetItem -- gate it on Jade being present.
         if (LoadingModList.get().getModFileById("jade") != null && !jadeLoaded) {
             jadeLoaded = true;
-            LOGGER.info("Jaded is loaded, applying mixins for Jade compatibility.");
+            LOGGER.info("Jade is loaded, applying mixins for Jade compatibility.");
         }
 
         if (LoadingModList.get().getModFileById("ftbquests") != null && !ftbquestsLoaded) {
@@ -37,6 +39,8 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
             LOGGER.info("FTB Quests is loaded, applying mixins for FTB Quests compatibility.");
         }
 
+        // E6: was "&& !ftbquestsLoaded" (copy-paste) -- with FTB Quests also installed, the block
+        // above had just set that true, so betteradvancementsLoaded could never become true.
         if (LoadingModList.get().getModFileById("betteradvancements") != null && !betteradvancementsLoaded) {
             betteradvancementsLoaded = true;
             LOGGER.info("Better Advancements is loaded, applying mixins for Better Advancements compatibility.");
@@ -49,8 +53,12 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.endsWith("PinViewQuestButtonMixin")) return ftbquestsLoaded;
         if (mixinClassName.endsWith("CloseViewQuestButtonMixin")) return ftbquestsLoaded;
         if (mixinClassName.endsWith("BaseScreenMixin")) return ftbquestsLoaded;
-        if (mixinClassName.endsWith("AdvancementWidgetMixin")) return true;
+        // E6: the leading '.' matters -- a bare endsWith("AdvancementWidgetMixin") also matched
+        // BetterAdvancementWidgetMixin and returned true before its own gate below ever ran, so it
+        // was applied even without Better Advancements installed (and the line above was masked).
+        if (mixinClassName.endsWith(".AdvancementWidgetMixin")) return true;
         if (mixinClassName.endsWith("BetterAdvancementWidgetMixin")) return betteradvancementsLoaded;
+        if (mixinClassName.endsWith("GuiGraphicsTooltipMixin")) return true; // vanilla target, always present (#5)
         if (mixinClassName.endsWith("ItemStackElementMixin")) return jadeLoaded;
         return false;
     }
