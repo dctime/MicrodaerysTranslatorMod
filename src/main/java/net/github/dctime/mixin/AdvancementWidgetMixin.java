@@ -125,22 +125,20 @@ public abstract class AdvancementWidgetMixin {
     }
 
     private void translateDesc(int j) throws IOException, InterruptedException {
-        AtomicReference<String> descText = new AtomicReference<>("");
-        for (int descIndex = 0; descIndex < description.size(); descIndex++) {
-            FormattedCharSequence descSeq = description.get(descIndex);
+        // E7: was rebuilt by concatenating the already-wrapped `description` lines, but vanilla's
+        // StringSplitter drops the space it breaks on (splitAt(i, 1)), so "kill a monster" became
+        // "kill amonster" in both the cache key and the AI input -- and the key changed with the
+        // wrap width j (which grows once the title translation lands), re-requesting the same
+        // description. The unwrapped source text is width-independent, same as
+        // BetterAdvancementWidgetMixin.translateDesc already uses.
+        String descText = display.getDescription().getString();
 
-            descSeq.accept((var1, var2, var3) -> {
-                descText.set(descText.get() + (char) var3);
-                return true;
-            });
-        }
-
-        if (!Translator.textInCache(descText.get())) {
-            Translator.requestTranslateToTraditionalChinese(descText.get());
+        if (!Translator.textInCache(descText)) {
+            Translator.requestTranslateToTraditionalChinese(descText);
             return;
         }
 
-        String translated = Translator.getTranslationFromCache(descText.get());
+        String translated = Translator.getTranslationFromCache(descText);
         MutableComponent original = ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getType().getChatColor()));
         this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(original.append(Component.literal("\n"+translated).withStyle(Translator.translatedStyle)), j));
     }
