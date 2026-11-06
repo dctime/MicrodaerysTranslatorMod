@@ -126,11 +126,17 @@ public class Translator {
      */
     private static final int CACHE_WRITE_TIMEOUT_SECONDS = 5;
 
-    private static void flushCacheToDiskSync() {
-        if (!cacheDirty) return;
+    // E8: also called on logout (PlayerJoinWorldEvent.onClientLogout). Closing the window in a world
+    // goes Minecraft.destroy() -> disconnect() (fires LoggingOut) -> close() -> System.exit(0), and
+    // System.exit never waits for the daemon writer -- the async flush that used to run there could
+    // be killed mid-write, losing up to 600 ticks of paid-for translations. When not dirty this
+    // still waits on a no-op: the executor is FIFO, so that also waits out a periodic flush that
+    // was already queued/running (it had already cleared cacheDirty).
+    public static void flushCacheToDiskSync() {
+        boolean dirty = cacheDirty;
         cacheDirty = false;
         try {
-            CACHE_WRITE_EXECUTOR.submit(Translator::writeCacheToDisk).get(CACHE_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            CACHE_WRITE_EXECUTOR.submit(dirty ? Translator::writeCacheToDisk : () -> {}).get(CACHE_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             cacheDirty = true; // unknown whether the write landed -- assume not, let a later flush retry

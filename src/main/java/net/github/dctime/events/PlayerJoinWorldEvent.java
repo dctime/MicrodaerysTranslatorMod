@@ -35,6 +35,6 @@ public class PlayerJoinWorldEvent {
     @SubscribeEvent
     public static void onClientLogout(net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
         loginHandled = false;
-        Translator.flushCacheToDiskIfDirty(); // safety net on top of the periodic tick flush
+        Translator.flushCacheToDiskSync(); // safety net on top of the periodic tick flush; sync, see its comment (E8)
     }
 }
