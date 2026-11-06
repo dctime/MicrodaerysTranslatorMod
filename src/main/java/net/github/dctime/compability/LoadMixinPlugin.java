@@ -45,6 +45,7 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.endsWith("BaseScreenMixin")) return ftbquestsLoaded;
         if (mixinClassName.endsWith("AdvancementWidgetMixin")) return true;
         if (mixinClassName.endsWith("BetterAdvancementWidgetMixin")) return betteradvancementsLoaded;
+        if (mixinClassName.endsWith("GuiGraphicsTooltipMixin")) return true; // vanilla target, always present (#5)
         return false;
     }
 
