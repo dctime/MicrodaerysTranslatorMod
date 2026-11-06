@@ -124,5 +124,6 @@
   "microdaerystranslator.configuration.prompt": "提示語",
   "microdaerystranslator.configuration.prompt_screenshot": "翻譯螢幕截圖的提示語",
   "microdaerystranslator.configuration.timeout_duration": "多久timeout(秒)",
+  "microdaerystranslator.translator.follow_language_is_english": "翻譯目標語言目前跟隨 Minecraft 語言（英文），所以英文內容不會被翻譯。若要翻譯，請到本模組設定關閉「跟隨 Minecraft 語言」並選擇「目標語言」。",
   "microdaerystranslator.translator.vision_unsupported": "翻譯失敗！目前選擇的模型不支援圖片輸入 -- 請到設定畫面換一個模型試試。"
 }

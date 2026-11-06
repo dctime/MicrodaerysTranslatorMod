@@ -124,5 +124,6 @@
   "microdaerystranslator.configuration.prompt": "Промпт",
   "microdaerystranslator.configuration.prompt_screenshot": "Промпт для перевода скриншотов",
   "microdaerystranslator.configuration.timeout_duration": "Время ожидания",
+  "microdaerystranslator.translator.follow_language_is_english": "Целевой язык следует языку Minecraft (английский), поэтому английский текст не будет переведён. Отключите \"Следовать языку Minecraft\" в настройках этого мода и выберите целевой язык.",
   "microdaerystranslator.translator.vision_unsupported": "Не удалось перевести! Выбранная модель не поддерживает ввод изображений -- попробуйте выбрать другую модель в настройках."
 }

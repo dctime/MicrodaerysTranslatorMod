@@ -37,6 +37,9 @@ public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
     private final PendingTranslatorConfig pending;
     private Button clearCacheButtonRef;
     private boolean rpmCustomMode = false;
+    // E5: same latch as rpmCustomMode (see addRpmRow's javadoc) -- the Timeout row was missed, so
+    // clicking onto Custom rebuilt the row from the unchanged preset value and snapped straight back.
+    private boolean timeoutCustomMode = false;
 
     public TranslatorAdvancedConfigScreen(Screen parent, PendingTranslatorConfig pending) {
         super(parent, Minecraft.getInstance().options, Component.translatable(P + "advanced_settings"));
@@ -105,7 +108,7 @@ public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
     private void addTimeoutRow() {
         List<Integer> choices = new ArrayList<>(TIMEOUT_PRESETS);
         choices.add(CUSTOM_INT);
-        int selection = TIMEOUT_PRESETS.contains(pending.timeoutDuration) ? pending.timeoutDuration : CUSTOM_INT;
+        int selection = timeoutCustomMode || !TIMEOUT_PRESETS.contains(pending.timeoutDuration) ? CUSTOM_INT : pending.timeoutDuration;
 
         CycleButton<Integer> timeoutButton = CycleButton.<Integer>builder(v -> v.equals(CUSTOM_INT)
                         ? Component.translatable(P + "timeout.custom", pending.timeoutDuration)
@@ -114,7 +117,8 @@ public class TranslatorAdvancedConfigScreen extends OptionsSubScreen {
                 .withInitialValue(selection)
                 .displayOnlyValue()
                 .create(Component.translatable(P + "timeout"), (btn, val) -> {
-                    if (!val.equals(CUSTOM_INT)) pending.timeoutDuration = val;
+                    timeoutCustomMode = val.equals(CUSTOM_INT);
+                    if (!timeoutCustomMode) pending.timeoutDuration = val;
                     refreshOptions();
                 });
         list.addSmall(label(P + "timeout"), timeoutButton);

@@ -124,5 +124,6 @@
   "microdaerystranslator.configuration.prompt": "プロンプト",
   "microdaerystranslator.configuration.prompt_screenshot": "スクリーンショット翻訳用のプロンプト",
   "microdaerystranslator.configuration.timeout_duration": "タイムアウト時間",
+  "microdaerystranslator.translator.follow_language_is_english": "翻訳先の言語がMinecraftの言語（英語）に従っているため、英語のテキストは翻訳されません。翻訳するには、このModの設定で「Minecraftの言語に従う」をオフにして「翻訳先の言語」を選んでください。",
   "microdaerystranslator.translator.vision_unsupported": "翻訳に失敗しました！選択中のモデルは画像入力に対応していません -- 設定画面で別のモデルに変更してください。"
 }

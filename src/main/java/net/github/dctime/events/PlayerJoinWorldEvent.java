@@ -29,12 +29,13 @@ public class PlayerJoinWorldEvent {
             }
             Minecraft.getInstance().player.sendSystemMessage(Component.literal(WelcomeMessageTemplates.clickHereFor(currentGameLanguage))
                     .withStyle(s -> s.withColor(net.minecraft.ChatFormatting.GREEN).withUnderlined(true).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://github.com/dctime/MicrodaerysTranslatorMod/issues"))));
+            Translator.warnIfTargetFollowsEnglishGameLanguage();
         }
     }
 
     @SubscribeEvent
     public static void onClientLogout(net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
         loginHandled = false;
-        Translator.flushCacheToDiskIfDirty(); // safety net on top of the periodic tick flush
+        Translator.flushCacheToDiskSync(); // safety net on top of the periodic tick flush; sync, see its comment (E8)
     }
 }

@@ -34,6 +34,10 @@ public class LanguageProviderJaJp extends net.neoforged.neoforge.common.data.Lan
 
         add(MicrodaerysTranslatorClient.MODID + ".translator.vision_unsupported",
                 "翻訳に失敗しました！選択中のモデルは画像入力に対応していません -- 設定画面で別のモデルに変更してください。");
+        // R1/#5: shown once on world join when follow_game_language resolves to en_us (see
+        // Translator.warnIfTargetFollowsEnglishGameLanguage).
+        add(MicrodaerysTranslatorClient.MODID + ".translator.follow_language_is_english",
+                "翻訳先の言語がMinecraftの言語（英語）に従っているため、英語のテキストは翻訳されません。翻訳するには、このModの設定で「Minecraftの言語に従う」をオフにして「翻訳先の言語」を選んでください。");
 
         String p = MicrodaerysTranslatorClient.MODID + ".config.";
         add(p + "title", "Microdaery's Translator");

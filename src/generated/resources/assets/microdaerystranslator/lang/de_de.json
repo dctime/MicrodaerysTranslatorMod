@@ -124,5 +124,6 @@
   "microdaerystranslator.configuration.prompt": "Prompt",
   "microdaerystranslator.configuration.prompt_screenshot": "Prompt für Screenshot-Übersetzung",
   "microdaerystranslator.configuration.timeout_duration": "Zeitüberschreitung",
+  "microdaerystranslator.translator.follow_language_is_english": "Die Zielsprache folgt deiner Minecraft-Sprache (Englisch), daher wird englischer Text nicht übersetzt. Deaktiviere in der Konfiguration dieser Mod \"Minecraft-Sprache übernehmen\" und wähle eine Zielsprache.",
   "microdaerystranslator.translator.vision_unsupported": "Übersetzung fehlgeschlagen! Das ausgewählte Modell unterstützt keine Bildeingabe -- versuche ein anderes Modell im Einstellungsbildschirm."
 }

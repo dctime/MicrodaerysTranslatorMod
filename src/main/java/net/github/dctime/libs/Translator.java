@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 
 import static net.github.dctime.libs.ScreenShotter.getItemStackImage;
@@ -126,11 +127,19 @@ public class Translator {
      */
     private static final int CACHE_WRITE_TIMEOUT_SECONDS = 5;
 
-    private static void flushCacheToDiskSync() {
-        if (!cacheDirty) return;
-        cacheDirty = false;
+    // E8: also called on logout (PlayerJoinWorldEvent.onClientLogout). Closing the window in a world
+    // goes Minecraft.destroy() -> disconnect() (fires LoggingOut) -> close() -> System.exit(0), and
+    // System.exit never waits for the daemon writer -- the async flush that used to run there could
+    // be killed mid-write, losing up to 600 ticks of paid-for translations. When not dirty this
+    // still waits on a no-op: the executor is FIFO, so that also waits out a periodic flush that
+    // was already queued/running (it had already cleared cacheDirty).
+    public static void flushCacheToDiskSync() {
+        boolean dirty = cacheDirty;
+        // only clear what was actually read as dirty: an unconditional "= false" could overwrite a
+        // put()+cacheDirty=true that an HTTP callback made between the read and this line (R2).
+        if (dirty) cacheDirty = false;
         try {
-            CACHE_WRITE_EXECUTOR.submit(Translator::writeCacheToDisk).get(CACHE_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            CACHE_WRITE_EXECUTOR.submit(dirty ? Translator::writeCacheToDisk : () -> {}).get(CACHE_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             cacheDirty = true; // unknown whether the write landed -- assume not, let a later flush retry
@@ -262,7 +271,14 @@ public class Translator {
      * mid-task on exit. Blocking here is cheap: by this point clear() has already emptied the map,
      * so the write is a handful of bytes, not O(cache size).
      */
+    // E9: bumped by every clearCache(). A job snapshots it when it starts and only writes its result
+    // back if no clear happened in between -- otherwise a job still in flight when the player
+    // changed the prompt and confirmed "clear cache" landed afterwards and re-inserted (and
+    // flushed to disk) a translation made with the old prompt the player had just discarded.
+    private static final AtomicInteger cacheGeneration = new AtomicInteger();
+
     public static void clearCache(boolean showMessage) {
+        cacheGeneration.incrementAndGet();
         if (Translator.translationCache.isEmpty()) return;
         Translator.translationCache.clear();
         cacheDirty = true; // otherwise a quit before the flush below leaves the stale cache on disk
@@ -510,7 +526,12 @@ public class Translator {
     }
 
     public static void requestTranslateItemStackToTraditionalChinese(String textInEnglish, ItemStack stack) throws IOException, InterruptedException {
-        if (stack != null && !IN_FLIGHT.contains(keyFor(textInEnglish)) && Config.ENABLE_ICON_CONFIG.get()) {
+        // !isEmpty(): GuiGraphics.renderComponentTooltip(Font, List<Component>, x, y) fires
+        // GatherComponents with ItemStack.EMPTY (e.g. vanilla's SHOW_ENTITY chat hover on a death
+        // message's killer name), and line 0 lands here -- that used to render an empty stack into
+        // a fully transparent 64x64 PNG and send it to a vision provider as the "item icon".
+        if (stack != null && !stack.isEmpty() && !IN_FLIGHT.contains(keyFor(textInEnglish)) && Config.ENABLE_ICON_CONFIG.get()) {
+            if (!TranslationRouter.hasGlobalCapacityNow()) return; // E3: don't render an icon for a job the router will drop
             RenderSystem.recordRenderCall(() -> {
                 String image = getItemStackImage(stack);
                 try {
@@ -553,6 +574,10 @@ public class Translator {
             if (screenshotTranslating) return;
         } else {
             if (IN_FLIGHT.contains(jobKey)) return;
+            // E3: same peek as requestTranslateItemStackToTraditionalChinese -- also keeps the
+            // [DIAG] line below to requests that can actually be sent, instead of one per dropped
+            // retry per tick (that line is unchanged, only no longer spammed by doomed attempts).
+            if (!TranslationRouter.hasGlobalCapacityNow()) return;
             // The old text-keyed 429 backoff check (RETRY_AFTER/RETRY_ATTEMPTS) that used to live
             // here is gone, not merely moved -- TranslationRouter's hard filter now checks each
             // CANDIDATE provider's own ProviderRuntimeState cooldown before ever selecting it, which
@@ -597,6 +622,7 @@ public class Translator {
         VisionRequirement visionRequirement = isScreenShot ? VisionRequirement.REQUIRED
                 : (image != null ? VisionRequirement.OPTIONAL : VisionRequirement.NONE);
         TranslationJob job = new TranslationJob(jobKey, prompt, image, isScreenShot, visionRequirement);
+        int generation = cacheGeneration.get();
 
         if (isScreenShot) screenshotTranslating = true; else IN_FLIGHT.add(jobKey);
 
@@ -621,6 +647,8 @@ public class Translator {
             String translatedText = cleanText(result.translatedText());
             if (isScreenShot) {
                 showScreenShotResult(translatedText);
+            } else if (generation != cacheGeneration.get()) {
+                LOGGER.debug("Discarding translation started before the cache was cleared: " + fixedText);
             } else {
                 // Same jobKey as IN_FLIGHT.add() above, not a re-resolved keyFor(fixedText) -- if
                 // Config.TARGET_LANGUAGE changed mid-flight (possible now that a job can span
@@ -741,6 +769,22 @@ public class Translator {
         hasShowRequestTooFrequentError = false;
         hasShowOtherError = false;
         hasShowConnectionError = false;
+    }
+
+    /**
+     * R1 / #5: with follow_game_language=true (the default) and an English game UI, the target
+     * resolves to en_us, so isAlreadyInTargetLanguage() caches "" for every ASCII line and the mod
+     * shows nothing but English everywhere -- no error, no chat message, only a [DIAG] log line.
+     * Called once per world join (PlayerJoinWorldEvent). follow=false with en_us chosen by hand is
+     * a legitimate setup (e.g. translating a Chinese UI into English) and is left alone. Both lines
+     * read from the en_us/zh_tw lang files explicitly, matching showMessage's English + Chinese
+     * convention, rather than resolving the key in the (English) UI language twice.
+     */
+    public static void warnIfTargetFollowsEnglishGameLanguage() {
+        if (!TargetLanguage.isInheritedEnglishTarget(Config.FOLLOW_GAME_LANGUAGE.get(), resolveTargetLanguage())) return;
+        String key = MicrodaerysTranslatorClient.MODID + ".translator.follow_language_is_english";
+        showMessage(OfficialTranslationLookup.valueIn("en_us", key), OfficialTranslationLookup.valueIn("zh_tw", key),
+                ChatFormatting.YELLOW, () -> false, () -> {});
     }
 
     /** Call whenever the provider pool configuration actually changes (e.g. {@code
