@@ -17,6 +17,7 @@
     "ftbquests.PinViewQuestButtonMixin",
     "AdvancementWidgetMixin",
     "BetterAdvancementWidgetMixin",
+    "GuiGraphicsTooltipMixin",
     "jade.ItemStackElementMixin"
   ],
   "injectors": {

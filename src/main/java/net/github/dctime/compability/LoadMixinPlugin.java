@@ -1,6 +1,6 @@
 package net.github.dctime.compability;
 
-import net.minecraftforge.fml.loading.LoadingModList;
+import net.neoforged.fml.loading.LoadingModList;
 import org.objectweb.asm.tree.ClassNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,14 +11,12 @@ import java.util.List;
 import java.util.Set;
 
 public class LoadMixinPlugin implements IMixinConfigPlugin {
-    private static boolean jadeLoaded = false;
     private static boolean ftbquestsLoaded = false;
     private static boolean betteradvancementsLoaded = false;
     private static final Logger LOGGER = LoggerFactory.getLogger(LoadMixinPlugin.class);
 
     @Override
     public void onLoad(String mixinPackage) {
-        LOGGER.debug("GoogleAIStudioTranslatorClient Mixin Plugin loaded.");
     }
 
     @Override
@@ -28,16 +26,13 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (LoadingModList.get().getModFileById("jade") != null && !jadeLoaded) {
-            jadeLoaded = true;
-            LOGGER.info("Jaded is loaded, applying mixins for Jade compatibility.");
-        }
-
         if (LoadingModList.get().getModFileById("ftbquests") != null && !ftbquestsLoaded) {
             ftbquestsLoaded = true;
             LOGGER.info("FTB Quests is loaded, applying mixins for FTB Quests compatibility.");
         }
 
+        // E6: was "&& !ftbquestsLoaded" (copy-paste) -- with FTB Quests also installed, the block
+        // above had just set that true, so betteradvancementsLoaded could never become true.
         if (LoadingModList.get().getModFileById("betteradvancements") != null && !betteradvancementsLoaded) {
             betteradvancementsLoaded = true;
             LOGGER.info("Better Advancements is loaded, applying mixins for Better Advancements compatibility.");
@@ -50,9 +45,12 @@ public class LoadMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.endsWith("PinViewQuestButtonMixin")) return ftbquestsLoaded;
         if (mixinClassName.endsWith("CloseViewQuestButtonMixin")) return ftbquestsLoaded;
         if (mixinClassName.endsWith("BaseScreenMixin")) return ftbquestsLoaded;
-        if (mixinClassName.endsWith("AdvancementWidgetMixin")) return true;
+        // E6: the leading '.' matters -- a bare endsWith("AdvancementWidgetMixin") also matched
+        // BetterAdvancementWidgetMixin and returned true before its own gate below ever ran, so it
+        // was applied even without Better Advancements installed (and the line above was masked).
+        if (mixinClassName.endsWith(".AdvancementWidgetMixin")) return true;
         if (mixinClassName.endsWith("BetterAdvancementWidgetMixin")) return betteradvancementsLoaded;
-        if (mixinClassName.endsWith("ItemStackElementMixin")) return jadeLoaded;
+        if (mixinClassName.endsWith("GuiGraphicsTooltipMixin")) return true; // vanilla target, always present (#5)
         return false;
     }
 

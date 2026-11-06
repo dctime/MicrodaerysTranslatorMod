@@ -3,7 +3,6 @@ package net.github.dctime.mixin;
 import com.google.common.collect.ImmutableList;
 import net.github.dctime.Config;
 import net.github.dctime.libs.Translator;
-import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.DisplayInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -47,8 +46,7 @@ public abstract class AdvancementWidgetMixin {
     private int tempWidth;
 
     @Shadow
-    @Final
-    private Advancement advancement;
+    protected abstract int getMaxProgressWidth();
 
     @Shadow
     protected abstract List<FormattedText> findOptimalLines(Component component, int maxWidth);
@@ -69,20 +67,14 @@ public abstract class AdvancementWidgetMixin {
         }
 
         // some var define
-        int i =advancement.getRequirements().length;
-        int j = String.valueOf(i).length();
-        int k = i > 1 ? Minecraft.getInstance().font.width("  ") + Minecraft.getInstance().font.width("0") * j * 2 + Minecraft.getInstance().font.width("/") : 0;
-        int l = 29 + Minecraft.getInstance().font.width(this.title) + k;
-        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor())), l));
 
-        for(FormattedCharSequence formattedcharsequence : this.description) {
-            l = Math.max(l, Minecraft.getInstance().font.width(formattedcharsequence));
-        }
+        int i = getMaxProgressWidth();
+        int j = 29 + Minecraft.getInstance().font.width(this.title) + i;
 
         // replace orignal description
 
         try {
-            translateDesc(l);
+            translateDesc(j);
         } catch (IOException e) {
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
@@ -92,20 +84,18 @@ public abstract class AdvancementWidgetMixin {
         // replace width
 
         for(FormattedCharSequence formattedcharsequence : this.description) {
-            l = Math.max(l, Minecraft.getInstance().font.width(formattedcharsequence));
+            j = Math.max(j, Minecraft.getInstance().font.width(formattedcharsequence));
         }
 
-        this.width = l + 3 + 5;
+        this.width = j + 3 + 5;
     }
 
     @Inject(method="drawHover", at = @At(value = "RETURN"))
     public void endDrawHover(GuiGraphics guiGraphics, int x, int y, float fade, int width, int height, CallbackInfo ci) {
         this.title = Language.getInstance().getVisualOrder(Minecraft.getInstance().font.substrByWidth(display.getTitle(), 163));
-        int i = advancement.getRequirements().length;
-        int j = String.valueOf(i).length();
-        int k = i > 1 ? Minecraft.getInstance().font.width("  ") + Minecraft.getInstance().font.width("0") * j * 2 + Minecraft.getInstance().font.width("/") : 0;
-        int l = 29 + Minecraft.getInstance().font.width(this.title) + k;
-        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor())), l));
+        int i = getMaxProgressWidth();
+        int j = 29 + Minecraft.getInstance().font.width(this.title) + i;
+        this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getType().getChatColor())), j));
         this.width = tempWidth;
     }
 
@@ -115,7 +105,9 @@ public abstract class AdvancementWidgetMixin {
         AtomicReference<String> titleOriginalText = new AtomicReference<>("");
         title.accept((var1, var2, var3) -> {
 //            System.out.println("var1: " + var1 + ", var2: " + var2 + ", var3: " + var3);
-            if (var3 == '"') titleOriginalText.set(titleOriginalText.get() + '\\');
+            // no manual '\\' before '"' any more: every request builder already runs the prompt
+            // through JsonUtil.escapeJson, so the extra backslash was double-escaped into the AI
+            // input and the cache key (and diverged from BetterAdvancementWidgetMixin's raw-title key).
             titleOriginalText.set(titleOriginalText.get() + (char) var3);
             return true;
         });
@@ -135,23 +127,21 @@ public abstract class AdvancementWidgetMixin {
     }
 
     private void translateDesc(int j) throws IOException, InterruptedException {
-        AtomicReference<String> descText = new AtomicReference<>("");
-        for (int descIndex = 0; descIndex < description.size(); descIndex++) {
-            FormattedCharSequence descSeq = description.get(descIndex);
+        // E7: was rebuilt by concatenating the already-wrapped `description` lines, but vanilla's
+        // StringSplitter drops the space it breaks on (splitAt(i, 1)), so "kill a monster" became
+        // "kill amonster" in both the cache key and the AI input -- and the key changed with the
+        // wrap width j (which grows once the title translation lands), re-requesting the same
+        // description. The unwrapped source text is width-independent, same as
+        // BetterAdvancementWidgetMixin.translateDesc already uses.
+        String descText = display.getDescription().getString();
 
-            descSeq.accept((var1, var2, var3) -> {
-                descText.set(descText.get() + (char) var3);
-                return true;
-            });
-        }
-
-        if (!Translator.textInCache(descText.get())) {
-            Translator.requestTranslateToTraditionalChinese(descText.get());
+        if (!Translator.textInCache(descText)) {
+            Translator.requestTranslateToTraditionalChinese(descText);
             return;
         }
 
-        String translated = Translator.getTranslationFromCache(descText.get());
-        MutableComponent original = ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getFrame().getChatColor()));
+        String translated = Translator.getTranslationFromCache(descText);
+        MutableComponent original = ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getType().getChatColor()));
         this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(original.append(Component.literal("\n"+translated).withStyle(Translator.translatedStyle)), j));
     }
 }

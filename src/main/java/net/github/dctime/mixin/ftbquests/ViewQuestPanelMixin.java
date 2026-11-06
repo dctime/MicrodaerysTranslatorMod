@@ -1,6 +1,5 @@
 package net.github.dctime.mixin.ftbquests;
 
-import com.llamalad7.mixinextras.sugar.Local;
 import dev.ftb.mods.ftblibrary.ui.*;
 import dev.ftb.mods.ftblibrary.ui.misc.CompactGridLayout;
 import dev.ftb.mods.ftbquests.client.gui.quests.*;
@@ -13,6 +12,7 @@ import net.github.dctime.libs.ftbquests.IPinViewQuestButton;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
+import net.minecraft.util.Mth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,7 +20,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,25 +29,23 @@ import java.util.Objects;
 @Mixin(ViewQuestPanel.class)
 public abstract class ViewQuestPanelMixin extends ModalPanel {
 
-    @Shadow(remap = false)
+    @Shadow
     private TextField titleField;
-    @Shadow(remap = false)
+    @Shadow
     private BlankPanel panelText;
-    @Shadow(remap = false)
+    @Shadow
     private BlankPanel panelTasks;
-
+    @Shadow
     private BlankPanel panelRewards;
-
-
-    @Shadow(remap = false)
+    @Shadow
     private final QuestScreen questScreen;
-    @Shadow(remap = false)
+    @Shadow
     private Quest quest;
-    @Shadow(remap = false)
+    @Shadow
     private BlankPanel panelContent;
 
 
-    @Shadow(remap = false)
+    @Shadow
     private long lastScrollTime;
 
     @Shadow
@@ -58,6 +55,15 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
     private List<Boolean> isDescriptionTranslated = null;
     // -1 : standup, 0 : ready to resize, 1+: amount of translation left
     private int translationLeft = -1;
+
+    // Tracks the parent's size as of the last resizeUI() call -- resizeUI() only used to run right
+    // after translation finished, so toggling fullscreen (or any other window resize) later, while
+    // the quest window stays open with translation already done, left height/position frozen at the
+    // old screen size: a real gap between the modal's old bottom edge and the new, taller screen.
+    // onDraw runs every frame regardless of translation state, so it's used here to notice a parent
+    // resize and re-run resizeUI() to re-clamp/re-center for the new dimensions.
+    private int lastParentWidth = -1;
+    private int lastParentHeight = -1;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ViewQuestPanel.class);
 
@@ -74,8 +80,6 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
         super(panel);
         this.questScreen = questScreen;
     }
-
-
 
     private void resizeUI() {
         // Translation successful, do some ui adjustment
@@ -186,8 +190,18 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
                 textField.setWidth(this.getWidth() - 6);
             }
         }
-//                this.setHeight(Math.min(this.panelContent.getContentHeight() + this.titleField.height + 12, this.parent.height - 10));
-//                panelText.getWidgets().get(panelText.getWidgets().size()-1).posY =
+        // Long translated text (e.g. a description that expands a lot in the target language) can
+        // make panelText far taller than the screen -- without this clamp the modal just grew past
+        // screen bounds with no scrollbar. Matches vanilla ViewQuestPanel#addWidgets' own clamp
+        // (this.parent.height - 10), just measured from panelText's actual bottom edge since this
+        // mixin's layout puts panelText directly under `this` rather than under panelContent.
+        // ModalPanel/Panel already support scrolling overflowed content (Panel.movePanelScroll),
+        // so clamping height here is what turns that into a working scrollbar.
+        int contentBottom = this.panelText.posY + this.panelText.height;
+        this.setHeight(Math.min(contentBottom, this.parent.height - 10));
+        this.setPos(this.posX, (this.parent.height - this.height) / 2);
+        this.lastParentWidth = this.parent.width;
+        this.lastParentHeight = this.parent.height;
         int iconSize = Math.min(16, this.titleField.height + 2);
         for (Widget viewWidget : this.getWidgets()) {
             if (viewWidget instanceof ICloseViewQuestButton) {
@@ -199,21 +213,31 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
                 viewWidget.setPosAndSize(this.getWidth() - 13, this.panelContent.posY + 2, 13, 13);
             }
         }
+        // E2: scrolling used to be locked (mouseScrolled cancelled + setScrollY(0) every
+        // frame) until every paragraph was translated -- with RPM exhausted, a provider in
+        // cooldown or no network that was "forever", so a long quest's lower half could
+        // never be read, not even in English. Scrolling now stays enabled; the only thing
+        // the lock protected against is a translation landing (or a parent resize) and changing the content
+        // height under the current scroll offset, so re-clamp it here (Panel.setScrollY
+        // itself doesn't clamp; movePanelScroll does the same clamp on each wheel tick).
+        setScrollY(Mth.clamp(getScrollY(), 0, Math.max(0, getContentHeight() - height)));
     }
 
-    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true, remap = false)
-    public void mouseScrolled(double scroll, CallbackInfoReturnable<Boolean> cir) {
-        if (translationLeft > 0) {
-//            System.out.println("Not translated yet. Tasks left: " + translationLeft + ", cannot scroll.");
-            cir.cancel();
-        }
-    }
-
-    @Inject(method = "draw", at = @At("HEAD"), remap = false)
+    @Inject(method = "draw", at = @At("HEAD"))
     public void onDraw(GuiGraphics graphics, Theme theme, int x, int y, int w, int h, CallbackInfo ci) {
         if (!Config.ENABLE_FTB_QUEST_TRANSLATION.get()) return;
         if (Translator.getDeletingTranslationKeyHold()) {
             resetQuest();
+        }
+
+        // The screen resizing (e.g. toggling fullscreen) while this modal is already open and fully
+        // translated doesn't fire any callback here on its own -- resizeUI() otherwise only runs as
+        // part of the translation-completion loop below. Re-run it once the parent's size actually
+        // changes so the modal's clamp/centering (see resizeUI()) catches up with the new screen
+        // size instead of leaving a stale gap where the screen grew.
+        if (isDescriptionTranslated != null
+                && (this.parent.width != lastParentWidth || this.parent.height != lastParentHeight)) {
+            resizeUI();
         }
 
         translateTitle();
@@ -252,31 +276,15 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
 
         if (translationLeft == 0) {
             translationLeft = -1;
-        } else {
-            setScrollY(0);
         }
     }
 
-    @Inject(method = "onClosed", at = @At("HEAD"), remap = false)
+    @Inject(method = "onClosed", at = @At("HEAD"))
     public void onClosed(CallbackInfo ci) {
         LOGGER.debug("Warning OnClosed called, resetting translation state.");
         isViewQuestPanelTranslated = false;
         isDescriptionTranslated = null;
         translationLeft = -1;
-    }
-
-    @Inject(method = "setCurrentPage", at = @At("RETURN"), remap = false)
-    public void onSetCurrentPage(int page, CallbackInfo ci) {
-        LOGGER.debug("Warning SetCurrentPage called, resetting translation state.");
-        // Reset translation state when changing pages
-        isViewQuestPanelTranslated = false;
-        isDescriptionTranslated = null;
-        translationLeft = -1;
-    }
-
-    @Inject(method = "addWidgets", at = @At("RETURN"), remap = false)
-    public void onAddWidgets(CallbackInfo ci, @Local(name = "panelRewards", ordinal = 0) BlankPanel panelRewards) {
-        this.panelRewards = panelRewards;
     }
 
     @Override
@@ -286,6 +294,15 @@ public abstract class ViewQuestPanelMixin extends ModalPanel {
         isDescriptionTranslated = null;
         translationLeft = -1;
         LOGGER.debug("Warning refreshWidgets called, resetting translation state.");
+    }
+
+    @Inject(method = "setCurrentPage", at = @At("RETURN"))
+    public void onSetCurrentPage(int page, CallbackInfo ci) {
+        LOGGER.debug("Warning SetCurrentPage called, resetting translation state.");
+        // Reset translation state when changing pages
+        isViewQuestPanelTranslated = false;
+        isDescriptionTranslated = null;
+        translationLeft = -1;
     }
 
     private boolean translateFormattedText(FormattedTextGetterSetter formattedTextGetter) {
