@@ -514,12 +514,27 @@ public class Translator {
      * in which case the caller should skip the line entirely; check that separately first).
      */
     public static String resolveOrRequestTranslation(ItemStack stack, String renderedText, boolean isFirstLine) throws IOException, InterruptedException {
+        return resolveOrRequestTranslation(stack, renderedText, isFirstLine, true);
+    }
+
+    /**
+     * 1.16.5: same chain, but {@code allowAiRequest=false} stops right before the AI request --
+     * cache hits and every official-translation short-circuit (all free) still apply. Needed
+     * because 1.16.5's only item-tooltip hook, ItemTooltipEvent, also fires for tooltips nobody is
+     * looking at (JEI builds its search index by calling getTooltipLines() on every item at world
+     * join), so the caller only allows a request for a tooltip that is actually on screen -- see
+     * events/RenderTooltipEvent. The newer branches never need this: GatherComponents only fires
+     * for a tooltip that is being rendered.
+     */
+    public static String resolveOrRequestTranslation(ItemStack stack, String renderedText, boolean isFirstLine,
+                                                      boolean allowAiRequest) throws IOException, InterruptedException {
         if (textInCache(renderedText)) return getTranslationFromCache(renderedText);
         if (isFirstLine && tryOfficialTranslationForItemName(stack, renderedText)) return getTranslationFromCache(renderedText);
         if (!isFirstLine && tryOfficialTranslationForEnchantmentLine(stack, renderedText)) return getTranslationFromCache(renderedText);
         if (!isFirstLine && tryOfficialTranslationForKnownFlatLine(renderedText)) return getTranslationFromCache(renderedText);
         if (!isFirstLine && tryOfficialTranslationForAttributeModifierLine(stack, renderedText)) return getTranslationFromCache(renderedText);
 
+        if (!allowAiRequest) return null;
         if (isFirstLine) {
             requestTranslateItemStackToTraditionalChinese(renderedText, stack);
         } else {
