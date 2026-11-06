@@ -135,7 +135,9 @@ public class Translator {
     // was already queued/running (it had already cleared cacheDirty).
     public static void flushCacheToDiskSync() {
         boolean dirty = cacheDirty;
-        cacheDirty = false;
+        // only clear what was actually read as dirty: an unconditional "= false" could overwrite a
+        // put()+cacheDirty=true that an HTTP callback made between the read and this line (R2).
+        if (dirty) cacheDirty = false;
         try {
             CACHE_WRITE_EXECUTOR.submit(dirty ? Translator::writeCacheToDisk : () -> {}).get(CACHE_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
