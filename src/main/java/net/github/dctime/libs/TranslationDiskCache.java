@@ -7,6 +7,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -55,6 +56,37 @@ public class TranslationDiskCache {
         if (file.getParent() != null) Files.createDirectories(file.getParent());
         Path tmp = file.resolveSibling(file.getFileName() + "." + UUID.randomUUID() + ".tmp");
         Files.write(tmp, (GSON.toJson(data, NESTED_MAP_TYPE)).getBytes(StandardCharsets.UTF_8));
-        Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        try {
+            // Windows (MoveFileEx) refuses to replace a file another move is replacing at that
+            // same instant -- two overlapping save() calls threw AccessDeniedException and left
+            // their .tmp behind (verify-disk-cache failed 4 of 5 runs on Windows). Serializing the
+            // replace within this process removes that; the short retry covers the same error
+            // caused by something outside it (antivirus/indexer briefly holding the file).
+            synchronized (MOVE_LOCK) {
+                moveReplacing(tmp, file);
+            }
+        } finally {
+            Files.deleteIfExists(tmp); // no-op after a successful move; never leave a stray .tmp on failure
+        }
+    }
+
+    private static final Object MOVE_LOCK = new Object();
+    private static final int MOVE_ATTEMPTS = 5;
+
+    private static void moveReplacing(Path tmp, Path file) throws IOException {
+        for (int attempt = 1; ; attempt++) {
+            try {
+                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                return;
+            } catch (AccessDeniedException e) {
+                if (attempt >= MOVE_ATTEMPTS) throw e;
+                try {
+                    Thread.sleep(20L * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+            }
+        }
     }
 }

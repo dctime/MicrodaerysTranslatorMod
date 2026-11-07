@@ -1,14 +1,18 @@
 package net.github.dctime.compability.jade;
 
+import mcp.mobius.waila.overlay.RayTracing;
 import mcp.mobius.waila.overlay.Tooltip;
 import net.github.dctime.Config;
 import net.github.dctime.libs.StringUtil;
 import net.github.dctime.libs.TooltipRelated;
 import net.github.dctime.libs.Translator;
+import net.minecraft.entity.Entity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextComponent;
+import net.minecraft.util.math.EntityRayTraceResult;
+import net.minecraft.util.registry.Registry;
 import net.minecraft.util.text.TextFormatting;
 
 import javax.annotation.Nullable;
@@ -26,6 +30,13 @@ public class TestJadeRenderEvent {
 
     public static void onTooltipCollected(Tooltip tooltip, @Nullable ItemStack stack) {
         if (!Config.ENABLE_JADE_CONFIG.get()) return;
+        // An entity has no ItemStack, so isModNameLine(stack, ...) can't see its "Minecraft"
+        // mod-name line; take the namespace from the entity Jade is currently looking at.
+        String ownerNamespace = null;
+        if (RayTracing.INSTANCE.getTarget() instanceof EntityRayTraceResult) {
+            Entity entity = RayTracing.INSTANCE.getTargetEntity();
+            if (entity != null) ownerNamespace = Registry.ENTITY_TYPE.getKey(entity.getType()).getNamespace();
+        }
         for (int jadeIndex = 0; jadeIndex < tooltip.getLines().size(); jadeIndex++) {
             ITextComponent line = tooltip.getLines().get(jadeIndex).getComponent();
             if (!(line instanceof TextComponent)) continue;
@@ -48,7 +59,7 @@ public class TestJadeRenderEvent {
             // item/enchantment/attribute-modifier line, was always sent to the AI when hovered
             // via Jade even though the exact same line already skipped the AI when hovered from
             // an inventory slot.
-            if (Translator.isModNameLine(stack, lineMsg)) continue;
+            if (Translator.isModNameLine(stack, lineMsg) || Translator.isModNameLine(ownerNamespace, lineMsg)) continue;
 
             String translated;
             try {
