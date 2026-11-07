@@ -185,6 +185,15 @@ public class Translator {
     // global safety cap/HttpClient (mailbox review round 023, point R1; see TranslationRouter's
     // class javadoc for the full replacement).
     private static final Set<TranslationCacheKey> IN_FLIGHT = ConcurrentHashMap.newKeySet();
+
+    // A failed job's text, and when it failed. When every provider is in cooldown (or none is
+    // configured) the router fails instantly, IN_FLIGHT is cleared in the same callback, and the
+    // tooltip fired the same request again on the very next frame -- one [DIAG] line plus one
+    // instant failure per text per frame (~680 log lines per text in 40s seen in the 2.0.0 ports).
+    // Keyed per text, so this never blocks a DIFFERENT text the way the removed text-keyed 429
+    // backoff did; it only spaces out retries of the one that just failed. Cleared with the cache.
+    private static final Map<TranslationCacheKey, Long> RECENT_FAILURE = new ConcurrentHashMap<>();
+    private static final long FAILED_TEXT_RETRY_DELAY_MILLIS = 5_000L;
     // screenshot translation is a single, unrelated flow (fixed ":" text) with its own busy flag.
     public static volatile boolean screenshotTranslating = false;
 
@@ -281,6 +290,7 @@ public class Translator {
 
     public static void clearCache(boolean showMessage) {
         cacheGeneration.incrementAndGet();
+        RECENT_FAILURE.clear(); // F4 / "clear cache" is also how a player asks for an immediate retry
         if (Translator.translationCache.isEmpty()) return;
         Translator.translationCache.clear();
         cacheDirty = true; // otherwise a quit before the flush below leaves the stale cache on disk
@@ -342,10 +352,23 @@ public class Translator {
      * The caller should leave a matching line completely untouched: no lookup, no AI, no append.
      */
     public static boolean isModNameLine(ItemStack stack, String renderedText) {
-        if (stack == null || stack.isEmpty() || renderedText == null || renderedText.isBlank()) return false;
-        ResourceLocation itemId = Registry.ITEM.getKey(stack.getItem());
-        return ModList.get().getModContainerById(itemId.getNamespace())
-                .map(container -> container.getModInfo().getDisplayName().equals(renderedText))
+        if (stack == null || stack.isEmpty()) return false;
+        return isModNameLine(Registry.ITEM.getKey(stack.getItem()).getNamespace(), renderedText);
+    }
+
+    /**
+     * Same check keyed by a registry namespace instead of an item -- for Jade looking at an
+     * entity (or an item-less block such as a fluid), where there is no ItemStack to take the
+     * namespace from and every "Minecraft" line under a mob used to go to the AI.
+     * Formatting codes are stripped first: some Jade versions write the line as "§9§oMinecraft".
+     */
+    public static boolean isModNameLine(@Nullable String namespace, String renderedText) {
+        if (namespace == null || renderedText == null || renderedText.isBlank()) return false;
+        String plain = ChatFormatting.stripFormatting(renderedText);
+        if (plain == null) return false;
+        String text = plain.strip();
+        return ModList.get().getModContainerById(namespace)
+                .map(container -> container.getModInfo().getDisplayName().equals(text))
                 .orElse(false);
     }
 
@@ -381,6 +404,19 @@ public class Translator {
     }
 
     /**
+     * Writes an official-lookup hit into the cache. When the target language is the one the game
+     * is already displaying (follow_game_language with an English game, or a zh_tw game targeting
+     * zh_tw), the "official translation" is the rendered text itself -- caching it verbatim made
+     * every tooltip append a second copy ("When in Main Hand: When in Main Hand:", "Spruce Planks
+     * Spruce Planks"). Store "" instead: same meaning as the isAlreadyInTargetLanguage skip, i.e.
+     * "nothing to show", which resolveOrRequestTranslation turns into "append nothing".
+     */
+    private static void cacheOfficialTranslation(String renderedText, String officialTranslation) {
+        translationCache.put(keyFor(renderedText), officialTranslation.strip().equals(renderedText.strip()) ? "" : officialTranslation);
+        cacheDirty = true;
+    }
+
+    /**
      * Item/block display-name short-circuit: if the item's own registry translation key already
      * has an official translation for the current target language, use it directly instead of
      * calling the AI. Scoped ONLY to the item's default name (tooltip line 0) -- ordinary lore
@@ -404,7 +440,7 @@ public class Translator {
         String officialTranslation = OfficialTranslationLookup.lookup(key, currentGameLanguage, resolveTargetLanguage(), renderedText);
         if (officialTranslation == null) return false;
 
-        translationCache.put(keyFor(renderedText), officialTranslation);
+        cacheOfficialTranslation(renderedText, officialTranslation);
         cacheDirty = true;
         LOGGER.debug("Used official translation for " + key + ": " + renderedText + " -> " + officialTranslation);
         return true;
@@ -423,7 +459,7 @@ public class Translator {
         String officialTranslation = OfficialTranslationLookup.lookupEnchantmentLine(stack, currentGameLanguage, resolveTargetLanguage(), renderedText);
         if (officialTranslation == null) return false;
 
-        translationCache.put(keyFor(renderedText), officialTranslation);
+        cacheOfficialTranslation(renderedText, officialTranslation);
         cacheDirty = true;
         LOGGER.debug("Used official enchantment translation: " + renderedText + " -> " + officialTranslation);
         return true;
@@ -463,7 +499,7 @@ public class Translator {
         for (String key : KNOWN_FLAT_TOOLTIP_KEYS) {
             String officialTranslation = OfficialTranslationLookup.lookup(key, currentGameLanguage, targetLanguage, renderedText);
             if (officialTranslation != null) {
-                translationCache.put(keyFor(renderedText), officialTranslation);
+                cacheOfficialTranslation(renderedText, officialTranslation);
                 cacheDirty = true;
                 LOGGER.debug("Used official translation for " + key + ": " + renderedText + " -> " + officialTranslation);
                 return true;
@@ -489,7 +525,7 @@ public class Translator {
                 stack, Minecraft.getInstance().player, currentGameLanguage, resolveTargetLanguage(), renderedText);
         if (officialTranslation == null) return false;
 
-        translationCache.put(keyFor(renderedText), officialTranslation);
+        cacheOfficialTranslation(renderedText, officialTranslation);
         cacheDirty = true;
         LOGGER.debug("Used official attribute modifier translation: " + renderedText + " -> " + officialTranslation);
         return true;
@@ -512,12 +548,23 @@ public class Translator {
      * AI request may have been kicked off in that case (unless {@link #isModNameLine} matched,
      * in which case the caller should skip the line entirely; check that separately first).
      */
+    /**
+     * A blank cached value means "already in the target language, nothing to show" (the
+     * isAlreadyInTargetLanguage skip, a same-language official hit, an AI echo of the source).
+     * Returned as null so every caller's existing "translated == null -> leave the line alone"
+     * branch handles it, instead of appending a lone " " to the line.
+     */
+    private static String cachedForDisplay(String renderedText) {
+        String cached = getTranslationFromCache(renderedText);
+        return cached == null || cached.isBlank() ? null : cached;
+    }
+
     public static String resolveOrRequestTranslation(ItemStack stack, String renderedText, boolean isFirstLine) throws IOException, InterruptedException {
-        if (textInCache(renderedText)) return getTranslationFromCache(renderedText);
-        if (isFirstLine && tryOfficialTranslationForItemName(stack, renderedText)) return getTranslationFromCache(renderedText);
-        if (!isFirstLine && tryOfficialTranslationForEnchantmentLine(stack, renderedText)) return getTranslationFromCache(renderedText);
-        if (!isFirstLine && tryOfficialTranslationForKnownFlatLine(renderedText)) return getTranslationFromCache(renderedText);
-        if (!isFirstLine && tryOfficialTranslationForAttributeModifierLine(stack, renderedText)) return getTranslationFromCache(renderedText);
+        if (textInCache(renderedText)) return cachedForDisplay(renderedText);
+        if (isFirstLine && tryOfficialTranslationForItemName(stack, renderedText)) return cachedForDisplay(renderedText);
+        if (!isFirstLine && tryOfficialTranslationForEnchantmentLine(stack, renderedText)) return cachedForDisplay(renderedText);
+        if (!isFirstLine && tryOfficialTranslationForKnownFlatLine(renderedText)) return cachedForDisplay(renderedText);
+        if (!isFirstLine && tryOfficialTranslationForAttributeModifierLine(stack, renderedText)) return cachedForDisplay(renderedText);
 
         if (isFirstLine) {
             requestTranslateItemStackToTraditionalChinese(renderedText, stack);
@@ -576,6 +623,8 @@ public class Translator {
             if (screenshotTranslating) return;
         } else {
             if (IN_FLIGHT.contains(jobKey)) return;
+            Long failedAt = RECENT_FAILURE.get(jobKey);
+            if (failedAt != null && System.currentTimeMillis() - failedAt < FAILED_TEXT_RETRY_DELAY_MILLIS) return;
             // E3: same peek as requestTranslateItemStackToTraditionalChinese -- also keeps the
             // [DIAG] line below to requests that can actually be sent, instead of one per dropped
             // retry per tick (that line is unchanged, only no longer spammed by doomed attempts).
@@ -642,10 +691,12 @@ public class Translator {
             }
 
             if (!result.succeeded()) {
+                if (!isScreenShot) RECENT_FAILURE.put(jobKey, System.currentTimeMillis());
                 handleTranslationFailure(result.finalFailure(), isScreenShot);
                 return;
             }
 
+            if (!isScreenShot) RECENT_FAILURE.remove(jobKey);
             String translatedText = cleanText(result.translatedText());
             if (isScreenShot) {
                 showScreenShotResult(translatedText);
@@ -657,7 +708,10 @@ public class Translator {
                 // several sequential provider attempts), this still writes to the language bucket
                 // the job actually started under, never a wrong/currently-live one (round 023/024,
                 // point R2 again).
-                translationCache.put(jobKey, translatedText);
+                // An AI that echoes the source back unchanged (a brand name, an already-target-
+                // language line) would otherwise be appended as a duplicate copy of the line; ""
+                // is the same "nothing to show" marker cachedForDisplay() turns into no append.
+                translationCache.put(jobKey, translatedText.strip().equals(fixedText.strip()) ? "" : translatedText);
                 cacheDirty = true;
                 LOGGER.debug("Translated: " + fixedText + " -> " + translatedText + " (via " + result.providerUsed() + ")");
             }
