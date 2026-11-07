@@ -260,7 +260,12 @@ public class OfficialTranslationLookup {
 
         if (!current.has(templateKey) || !current.has(attributeNameKey)) return null;
         String expectedCurrent = substituteTemplate(getOr(current, templateKey, ""), formattedNumber, getOr(current, attributeNameKey, ""));
-        if (expectedCurrent == null || !expectedCurrent.equals(currentlyRenderedText)) return null;
+        // Vanilla prefixes the base-stat lines with CommonComponents.space() (ItemStack
+        // .addModifierTooltip: " 7 Attack Damage"), the template itself has no leading space, so
+        // without this the commonest weapon lines never matched and went to the AI every time.
+        if (expectedCurrent == null) return null;
+        if (isBaseAttackStat) expectedCurrent = " " + expectedCurrent;
+        if (!expectedCurrent.equals(currentlyRenderedText)) return null;
 
         String targetTemplate = getOr(target, templateKey, null);
         String targetAttributeName = getOr(target, attributeNameKey, null);
