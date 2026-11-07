@@ -118,7 +118,10 @@ public abstract class BetterAdvancementWidgetMixin {
             return;
         }
 
-        this.translatedTitle = " " + Translator.getTranslationFromCache(this.title);
+        String cachedTitle = Translator.getTranslationFromCache(this.title);
+        // "" = "nothing to show" (same-language / echoed text): leave the title as-is.
+        if (cachedTitle == null || cachedTitle.isBlank()) return;
+        this.translatedTitle = " " + cachedTitle;
         this.title = this.title + this.translatedTitle;
 
         // resize UI
@@ -146,6 +149,8 @@ public abstract class BetterAdvancementWidgetMixin {
         }
 
         String translatedDesc = Translator.getTranslationFromCache(originalDesc);
+        // "" = "nothing to show": appending "\n" + "" would leave an empty line under the description.
+        if (translatedDesc == null || translatedDesc.isBlank()) return;
         this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(ComponentUtils.mergeStyles(this.displayInfo.getDescription().copy().append(Component.literal("\n"+translatedDesc).withStyle(Translator.translatedStyle)), Style.EMPTY.withColor(this.displayInfo.getType().getChatColor())), tempMaxWidth));
 
         for(FormattedCharSequence line : this.description) {
