@@ -78,11 +78,23 @@ public class Translator {
     /** Call once at mod startup, before any translation happens. */
     public static void loadCacheFromDisk() {
         Map<String, Map<String, String>> nested = TranslationDiskCache.load(cacheFilePath());
+        boolean normalized = false;
         for (Map.Entry<String, Map<String, String>> langEntry : nested.entrySet()) {
             for (Map.Entry<String, String> textEntry : langEntry.getValue().entrySet()) {
-                translationCache.put(new TranslationCacheKey(langEntry.getKey(), textEntry.getKey()), textEntry.getValue());
+                String value = textEntry.getValue();
+                // Caches written by 2.0.0 and earlier stored same-language hits verbatim
+                // ("鋒利 III" -> "鋒利 III", "橡木告示牌" -> "橡木告示牌"), which renders as a
+                // duplicated line. 2.0.1 stopped writing them, but the old entries on disk kept
+                // being served from textInCache() before any new write could replace them.
+                // Rewrite them to the "" "nothing to show" marker on load, and persist that.
+                if (value != null && !value.isEmpty() && isEchoOf(textEntry.getKey(), value)) {
+                    value = "";
+                    normalized = true;
+                }
+                translationCache.put(new TranslationCacheKey(langEntry.getKey(), textEntry.getKey()), value);
             }
         }
+        if (normalized) cacheDirty = true;
     }
 
     // Every disk write goes through this single-thread executor, never ForkJoinPool.commonPool
@@ -412,8 +424,22 @@ public class Translator {
      * "nothing to show", which resolveOrRequestTranslation turns into "append nothing".
      */
     private static void cacheOfficialTranslation(String renderedText, String officialTranslation) {
-        translationCache.put(keyFor(renderedText), officialTranslation.strip().equals(renderedText.strip()) ? "" : officialTranslation);
+        translationCache.put(keyFor(renderedText), isEchoOf(renderedText, officialTranslation) ? "" : officialTranslation);
         cacheDirty = true;
+    }
+
+    /**
+     * True when {@code translated} is just {@code source} again, ignoring all whitespace (including
+     * the full-width U+3000). Whitespace-insensitive because the AI often drops or adds a space in
+     * an already-target-language line ("鋒利 III" -> "鋒利III"), and a strict strip().equals() let
+     * that through as a duplicate "鋒利 III 鋒利III" append.
+     */
+    static boolean isEchoOf(String source, String translated) {
+        return stripAllWhitespace(source).equals(stripAllWhitespace(translated));
+    }
+
+    private static String stripAllWhitespace(String s) {
+        return s.replaceAll("[\\s\\u3000]+", "");
     }
 
     /**
@@ -711,7 +737,7 @@ public class Translator {
                 // An AI that echoes the source back unchanged (a brand name, an already-target-
                 // language line) would otherwise be appended as a duplicate copy of the line; ""
                 // is the same "nothing to show" marker cachedForDisplay() turns into no append.
-                translationCache.put(jobKey, translatedText.strip().equals(fixedText.strip()) ? "" : translatedText);
+                translationCache.put(jobKey, isEchoOf(fixedText, translatedText) ? "" : translatedText);
                 cacheDirty = true;
                 LOGGER.debug("Translated: " + fixedText + " -> " + translatedText + " (via " + result.providerUsed() + ")");
             }
