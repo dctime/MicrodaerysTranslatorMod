@@ -130,6 +130,8 @@ public abstract class AdvancementWidgetMixin {
         }
 
         String translated = Translator.getTranslationFromCache(titleOriginalText.get());
+        // "" = "nothing to show" (same-language / echoed text): keep the vanilla title untouched.
+        if (translated == null || translated.isBlank()) return;
 //        FormattedCharSequence seq = FormattedCharSequence.forward(" "+translated, Translator.translatedStyle);
 //        title = FormattedCharSequence.composite(title, seq);
         this.title = Language.getInstance().getVisualOrder(Minecraft.getInstance().font.substrByWidth(
@@ -151,6 +153,8 @@ public abstract class AdvancementWidgetMixin {
         }
 
         String translated = Translator.getTranslationFromCache(descText);
+        // "" = "nothing to show": appending "\n" + "" would leave an empty line under the description.
+        if (translated == null || translated.isBlank()) return;
         MutableComponent original = ComponentUtils.mergeStyles(display.getDescription().copy(), Style.EMPTY.withColor(display.getType().getChatColor()));
         this.description = Language.getInstance().getVisualOrder(this.findOptimalLines(original.append(Component.literal("\n"+translated).withStyle(Translator.translatedStyle)), j));
     }
